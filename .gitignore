@@ -1,0 +1,42 @@
+# Binary builds
+gnotes
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go specific
+bin/
+pkg/
+vendor/
+go.sum
+
+# Local Development & HTTPS (mkcert)
+localhost.pem
+localhost-key.pem
+*.crt
+*.key
+
+# Database (SQLite)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# OS Specific (Arco/Linux/MacOS)
+.DS_Store
+.thumbs
+.nfs*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node/Frontend (if you add a frontend folder later)
+node_modules/
+dist/
+.next/
+.env
