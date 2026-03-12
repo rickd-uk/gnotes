@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -41,6 +42,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Table Setup Error:", err)
 	}
+
+	http.HandleFunc("/api/notes/create", createNoteHandler)
 	// define routes
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/api/health", healthCheck)
@@ -48,6 +51,40 @@ func main() {
 	// start server
 	fmt.Println("gnotes started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func createNoteHandler(w http.ResponseWriter, r *http.Request) {
+	// only allow POST requests
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// decode incoming json
+	var n Note
+	err := json.NewDecoder(r.Body).Decode(&n)
+	if err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	n.CreatedAt = time.Now()
+	// insert into sqlite
+	query := `INSERT INTO notes (title, content, created_at) VALUES(?,?,?)`
+	result, err := db.Exec(query, n.Title, n.Content, n.CreatedAt)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	// get ID of note we just created
+	id, _ := result.LastInsertId()
+	n.ID = int(id)
+
+	// respond with creted note (including its new ID)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(n)
 }
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
