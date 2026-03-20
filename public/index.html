@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+  <head>
+    <title>gnotes</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #1a1a1a;
+        color: #eee;
+        padding: 40px;
+      }
+      .note-card {
+        background: #2a2a2a;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border-left: 4px solid #a6e3a1;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>My Notes</h1>
+    <div id="notes-list">Loading...</div>
+
+    <script>
+      async function loadNotes() {
+        const response = await fetch("/api/notes/list");
+        const notes = await response.json();
+        const list = document.getElementById("notes-list");
+        list.innerHTML = notes
+          .map(
+            (n) => `
+                <div class="note-card">
+                    <h3>${n.title}</h3>
+                    <p>${n.content}</p>
+                </div>
+            `,
+          )
+          .join("");
+      }
+      loadNotes();
+    </script>
+  </body>
+</html>

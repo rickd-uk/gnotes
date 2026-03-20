@@ -42,12 +42,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Table Setup Error:", err)
 	}
+	fileServer := http.FileServer(http.Dir("./public"))
+	http.Handle("/", fileServer)
 
 	http.HandleFunc("/api/notes/create", createNoteHandler)
 	http.HandleFunc("/api/notes/list", listNotesHandler)
 	http.HandleFunc("/api/notes/delete", deleteNoteHandler)
 	// define routes
-	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/api/health", healthCheck)
 
 	// start server
