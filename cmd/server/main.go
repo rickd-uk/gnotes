@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -10,21 +9,12 @@ import (
 	"net/http"
 	"time"
 
-	_ "github.com/glebarez/go-sqlite"
 	"github.com/yuin/goldmark"
+	"gnotes/internal/db"
+	"gnotes/internal/models"
 )
 
-// Note "Blueprint"
-type Note struct {
-	ID        int           `json:"id"`
-	Title     string        `json:"title"`
-	Content   string        `json:"content"` // Markdown here
-	HTML      template.HTML `json:"html_content"`
-	CreatedAt time.Time     `json:"created_at"`
-}
-
-var db *sql.DB
-
+// helper for markdown
 func mdToHTML(raw string) string {
 	var buf bytes.Buffer
 	if err := goldmark.Convert([]byte(raw), &buf); err != nil {
@@ -35,35 +25,18 @@ func mdToHTML(raw string) string {
 
 func main() {
 	// initialize SQLite
-	var err error
-	db, err = sql.Open("sqlite", "gnotes.db")
-	if err != nil {
-		log.Fatal("DB Open error:", err)
-	}
+	db.InitDB("gnotes.db")
 
-	// Crate table if it doen't exist
-	setupSQL := `
-  CREATE TABLE IF NOT EXISTS notes (
-     id INTEGER PRIMARY KEY AUTOINCREMENT,
-	 title TEXT,
-    content TEXT,
-	created_at DATETIME
-  );
-`
-	_, err = db.Exec(setupSQL)
-	if err != nil {
-		log.Fatal("Table Setup Error:", err)
-	}
-	fileServer := http.FileServer(http.Dir("./public"))
-	http.Handle("/", fileServer)
-
+	// routes
 	http.HandleFunc("/api/notes/create", createNoteHandler)
 	http.HandleFunc("/api/notes/list", listNotesHandler)
 	http.HandleFunc("/api/notes/delete", deleteNoteHandler)
-	// define routes
 	http.HandleFunc("/api/health", healthCheck)
 
-	// start server
+	// serve frontend
+	fileServer := http.FileServer(http.Dir("./public"))
+	http.Handle("/", fileServer)
+
 	fmt.Println("gnotes started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -71,24 +44,24 @@ func main() {
 func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// only allow POST requests
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", 405)
 		return
 	}
 
 	// decode incoming json
-	var n Note
+	var n models.Note
 	err := json.NewDecoder(r.Body).Decode(&n)
 	if err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+		http.Error(w, "Invalid input", 400)
 		return
 	}
 
 	n.CreatedAt = time.Now()
 	// insert into sqlite
 	query := `INSERT INTO notes (title, content, created_at) VALUES(?,?,?)`
-	result, err := db.Exec(query, n.Title, n.Content, n.CreatedAt)
+	result, err := db.DB.Exec(query, n.Title, n.Content, n.CreatedAt)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		http.Error(w, "Database error", 500)
 		return
 	}
 
@@ -104,24 +77,24 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	// quey db
-	rows, err := db.Query("SELECT id, title, content, created_at FROM notes ORDER BY created_at DESC")
+	rows, err := db.DB.Query("SELECT id, title, content, created_at FROM notes ORDER BY created_at DESC")
 	if err != nil {
-		http.Error(w, "Query error", http.StatusInternalServerError)
+		http.Error(w, "Query error", 500)
 		return
 	}
 	defer rows.Close() // always close to free up db con
 
-	var allNotes []Note
+	var allNotes []models.Note
 
 	for rows.Next() {
-		var n Note
+		var n models.Note
 		// scan cols. into struct fields
 		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt)
 		if err != nil {
 			log.Println("Scan error:", err)
 			continue
 		}
-		n.HTML = template.HTML(mdToHTML(n.Content)) // convert it to HTML
+		n.HTMLContent = template.HTML(mdToHTML(n.Content)) // convert it to HTML
 		allNotes = append(allNotes, n)
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -131,26 +104,22 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// we only wanr del. if user tells us to
 	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
-		http.Error(w, "Use DELETE or POST", http.StatusMethodNotAllowed)
+		http.Error(w, "Use DELETE or POST", 405)
 		return
 	}
 	// get the is from URL /api/notes/delete?id=1
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		http.Error(w, "ID is required", http.StatusBadRequest)
+		http.Error(w, "ID is required", 400)
 		return
 	}
-	_, err := db.Exec("DELETE FROM notes WHERE id = ?", id)
+	_, err := db.DB.Exec("DELETE FROM notes WHERE id = ?", id)
 	if err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
+		http.Error(w, "Delete failed", 500)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Note %s deleted successfully", id)
-}
-
-func serveHome(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "<h1>gnotes</h1><p>System online!</p>")
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
