@@ -1,25 +1,37 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"time"
 
 	_ "github.com/glebarez/go-sqlite"
+	"github.com/yuin/goldmark"
 )
 
 // Note "Blueprint"
 type Note struct {
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"` // Markdown here
-	CreatedAt time.Time `json:"created_at"`
+	ID        int           `json:"id"`
+	Title     string        `json:"title"`
+	Content   string        `json:"content"` // Markdown here
+	HTML      template.HTML `json:"html_content"`
+	CreatedAt time.Time     `json:"created_at"`
 }
 
 var db *sql.DB
+
+func mdToHTML(raw string) string {
+	var buf bytes.Buffer
+	if err := goldmark.Convert([]byte(raw), &buf); err != nil {
+		return raw // Fallback to raw text if it fails
+	}
+	return buf.String()
+}
 
 func main() {
 	// initialize SQLite
@@ -109,6 +121,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 			log.Println("Scan error:", err)
 			continue
 		}
+		n.HTML = template.HTML(mdToHTML(n.Content)) // convert it to HTML
 		allNotes = append(allNotes, n)
 	}
 	w.Header().Set("Content-Type", "application/json")
