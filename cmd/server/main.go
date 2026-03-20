@@ -45,6 +45,7 @@ func main() {
 
 	http.HandleFunc("/api/notes/create", createNoteHandler)
 	http.HandleFunc("/api/notes/list", listNotesHandler)
+	http.HandleFunc("/api/notes/delete", deleteNoteHandler)
 	// define routes
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/api/health", healthCheck)
@@ -111,6 +112,27 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(allNotes)
+}
+
+func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
+	// we only wanr del. if user tells us to
+	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
+		http.Error(w, "Use DELETE or POST", http.StatusMethodNotAllowed)
+		return
+	}
+	// get the is from URL /api/notes/delete?id=1
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+	_, err := db.Exec("DELETE FROM notes WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, "Delete failed", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Note %s deleted successfully", id)
 }
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
