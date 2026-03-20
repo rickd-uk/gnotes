@@ -44,6 +44,7 @@ func main() {
 	}
 
 	http.HandleFunc("/api/notes/create", createNoteHandler)
+	http.HandleFunc("/api/notes/list", listNotesHandler)
 	// define routes
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/api/health", healthCheck)
@@ -85,6 +86,31 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(n)
+}
+
+func listNotesHandler(w http.ResponseWriter, r *http.Request) {
+	// quey db
+	rows, err := db.Query("SELECT id, title, content, created_at FROM notes ORDER BY created_at DESC")
+	if err != nil {
+		http.Error(w, "Query error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close() // always close to free up db con
+
+	var allNotes []Note
+
+	for rows.Next() {
+		var n Note
+		// scan cols. into struct fields
+		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt)
+		if err != nil {
+			log.Println("Scan error:", err)
+			continue
+		}
+		allNotes = append(allNotes, n)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(allNotes)
 }
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
