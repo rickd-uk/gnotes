@@ -1093,6 +1093,10 @@
         background: #e9e4da;
       }
 
+      .account-menu .account-danger {
+        color: var(--danger);
+      }
+
       .admin-panel {
         position: fixed;
         z-index: 60;
@@ -1344,6 +1348,7 @@
             <summary id="account-name" aria-label="Account menu">Account</summary>
             <div class="account-menu">
               <button id="admin-open" type="button" hidden>Admin</button>
+              <button class="account-danger" id="delete-all-notes" type="button">Delete all notes</button>
               <button id="logout-button" type="button">Sign out</button>
             </div>
           </details>
@@ -1876,6 +1881,17 @@
         await Promise.all([loadNotes(), loadTrash()]);
       }
 
+      async function deleteAllNotes() {
+        document.getElementById("account-control").open = false;
+        const response = await apiFetch("/api/notes/delete-all", { method: "POST" });
+        if (!response.ok) {
+          alert("Could not move your notes to the recycle bin.");
+          return;
+        }
+        hiddenNoteIds.clear();
+        await Promise.all([loadNotes(), loadTrash()]);
+      }
+
       async function togglePin(id) {
         const res = await apiFetch(`/api/notes/pin?id=${id}`, {
           method: "POST",
@@ -2237,6 +2253,8 @@
         await apiFetch("/api/auth/logout", { method: "POST" });
         showAuth("Signed out.");
       });
+
+      document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
 
       document.getElementById("admin-open").addEventListener("click", async () => {
         document.getElementById("account-control").open = false;

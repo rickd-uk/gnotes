@@ -119,8 +119,22 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 		t.Fatalf("alice received wrong notes: %s", aliceNotes)
 	}
 
-	updateBody := `{"title":"stolen","content":"no"}`
 	response := authenticatedRequest(
+		t, protect(deleteAllNotesHandler, true), http.MethodPost,
+		"/api/notes/delete-all", "", rick, true,
+	)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("delete all status = %d, want 204", response.Code)
+	}
+	if notes := listTestNotes(t, rick); strings.Contains(notes, "Rick private") || strings.Contains(notes, "legacy") {
+		t.Fatalf("rick notes remained after delete all: %s", notes)
+	}
+	if notes := listTestNotes(t, alice); !strings.Contains(notes, "Alice private") {
+		t.Fatalf("delete all affected another user: %s", notes)
+	}
+
+	updateBody := `{"title":"stolen","content":"no"}`
+	response = authenticatedRequest(
 		t, protect(updateNoteHandler, true), http.MethodPut,
 		"/api/notes/update?id="+jsonNumber(legacyID), updateBody, alice, true,
 	)
@@ -142,6 +156,16 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 	)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("non-admin overview status = %d, want 403", response.Code)
+	}
+	response = authenticatedRequest(
+		t, protect(requireAdmin(adminOverviewHandler), false), http.MethodGet,
+		"/api/admin/overview", "", rick, false,
+	)
+	if response.Code != http.StatusOK {
+		t.Fatalf("admin overview status = %d, want 200", response.Code)
+	}
+	if strings.Contains(response.Body.String(), "Alice private") || strings.Contains(response.Body.String(), "Rick private") {
+		t.Fatalf("admin overview exposed note content: %s", response.Body.String())
 	}
 
 	response = authenticatedRequest(

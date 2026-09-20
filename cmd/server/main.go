@@ -47,6 +47,7 @@ func main() {
 	http.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
 	http.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
 	http.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
+	http.HandleFunc("/api/notes/delete-all", protect(deleteAllNotesHandler, true))
 	http.HandleFunc("/api/notes/trash", protect(trashNotesHandler, false))
 	http.HandleFunc("/api/notes/restore", protect(restoreNotesHandler, true))
 	http.HandleFunc("/api/notes/empty-trash", protect(emptyTrashHandler, true))
@@ -362,6 +363,21 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if rowsAffected == 0 {
 		http.Error(w, "Note not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func deleteAllNotesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Use POST", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, err := db.DB.Exec(
+		"UPDATE notes SET deleted_at = ? WHERE user_id = ? AND deleted_at IS NULL",
+		time.Now(), userIDFromRequest(r),
+	); err != nil {
+		http.Error(w, "Delete failed", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
