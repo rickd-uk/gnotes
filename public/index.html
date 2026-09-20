@@ -1393,7 +1393,7 @@
         </div>
       </form>
 
-      <section aria-labelledby="notes-heading">
+      <section id="notes-section" aria-labelledby="notes-heading">
         <div class="notes-toolbar">
           <h2 class="section-label" id="notes-heading">Recent notes</h2>
         </div>
@@ -1605,6 +1605,8 @@
         }
         const notes = (await res.json()) || [];
         if (!searchActive) setActiveNoteCount(notes.length);
+        const notesSection = document.getElementById("notes-section");
+        notesSection.hidden = !searchActive && notes.length === 0;
         loadedNotes = new Map(notes.map((note) => [note.id, note]));
         document.getElementById("notes-heading").textContent = searchActive
           ? `Search results · ${notes.length}`
@@ -1620,10 +1622,9 @@
 
         if (!notes.length) {
           noteObserver?.disconnect();
-          document.getElementById("notes-list").innerHTML =
-            searchActive
-              ? '<p class="empty-state">No matching notes.</p>'
-              : '<p class="empty-state">No notes yet. Write the first one above.</p>';
+          document.getElementById("notes-list").innerHTML = searchActive
+            ? '<p class="empty-state">No matching notes.</p>'
+            : "";
           return true;
         }
 
