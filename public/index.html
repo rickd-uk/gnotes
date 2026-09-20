@@ -302,6 +302,124 @@
         border-left: 1px solid #cfc8bc;
       }
 
+      .search-toggle {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        flex-shrink: 0;
+        padding: 0;
+        place-items: center;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .search-toggle:hover {
+        color: var(--ink);
+      }
+
+      .search-panel {
+        position: absolute;
+        z-index: 35;
+        top: calc(100% + 1px);
+        right: 0;
+        left: 0;
+        padding: 18px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        box-shadow: 0 18px 44px rgba(51, 45, 35, 0.18);
+      }
+
+      .search-panel[hidden] {
+        display: none;
+      }
+
+      .search-query-row,
+      .search-filters {
+        display: grid;
+        gap: 12px;
+      }
+
+      .search-query-row {
+        grid-template-columns: minmax(0, 1fr) 170px;
+      }
+
+      .search-filters {
+        grid-template-columns: 1fr 1fr auto auto;
+        align-items: end;
+        margin-top: 14px;
+      }
+
+      .search-panel label {
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .search-panel input[type="search"],
+      .search-panel input[type="date"],
+      .search-panel select {
+        width: 100%;
+        min-height: 38px;
+        padding: 7px 8px;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        border-radius: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.85rem;
+      }
+
+      .case-toggle {
+        display: flex;
+        min-height: 38px;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+      }
+
+      .case-toggle input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: var(--accent);
+      }
+
+      .search-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .search-actions button {
+        min-height: 36px;
+        padding: 6px 11px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .search-actions button[type="submit"] {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .search-status {
+        min-height: 1.2em;
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
       .trash-toggle {
         position: relative;
         display: grid;
@@ -875,6 +993,23 @@
         .header-actions > .toolbar-button .icon {
           display: none;
         }
+
+        .search-panel {
+          padding: 14px;
+        }
+
+        .search-query-row,
+        .search-filters {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .search-query-row input {
+          grid-column: 1 / -1;
+        }
+
+        .search-query-row select {
+          grid-column: 1 / -1;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -930,6 +1065,13 @@
             <span id="hidden-notes-label">Hidden 0</span>
           </button>
 
+          <button class="search-toggle" id="search-toggle" type="button" aria-controls="search-panel" aria-expanded="false" aria-label="Search notes" title="Search notes">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m15.5 15.5 5 5" />
+            </svg>
+          </button>
+
           <div class="trash-control">
             <button class="trash-toggle" id="trash-toggle" type="button" aria-controls="trash-panel" aria-expanded="false" aria-label="Open recycle bin" title="Recycle bin">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -949,6 +1091,28 @@
             </section>
           </div>
         </div>
+        <section class="search-panel" id="search-panel" aria-label="Search notes" hidden>
+          <form id="search-form">
+            <div class="search-query-row">
+              <input type="search" id="search-query" placeholder="Search title or content…" aria-label="Search text" />
+              <select id="search-scope" aria-label="Search within">
+                <option value="all">Title and content</option>
+                <option value="title">Title only</option>
+                <option value="content">Content only</option>
+              </select>
+            </div>
+            <div class="search-filters">
+              <label>From <input type="date" id="search-from" /></label>
+              <label>To <input type="date" id="search-to" /></label>
+              <label class="case-toggle"><input type="checkbox" id="search-match-case" /> Match case</label>
+              <div class="search-actions">
+                <button type="submit">Search</button>
+                <button type="button" id="search-all">All notes</button>
+              </div>
+            </div>
+            <p class="search-status" id="search-status" aria-live="polite"></p>
+          </form>
+        </section>
       </header>
 
       <form class="form-container" id="note-form" aria-label="Create a note">
@@ -981,6 +1145,8 @@
       let noteObserver;
       const densityModes = ["full", "compact", "titles"];
       let densityIndex = 0;
+      let searchActive = false;
+      let editingNoteId = null;
 
       function applyObsidianFlavor(html) {
         // 1. Handle TIP: Find the blockquote containing [!TIP] and wrap it
@@ -1019,29 +1185,44 @@
       }
 
       async function loadNotes() {
-        const res = await fetch("/api/notes/list");
+        const res = await fetch(searchActive ? buildSearchURL() : "/api/notes/list");
+        if (!res.ok) {
+          const message = await res.text();
+          document.getElementById("search-status").textContent =
+            message.trim() || "Search failed.";
+          return false;
+        }
         const notes = await res.json();
         loadedNotes = new Map(notes.map((note) => [note.id, note]));
+        document.getElementById("notes-heading").textContent = searchActive
+          ? `Search results · ${notes.length}`
+          : "Recent notes";
 
-        const existingIds = new Set(notes.map((note) => note.id));
-        hiddenNoteIds.forEach((id) => {
-          if (!existingIds.has(id)) hiddenNoteIds.delete(id);
-        });
+        if (!searchActive) {
+          const existingIds = new Set(notes.map((note) => note.id));
+          hiddenNoteIds.forEach((id) => {
+            if (!existingIds.has(id)) hiddenNoteIds.delete(id);
+          });
+        }
         updateHiddenNotesControl();
 
         if (!notes.length) {
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML =
-            '<p class="empty-state">No notes yet. Write the first one above.</p>';
-          return;
+            searchActive
+              ? '<p class="empty-state">No matching notes.</p>'
+              : '<p class="empty-state">No notes yet. Write the first one above.</p>';
+          return true;
         }
 
-        const visibleNotes = notes.filter((note) => !hiddenNoteIds.has(note.id));
+        const visibleNotes = searchActive
+          ? notes
+          : notes.filter((note) => !hiddenNoteIds.has(note.id));
         if (!visibleNotes.length) {
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML =
             '<p class="empty-state">All notes are hidden.</p>';
-          return;
+          return true;
         }
 
         const now = new Date();
@@ -1134,6 +1315,25 @@
         document.getElementById("notes-list").innerHTML = renderedNotes;
 
         observeNoteCards();
+        return true;
+      }
+
+      function buildSearchURL() {
+        const params = new URLSearchParams();
+        const query = document.getElementById("search-query").value;
+        const scope = document.getElementById("search-scope").value;
+        const from = document.getElementById("search-from").value;
+        const to = document.getElementById("search-to").value;
+
+        if (query) params.set("q", query);
+        params.set("scope", scope);
+        if (from) params.set("from", from);
+        if (to) params.set("to", to);
+        if (document.getElementById("search-match-case").checked) {
+          params.set("match_case", "true");
+        }
+
+        return `/api/notes/search?${params.toString()}`;
       }
 
       function observeNoteCards() {
@@ -1362,7 +1562,13 @@
         document.getElementById("hidden-notes-label").textContent = `Hidden ${count}`;
       }
 
-      function editNote(id) {
+      async function editNote(id) {
+        if (editingNoteId === id) return;
+        if (editingNoteId !== null) {
+          const saved = await updateNote(editingNoteId);
+          if (!saved) return;
+        }
+
         const note = loadedNotes.get(id);
         if (!note) return;
 
@@ -1375,6 +1581,7 @@
         contentInput.value = note.content;
         view.hidden = true;
         editor.hidden = false;
+        editingNoteId = id;
         titleInput.focus();
         titleInput.select();
       }
@@ -1382,6 +1589,7 @@
       function cancelEdit(id) {
         document.getElementById(`note-view-${id}`).hidden = false;
         document.getElementById(`note-editor-${id}`).hidden = true;
+        if (editingNoteId === id) editingNoteId = null;
       }
 
       async function updateNote(id) {
@@ -1394,7 +1602,7 @@
           contentInput.setCustomValidity("Write a title or some content before saving.");
           contentInput.reportValidity();
           contentInput.focus();
-          return;
+          return false;
         }
         const res = await fetch(`/api/notes/update?id=${id}`, {
           method: "PUT",
@@ -1404,10 +1612,12 @@
 
         if (!res.ok) {
           alert("Could not update this note.");
-          return;
+          return false;
         }
 
+        editingNoteId = null;
         await loadNotes();
+        return true;
       }
 
       function handleEditKeydown(event, id) {
@@ -1496,23 +1706,89 @@
           loadNotes();
         });
 
+      function closeSearchPanel() {
+        document.getElementById("search-panel").hidden = true;
+        document
+          .getElementById("search-toggle")
+          .setAttribute("aria-expanded", "false");
+      }
+
+      document.getElementById("search-toggle").addEventListener("click", () => {
+        const panel = document.getElementById("search-panel");
+        const toggle = document.getElementById("search-toggle");
+        const shouldOpen = panel.hidden;
+        panel.hidden = !shouldOpen;
+        toggle.setAttribute("aria-expanded", String(shouldOpen));
+        if (shouldOpen) {
+          closeTrashPanel();
+          document.getElementById("search-query").focus();
+        }
+      });
+
+      document.getElementById("search-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        searchActive = true;
+        document.getElementById("search-status").textContent = "Searching…";
+        const loaded = await loadNotes();
+        if (loaded) {
+          document.getElementById("search-status").textContent = "";
+          closeSearchPanel();
+        }
+      });
+
+      document.getElementById("search-all").addEventListener("click", async () => {
+        document.getElementById("search-form").reset();
+        document.getElementById("search-status").textContent = "";
+        searchActive = false;
+        await loadNotes();
+        closeSearchPanel();
+      });
+
       document.getElementById("trash-toggle").addEventListener("click", () => {
         const panel = document.getElementById("trash-panel");
         const toggle = document.getElementById("trash-toggle");
         const shouldOpen = panel.hidden;
         panel.hidden = !shouldOpen;
         toggle.setAttribute("aria-expanded", String(shouldOpen));
+        if (shouldOpen) closeSearchPanel();
       });
 
       document.addEventListener("click", (event) => {
         const control = document.querySelector(".trash-control");
-        if (control.contains(event.target)) return;
-        closeTrashPanel();
+        if (!control.contains(event.target)) closeTrashPanel();
+
+        const searchPanel = document.getElementById("search-panel");
+        const searchToggle = document.getElementById("search-toggle");
+        if (
+          !searchPanel.contains(event.target) &&
+          !searchToggle.contains(event.target)
+        ) {
+          closeSearchPanel();
+        }
+      });
+
+      document.addEventListener("pointerdown", (event) => {
+        if (editingNoteId === null || event.target.closest(".edit-btn")) return;
+        const editor = document.getElementById(`note-editor-${editingNoteId}`);
+        if (editor && !editor.contains(event.target)) updateNote(editingNoteId);
       });
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
           closeTrashPanel();
+          closeSearchPanel();
+        }
+
+        const target = event.target;
+        const isTyping =
+          target.matches("input, textarea, select") || target.isContentEditable;
+        if (event.key === "/" && !isTyping) {
+          event.preventDefault();
+          document.getElementById("search-panel").hidden = false;
+          document
+            .getElementById("search-toggle")
+            .setAttribute("aria-expanded", "true");
+          document.getElementById("search-query").focus();
         }
       });
 

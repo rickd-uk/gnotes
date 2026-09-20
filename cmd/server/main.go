@@ -33,6 +33,7 @@ func main() {
 	// routes
 	http.HandleFunc("/api/notes/create", createNoteHandler)
 	http.HandleFunc("/api/notes/list", listNotesHandler)
+	http.HandleFunc("/api/notes/search", searchNotesHandler)
 	http.HandleFunc("/api/notes/update", updateNoteHandler)
 	http.HandleFunc("/api/notes/pin", pinNoteHandler)
 	http.HandleFunc("/api/notes/delete", deleteNoteHandler)
@@ -111,6 +112,106 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(allNotes)
+}
+
+func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	queryText := r.URL.Query().Get("q")
+	scope := r.URL.Query().Get("scope")
+	if scope == "" {
+		scope = "all"
+	}
+	if scope != "all" && scope != "title" && scope != "content" {
+		http.Error(w, "Invalid search scope", http.StatusBadRequest)
+		return
+	}
+
+	conditions := []string{"deleted_at IS NULL"}
+	args := make([]any, 0, 4)
+
+	fromDate, err := parseSearchDate(r.URL.Query().Get("from"))
+	if err != nil {
+		http.Error(w, "Invalid start date", http.StatusBadRequest)
+		return
+	}
+	toDate, err := parseSearchDate(r.URL.Query().Get("to"))
+	if err != nil {
+		http.Error(w, "Invalid end date", http.StatusBadRequest)
+		return
+	}
+	if !fromDate.IsZero() && !toDate.IsZero() && fromDate.After(toDate) {
+		http.Error(w, "Start date must not be after end date", http.StatusBadRequest)
+		return
+	}
+	if !fromDate.IsZero() {
+		conditions = append(conditions, "created_at >= ?")
+		args = append(args, fromDate)
+	}
+	if !toDate.IsZero() {
+		conditions = append(conditions, "created_at < ?")
+		args = append(args, toDate.AddDate(0, 0, 1))
+	}
+
+	if queryText != "" {
+		matchCase := r.URL.Query().Get("match_case") == "true"
+		matchExpression := func(column string) string {
+			if matchCase {
+				return "instr(" + column + ", ?) > 0"
+			}
+			return "instr(lower(" + column + "), lower(?)) > 0"
+		}
+
+		switch scope {
+		case "title":
+			conditions = append(conditions, matchExpression("title"))
+			args = append(args, queryText)
+		case "content":
+			conditions = append(conditions, matchExpression("content"))
+			args = append(args, queryText)
+		default:
+			conditions = append(conditions, "("+matchExpression("title")+" OR "+matchExpression("content")+")")
+			args = append(args, queryText, queryText)
+		}
+	}
+
+	query := "SELECT id, title, content, created_at, pinned FROM notes WHERE " +
+		strings.Join(conditions, " AND ") +
+		" ORDER BY pinned DESC, created_at DESC"
+	rows, err := db.DB.Query(query, args...)
+	if err != nil {
+		http.Error(w, "Search failed", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	matches := make([]models.Note, 0)
+	for rows.Next() {
+		var n models.Note
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned); err != nil {
+			log.Println("Search scan error:", err)
+			continue
+		}
+		n.HTMLContent = template.HTML(mdToHTML(n.Content))
+		matches = append(matches, n)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Search failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(matches)
+}
+
+func parseSearchDate(value string) (time.Time, error) {
+	if value == "" {
+		return time.Time{}, nil
+	}
+	return time.ParseInLocation("2006-01-02", value, time.Local)
 }
 
 func pinNoteHandler(w http.ResponseWriter, r *http.Request) {
