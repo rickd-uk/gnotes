@@ -34,6 +34,7 @@ func main() {
 	http.HandleFunc("/api/notes/create", createNoteHandler)
 	http.HandleFunc("/api/notes/list", listNotesHandler)
 	http.HandleFunc("/api/notes/update", updateNoteHandler)
+	http.HandleFunc("/api/notes/pin", pinNoteHandler)
 	http.HandleFunc("/api/notes/delete", deleteNoteHandler)
 	http.HandleFunc("/api/notes/trash", trashNotesHandler)
 	http.HandleFunc("/api/notes/restore", restoreNotesHandler)
@@ -88,7 +89,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	// quey db
-	rows, err := db.DB.Query("SELECT id, title, content, created_at FROM notes WHERE deleted_at IS NULL ORDER BY created_at DESC")
+	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned FROM notes WHERE deleted_at IS NULL ORDER BY pinned DESC, created_at DESC")
 	if err != nil {
 		http.Error(w, "Query error", 500)
 		return
@@ -100,7 +101,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var n models.Note
 		// scan cols. into struct fields
-		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt)
+		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned)
 		if err != nil {
 			log.Println("Scan error:", err)
 			continue
@@ -110,6 +111,39 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(allNotes)
+}
+
+func pinNoteHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodPut {
+		http.Error(w, "Use POST or PUT", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	result, err := db.DB.Exec(
+		"UPDATE notes SET pinned = CASE pinned WHEN 1 THEN 0 ELSE 1 END WHERE id = ? AND deleted_at IS NULL",
+		id,
+	)
+	if err != nil {
+		http.Error(w, "Could not change pin", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Could not change pin", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "Note not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func updateNoteHandler(w http.ResponseWriter, r *http.Request) {

@@ -490,11 +490,17 @@
         text-align: center;
       }
 
-      .note-actions {
-        position: absolute;
-        top: 22px;
-        right: 0;
+      .note-top-row {
         display: flex;
+        min-height: 32px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .note-actions {
+        display: flex;
+        flex-shrink: 0;
         align-items: center;
         gap: 7px;
         opacity: 0.62;
@@ -536,6 +542,26 @@
 
       .edit-btn:hover {
         background: var(--edit-button-hover);
+      }
+
+      .pin-btn {
+        border: 1px solid #d7c99f;
+        background: #f1ead6;
+        color: #7b6525;
+      }
+
+      .pin-btn:hover,
+      .pin-btn.is-pinned {
+        border-color: #b99b3d;
+        background: #dfcf96;
+        color: #5f4a0f;
+      }
+
+      .pinned-section .date-section-heading {
+        border-bottom-color: #d9cc9f;
+        border-left-color: #9c7d26;
+        background: rgba(156, 125, 38, 0.08);
+        color: #6e5719;
       }
 
       .hide-note-btn {
@@ -761,10 +787,6 @@
         padding-bottom: 16px;
       }
 
-      #notes-list.density-compact .note-actions {
-        top: 14px;
-      }
-
       #notes-list.density-compact .note-card h2 {
         margin: 3px auto 8px;
         font-size: 1.16rem;
@@ -785,11 +807,13 @@
 
       #notes-list.density-titles .note-card {
         min-height: 48px;
-        padding: 13px 140px 13px 12px;
+        padding: 13px 180px 13px 12px;
       }
 
-      #notes-list.density-titles .note-actions {
+      #notes-list.density-titles .note-top-row {
+        position: absolute;
         top: 50%;
+        right: 0;
         transform: translateY(-50%);
       }
 
@@ -1021,18 +1045,23 @@
         }
 
         const now = new Date();
+        const newestNoteId = visibleNotes.reduce((newest, note) =>
+          new Date(note.created_at) > new Date(newest.created_at) ? note : newest,
+        ).id;
         let renderedNotes = "";
         let activeDateSection = "";
         let dateSectionIndex = -1;
 
-        visibleNotes.forEach((n, index) => {
-            const dateSection = formatDateSection(n.created_at, now);
+        visibleNotes.forEach((n) => {
+            const dateSection = n.pinned
+              ? "Pinned"
+              : formatDateSection(n.created_at, now);
             if (dateSection !== activeDateSection) {
               if (activeDateSection) renderedNotes += "</section>";
               activeDateSection = dateSection;
               dateSectionIndex += 1;
               renderedNotes += `
-                <section class="date-group" aria-labelledby="date-section-${dateSectionIndex}">
+                <section class="date-group ${dateSection === "Pinned" ? "pinned-section" : ""}" aria-labelledby="date-section-${dateSectionIndex}">
                   <h3 class="date-section-heading" id="date-section-${dateSectionIndex}">${escapeHTML(dateSection)}</h3>`;
             }
 
@@ -1040,11 +1069,23 @@
             const flavoredBody = applyObsidianFlavor(n.html_content);
             const hasTitle = Boolean(n.title.trim());
             const displayTitle = getDisplayTitle(n);
+            const isNewest = n.id === newestNoteId;
 
             renderedNotes += `
-            <article class="note-card ${index === 0 ? "newest-note" : ""}" id="note-${n.id}">
-              <div class="note-actions">
-                <div class="note-safe-actions">
+            <article class="note-card ${isNewest ? "newest-note" : ""} ${n.pinned ? "pinned-note" : ""}" id="note-${n.id}">
+              <div class="note-top-row">
+                <div class="date-row">
+                  ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
+                  <time class="date" datetime="${escapeHTML(n.created_at)}">${n.pinned ? `${formatDateSection(n.created_at, now)} · ` : ""}${formatNoteTime(n.created_at)}</time>
+                </div>
+                <div class="note-actions">
+                  <div class="note-safe-actions">
+                  <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" />
+                    </svg>
+                    <span class="visually-hidden">${n.pinned ? "Unpin" : "Pin"} note</span>
+                  </button>
                   <button class="note-action edit-btn" onclick="editNote(${n.id})" aria-label="Edit note" title="Edit note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="m4 20 4.2-1 10.9-10.9a2.1 2.1 0 0 0-3-3L5.2 16Z" />
@@ -1059,19 +1100,16 @@
                     </svg>
                     <span class="visually-hidden">Hide note</span>
                   </button>
+                  </div>
+                  <span class="note-action-divider" aria-hidden="true"></span>
+                  <button class="note-action delete-btn" onclick="deleteNote(${n.id})" aria-label="Delete note" title="Delete note">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" />
+                    </svg>
+                    <span class="visually-hidden">Delete note</span>
+                  </button>
                 </div>
-                <span class="note-action-divider" aria-hidden="true"></span>
-                <button class="note-action delete-btn" onclick="deleteNote(${n.id})" aria-label="Delete note" title="Delete note">
-                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" />
-                  </svg>
-                  <span class="visually-hidden">Delete note</span>
-                </button>
               </div>
-                <div class="date-row">
-                  ${index === 0 ? '<span class="latest-marker">Latest</span>' : ""}
-                  <time class="date" datetime="${escapeHTML(n.created_at)}">${formatNoteTime(n.created_at)}</time>
-                </div>
                 <div class="note-view" id="note-view-${n.id}">
                   <h2 class="${hasTitle ? "" : "fallback-title"}">${escapeHTML(displayTitle)}</h2>
                   <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
@@ -1228,6 +1266,17 @@
 
         hiddenNoteIds.delete(id);
         await Promise.all([loadNotes(), loadTrash()]);
+      }
+
+      async function togglePin(id) {
+        const res = await fetch(`/api/notes/pin?id=${id}`, {
+          method: "POST",
+        });
+        if (!res.ok) {
+          alert("Could not change this note's pin.");
+          return;
+        }
+        await loadNotes();
       }
 
       async function loadTrash() {

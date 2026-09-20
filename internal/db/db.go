@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	_ "github.com/glebarez/go-sqlite"
@@ -23,7 +24,8 @@ func InitDB(filepath string) {
 	 title TEXT,
     content TEXT,
 	created_at DATETIME,
-	deleted_at DATETIME
+	deleted_at DATETIME,
+	pinned INTEGER NOT NULL DEFAULT 0
   );
 `
 
@@ -32,17 +34,18 @@ func InitDB(filepath string) {
 		log.Fatal(err)
 	}
 
-	ensureDeletedAtColumn()
+	ensureColumn("deleted_at", "DATETIME")
+	ensureColumn("pinned", "INTEGER NOT NULL DEFAULT 0")
 }
 
-func ensureDeletedAtColumn() {
+func ensureColumn(columnName, declaration string) {
 	rows, err := DB.Query("PRAGMA table_info(notes)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
 
-	hasDeletedAt := false
+	hasColumn := false
 	for rows.Next() {
 		var cid, notNull, primaryKey int
 		var name, columnType string
@@ -50,16 +53,17 @@ func ensureDeletedAtColumn() {
 		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
 			log.Fatal(err)
 		}
-		if name == "deleted_at" {
-			hasDeletedAt = true
+		if name == columnName {
+			hasColumn = true
 		}
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
 
-	if !hasDeletedAt {
-		if _, err := DB.Exec("ALTER TABLE notes ADD COLUMN deleted_at DATETIME"); err != nil {
+	if !hasColumn {
+		query := fmt.Sprintf("ALTER TABLE notes ADD COLUMN %s %s", columnName, declaration)
+		if _, err := DB.Exec(query); err != nil {
 			log.Fatal(err)
 		}
 	}
