@@ -2173,6 +2173,9 @@
         ) {
           closeSearchPanel();
         }
+
+        const accountControl = document.getElementById("account-control");
+        if (!accountControl.contains(event.target)) accountControl.open = false;
       });
 
       document.addEventListener("pointerdown", (event) => {
@@ -2185,6 +2188,7 @@
         if (event.key === "Escape") {
           closeTrashPanel();
           closeSearchPanel();
+          document.getElementById("account-control").open = false;
         }
 
         const target = event.target;
