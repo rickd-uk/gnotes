@@ -1,6 +1,6 @@
 run:
-	go run ./cmd/server/main.go
+	go run ./cmd/server
 build:
-	go build -o gnotes ./cmd/server/main.go
+	go build -o gnotes ./cmd/server
 clean:
 	rm -f gnotes
