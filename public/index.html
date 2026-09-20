@@ -1344,7 +1344,7 @@
               </select>
             </div>
             <div class="search-filters">
-              <label>From <input type="date" id="search-from" /></label>
+              <label>From <input type="date" id="search-from" value="2025-01-01" /></label>
               <label>To <input type="date" id="search-to" /></label>
               <label class="case-toggle"><input type="checkbox" id="search-match-case" /> Match case</label>
               <div class="search-actions">
@@ -1724,6 +1724,21 @@
         }
 
         return `/api/notes/search?${params.toString()}`;
+      }
+
+      function setDefaultSearchDates() {
+        const today = new Date();
+        const localToday = [
+          today.getFullYear(),
+          String(today.getMonth() + 1).padStart(2, "0"),
+          String(today.getDate()).padStart(2, "0"),
+        ].join("-");
+        const fromInput = document.getElementById("search-from");
+        const toInput = document.getElementById("search-to");
+        fromInput.defaultValue = "2025-01-01";
+        fromInput.value = "2025-01-01";
+        toInput.defaultValue = localToday;
+        toInput.value = localToday;
       }
 
       function observeNoteCards() {
@@ -2368,6 +2383,7 @@
         if (!response.ok) event.target.checked = !event.target.checked;
       });
 
+      setDefaultSearchDates();
       initializeAuth();
     </script>
   </body>
