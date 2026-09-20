@@ -1260,7 +1260,7 @@
           <button class="auth-tab" id="register-tab" type="button" role="tab" aria-selected="false">Create account</button>
         </div>
         <form class="auth-form" id="auth-form">
-          <input id="auth-username" name="username" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,31}" placeholder="Username" aria-label="Username" required />
+          <input id="auth-username" name="username" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9](?:[A-Za-z0-9_]|-){2,31}" placeholder="Username" aria-label="Username" required />
           <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="72" placeholder="Password" aria-label="Password" required />
           <input id="setup-token" name="setup-token" type="password" autocomplete="off" placeholder="Administrator setup token" aria-label="Administrator setup token" hidden />
           <p class="auth-help" id="auth-help" hidden>Use 12–72 characters. Usernames are not case-sensitive.</p>
