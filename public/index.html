@@ -1348,7 +1348,7 @@
             <summary id="account-name" aria-label="Account menu">Account</summary>
             <div class="account-menu">
               <button id="admin-open" type="button" hidden>Admin</button>
-              <button class="account-danger" id="delete-all-notes" type="button">Delete all notes</button>
+              <button class="account-danger" id="delete-all-notes" type="button" hidden>Delete all notes</button>
               <button id="logout-button" type="button">Sign out</button>
             </div>
           </details>
@@ -1418,6 +1418,8 @@
       let csrfToken = "";
       let currentUser = null;
       let authMode = "login";
+      let activeNoteCount = 0;
+      let trashedNoteCount = 0;
       let loadedNotes = new Map();
       const hiddenNoteIds = new Set();
       let noteObserver;
@@ -1602,6 +1604,7 @@
           return false;
         }
         const notes = (await res.json()) || [];
+        if (!searchActive) setActiveNoteCount(notes.length);
         loadedNotes = new Map(notes.map((note) => [note.id, note]));
         document.getElementById("notes-heading").textContent = searchActive
           ? `Search results · ${notes.length}`
@@ -1775,6 +1778,11 @@
         return element.innerHTML;
       }
 
+      function setActiveNoteCount(count) {
+        activeNoteCount = Math.max(0, count);
+        document.getElementById("delete-all-notes").hidden = activeNoteCount === 0;
+      }
+
       function getDisplayTitle(note) {
         const title = note.title.trim();
         if (title) return title;
@@ -1860,6 +1868,7 @@
           alert("Could not save this note.");
           return;
         }
+        setActiveNoteCount(activeNoteCount + 1);
         document.getElementById("title").value = "";
         contentInput.value = "";
         contentInput.style.height = "";
@@ -1878,6 +1887,7 @@
         }
 
         hiddenNoteIds.delete(id);
+        setActiveNoteCount(activeNoteCount - 1);
         await Promise.all([loadNotes(), loadTrash()]);
       }
 
@@ -1889,6 +1899,7 @@
           return;
         }
         hiddenNoteIds.clear();
+        setActiveNoteCount(0);
         await Promise.all([loadNotes(), loadTrash()]);
       }
 
@@ -1908,6 +1919,7 @@
         if (!res.ok) return;
 
         const notes = await res.json();
+        trashedNoteCount = notes.length;
         document.getElementById("trash-count").textContent = notes.length;
         document.getElementById("recover-all").disabled = notes.length === 0;
         document.getElementById("empty-trash").disabled = notes.length === 0;
@@ -1940,6 +1952,8 @@
           alert("Could not recover this note.");
           return;
         }
+        setActiveNoteCount(activeNoteCount + 1);
+        trashedNoteCount = Math.max(0, trashedNoteCount - 1);
         await Promise.all([loadNotes(), loadTrash()]);
       }
 
@@ -1951,6 +1965,8 @@
           alert("Could not recover the notes.");
           return;
         }
+        setActiveNoteCount(activeNoteCount + trashedNoteCount);
+        trashedNoteCount = 0;
         await Promise.all([loadNotes(), loadTrash()]);
         closeTrashPanel();
       }
@@ -1963,6 +1979,7 @@
           alert("Could not empty the recycle bin.");
           return;
         }
+        trashedNoteCount = 0;
         await loadTrash();
         closeTrashPanel();
       }
