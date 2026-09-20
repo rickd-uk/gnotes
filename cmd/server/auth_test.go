@@ -107,6 +107,34 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 		t.Fatalf("alice role = %q, want user", alice.role)
 	}
 
+	response := authenticatedRequest(
+		t, protect(updateDraftHandler, true), http.MethodPut,
+		"/api/draft/update", `{"title":"Newest draft","content":"survives refresh","version":2}`, rick, true,
+	)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("save draft status = %d, want 204: %s", response.Code, response.Body.String())
+	}
+	response = authenticatedRequest(
+		t, protect(updateDraftHandler, true), http.MethodPut,
+		"/api/draft/update", `{"title":"Stale draft","content":"must not win","version":1}`, rick, true,
+	)
+	if response.Code != http.StatusConflict {
+		t.Fatalf("stale draft status = %d, want 409", response.Code)
+	}
+	if draft := getTestDraft(t, rick); !strings.Contains(draft, "Newest draft") || strings.Contains(draft, "Stale draft") {
+		t.Fatalf("versioned draft was overwritten: %s", draft)
+	}
+	if draft := getTestDraft(t, alice); strings.Contains(draft, "Newest draft") {
+		t.Fatalf("another user could read rick's draft: %s", draft)
+	}
+	response = authenticatedRequest(
+		t, protect(finalizeDraftHandler, true), http.MethodPost,
+		"/api/draft/finalize", `{"version":2}`, rick, true,
+	)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("finalize draft status = %d, want 201: %s", response.Code, response.Body.String())
+	}
+
 	createTestNote(t, rick, "Rick private")
 	createTestNote(t, alice, "Alice private")
 
@@ -119,7 +147,7 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 		t.Fatalf("alice received wrong notes: %s", aliceNotes)
 	}
 
-	response := authenticatedRequest(
+	response = authenticatedRequest(
 		t, protect(deleteAllNotesHandler, true), http.MethodPost,
 		"/api/notes/delete-all", "", rick, true,
 	)
@@ -188,6 +216,18 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 	if blockedRegistration.Code != http.StatusForbidden {
 		t.Fatalf("registration while disabled status = %d, want 403", blockedRegistration.Code)
 	}
+}
+
+func getTestDraft(t *testing.T, login testLogin) string {
+	t.Helper()
+	response := authenticatedRequest(
+		t, protect(getDraftHandler, false), http.MethodGet,
+		"/api/draft", "", login, false,
+	)
+	if response.Code != http.StatusOK {
+		t.Fatalf("get draft status = %d: %s", response.Code, response.Body.String())
+	}
+	return response.Body.String()
 }
 
 func registerTestUser(t *testing.T, username, password string) testLogin {

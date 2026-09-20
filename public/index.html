@@ -13,8 +13,6 @@
         --accent: #315b4c;
         --accent-hover: #24473b;
         --danger: #9b3c32;
-        --save-button: #668b7b;
-        --save-button-hover: #347158;
         --delete-button: #c06d63;
         --delete-button-hover: #aa3f34;
         --edit-button: #d4e3ea;
@@ -219,24 +217,6 @@
         white-space: nowrap;
       }
 
-      button.save-btn {
-        display: grid;
-        width: 38px;
-        height: 38px;
-        padding: 0;
-        place-items: center;
-        border: none;
-        border-radius: 50%;
-        background: var(--save-button);
-        color: #fff;
-        cursor: pointer;
-      }
-
-      button.save-btn:hover {
-        background: var(--save-button-hover);
-      }
-
-      button.save-btn:focus-visible,
       .note-action:focus-visible,
       .delete-btn:focus-visible,
       .notes-toggle:focus-visible,
@@ -704,7 +684,6 @@
         background: var(--delete-button-hover);
       }
 
-      .save-btn .icon,
       .note-action .icon,
       .editor-action .icon {
         width: 16px;
@@ -1383,14 +1362,7 @@
         <textarea id="content" rows="3" placeholder="Start writing…" aria-label="Note content"></textarea>
 
         <div class="form-actions">
-          <span class="shortcut"><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to save</span>
-          <button class="save-btn" type="submit" aria-label="Save note" title="Save note (Ctrl/Command + Enter)">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 4h12l2 2v14H5z" />
-              <path d="M8 4v6h8V4M8 20v-6h8v6" />
-            </svg>
-            <span class="visually-hidden">Save note</span>
-          </button>
+          <span class="shortcut" id="draft-status" aria-live="polite">Autosaves while you type</span>
         </div>
       </form>
 
@@ -1421,6 +1393,10 @@
       let authMode = "login";
       let activeNoteCount = 0;
       let trashedNoteCount = 0;
+      let draftVersion = 0;
+      let draftSaveTimer;
+      let draftSaveChain = Promise.resolve();
+      let draftFinalizing = false;
       let loadedNotes = new Map();
       const hiddenNoteIds = new Set();
       let noteObserver;
@@ -1496,7 +1472,7 @@
         document.getElementById("admin-open").hidden = session.role !== "admin";
         document.getElementById("auth-screen").hidden = true;
         document.getElementById("app-shell").hidden = false;
-        await Promise.all([loadNotes(), loadTrash()]);
+        await Promise.all([loadNotes(), loadTrash(), loadDraft()]);
       }
 
       async function initializeAuth() {
@@ -1849,34 +1825,105 @@
         });
       }
 
-      async function saveNote() {
+      function currentDraft() {
+        return {
+          title: document.getElementById("title").value,
+          content: document.getElementById("content").value,
+          version: draftVersion,
+        };
+      }
+
+      function draftHasText() {
+        const draft = currentDraft();
+        return Boolean(draft.title.trim() || draft.content.trim());
+      }
+
+      async function loadDraft() {
+        const response = await apiFetch("/api/draft");
+        if (!response.ok) {
+          document.getElementById("draft-status").textContent = "Draft unavailable";
+          return;
+        }
+        const draft = await response.json();
+        document.getElementById("title").value = draft.title || "";
+        document.getElementById("content").value = draft.content || "";
+        draftVersion = Number(draft.version) || 0;
+        resizeNewNoteEditor();
+        document.getElementById("draft-status").textContent = draftHasText()
+          ? "Draft restored · click elsewhere to finish"
+          : "Autosaves while you type";
+      }
+
+      function scheduleDraftSave() {
+        draftVersion = Math.max(Date.now(), draftVersion + 1);
+        document.getElementById("draft-status").textContent = "Saving draft…";
+        clearTimeout(draftSaveTimer);
+        draftSaveTimer = setTimeout(queueDraftSave, 300);
+      }
+
+      function queueDraftSave() {
+        clearTimeout(draftSaveTimer);
+        const draft = currentDraft();
+        draftSaveChain = draftSaveChain.catch(() => false).then(async () => {
+          const response = await apiFetch("/api/draft/update", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(draft),
+          });
+          if (!response.ok) {
+            document.getElementById("draft-status").textContent =
+              response.status === 409
+                ? "Newer draft open in another tab"
+                : "Draft save failed";
+            return false;
+          }
+          if (draft.version === draftVersion) {
+            document.getElementById("draft-status").textContent = draftHasText()
+              ? "Draft saved · click elsewhere to finish"
+              : "Autosaves while you type";
+          }
+          return true;
+        });
+        return draftSaveChain;
+      }
+
+      async function finalizeDraft() {
+        if (draftFinalizing) return;
         const titleInput = document.getElementById("title");
         const contentInput = document.getElementById("content");
-        const title = titleInput.value;
-        const content = contentInput.value;
-        contentInput.setCustomValidity("");
-        if (!title.trim() && !content.trim()) {
-          contentInput.setCustomValidity("Write a title or some content before saving.");
-          contentInput.reportValidity();
-          contentInput.focus();
-          return;
+        draftFinalizing = true;
+        titleInput.disabled = true;
+        contentInput.disabled = true;
+        try {
+          if (draftVersion < 1) draftVersion = Date.now();
+          const saved = await queueDraftSave();
+          if (!saved) return;
+          const response = await apiFetch("/api/draft/finalize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ version: draftVersion }),
+          });
+          if (!response.ok) {
+            document.getElementById("draft-status").textContent =
+              response.status === 409
+                ? "Newer draft open in another tab"
+                : "Could not finish note";
+            return;
+          }
+          const createdNote = response.status === 201;
+          titleInput.value = "";
+          contentInput.value = "";
+          contentInput.style.height = "";
+          contentInput.style.overflowY = "hidden";
+          draftVersion = 0;
+          document.getElementById("draft-status").textContent = "Autosaves while you type";
+          if (createdNote) setActiveNoteCount(activeNoteCount + 1);
+          await loadNotes();
+        } finally {
+          titleInput.disabled = false;
+          contentInput.disabled = false;
+          draftFinalizing = false;
         }
-        const response = await apiFetch("/api/notes/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, content }),
-        });
-        if (!response.ok) {
-          alert("Could not save this note.");
-          return;
-        }
-        setActiveNoteCount(activeNoteCount + 1);
-        document.getElementById("title").value = "";
-        contentInput.value = "";
-        contentInput.style.height = "";
-        contentInput.style.overflowY = "hidden";
-        await loadNotes();
-        document.getElementById("title").focus();
       }
 
       async function deleteNote(id) {
@@ -2089,9 +2136,11 @@
 
       newNoteContent.addEventListener("input", resizeNewNoteEditor);
 
+      noteForm.addEventListener("input", scheduleDraftSave);
+
       noteForm.addEventListener("submit", (event) => {
         event.preventDefault();
-        saveNote();
+        finalizeDraft();
       });
 
       noteForm.addEventListener("keydown", (event) => {
@@ -2214,9 +2263,31 @@
       });
 
       document.addEventListener("pointerdown", (event) => {
-        if (editingNoteId === null || event.target.closest(".edit-btn")) return;
-        const editor = document.getElementById(`note-editor-${editingNoteId}`);
-        if (editor && !editor.contains(event.target)) updateNote(editingNoteId);
+        if (editingNoteId !== null && !event.target.closest(".edit-btn")) {
+          const editor = document.getElementById(`note-editor-${editingNoteId}`);
+          if (editor && !editor.contains(event.target)) updateNote(editingNoteId);
+        }
+        if (
+          !noteForm.contains(event.target) &&
+          !draftFinalizing &&
+          (draftHasText() || draftVersion > 0)
+        ) {
+          finalizeDraft();
+        }
+      });
+
+      window.addEventListener("pagehide", () => {
+        if (!csrfToken || draftVersion < 1) return;
+        clearTimeout(draftSaveTimer);
+        fetch("/api/draft/update", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken,
+          },
+          body: JSON.stringify(currentDraft()),
+          keepalive: true,
+        });
       });
 
       document.addEventListener("keydown", (event) => {

@@ -174,6 +174,10 @@ func adminDeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not delete user", http.StatusInternalServerError)
 		return
 	}
+	if _, err := tx.Exec("DELETE FROM drafts WHERE user_id = ?", targetID); err != nil {
+		http.Error(w, "Could not delete user", http.StatusInternalServerError)
+		return
+	}
 	if _, err := tx.Exec("DELETE FROM notes WHERE user_id = ?", targetID); err != nil {
 		http.Error(w, "Could not delete user", http.StatusInternalServerError)
 		return
