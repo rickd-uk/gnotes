@@ -1601,7 +1601,7 @@
             message.trim() || "Search failed.";
           return false;
         }
-        const notes = await res.json();
+        const notes = (await res.json()) || [];
         loadedNotes = new Map(notes.map((note) => [note.id, note]));
         document.getElementById("notes-heading").textContent = searchActive
           ? `Search results · ${notes.length}`

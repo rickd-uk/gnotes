@@ -129,6 +129,9 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 	if notes := listTestNotes(t, rick); strings.Contains(notes, "Rick private") || strings.Contains(notes, "legacy") {
 		t.Fatalf("rick notes remained after delete all: %s", notes)
 	}
+	if notes := listTestNotes(t, rick); strings.TrimSpace(notes) != "[]" {
+		t.Fatalf("empty note list = %s, want []", notes)
+	}
 	if notes := listTestNotes(t, alice); !strings.Contains(notes, "Alice private") {
 		t.Fatalf("delete all affected another user: %s", notes)
 	}

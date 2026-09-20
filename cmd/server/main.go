@@ -139,7 +139,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close() // always close to free up db con
 
-	var allNotes []models.Note
+	allNotes := make([]models.Note, 0)
 
 	for rows.Next() {
 		var n models.Note
