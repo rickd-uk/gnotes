@@ -3,10 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
+	"mime"
+	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -30,24 +35,60 @@ func main() {
 	// initialize SQLite
 	db.InitDB("gnotes.db")
 
-	// routes
-	http.HandleFunc("/api/notes/create", createNoteHandler)
-	http.HandleFunc("/api/notes/list", listNotesHandler)
-	http.HandleFunc("/api/notes/search", searchNotesHandler)
-	http.HandleFunc("/api/notes/update", updateNoteHandler)
-	http.HandleFunc("/api/notes/pin", pinNoteHandler)
-	http.HandleFunc("/api/notes/delete", deleteNoteHandler)
-	http.HandleFunc("/api/notes/trash", trashNotesHandler)
-	http.HandleFunc("/api/notes/restore", restoreNotesHandler)
-	http.HandleFunc("/api/notes/empty-trash", emptyTrashHandler)
+	// Authentication is public; all note and administration routes are protected.
+	http.HandleFunc("/api/auth/register", registerHandler)
+	http.HandleFunc("/api/auth/login", loginHandler)
+	http.HandleFunc("/api/auth/config", authConfigHandler)
+	http.HandleFunc("/api/auth/me", protect(meHandler, false))
+	http.HandleFunc("/api/auth/logout", protect(logoutHandler, true))
+	http.HandleFunc("/api/notes/create", protect(createNoteHandler, true))
+	http.HandleFunc("/api/notes/list", protect(listNotesHandler, false))
+	http.HandleFunc("/api/notes/search", protect(searchNotesHandler, false))
+	http.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
+	http.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
+	http.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
+	http.HandleFunc("/api/notes/trash", protect(trashNotesHandler, false))
+	http.HandleFunc("/api/notes/restore", protect(restoreNotesHandler, true))
+	http.HandleFunc("/api/notes/empty-trash", protect(emptyTrashHandler, true))
+	http.HandleFunc("/api/admin/overview", protect(requireAdmin(adminOverviewHandler), false))
+	http.HandleFunc("/api/admin/signups", protect(requireAdmin(adminSignupsHandler), true))
+	http.HandleFunc("/api/admin/users/status", protect(requireAdmin(adminUserStatusHandler), true))
+	http.HandleFunc("/api/admin/users/revoke", protect(requireAdmin(adminRevokeSessionsHandler), true))
+	http.HandleFunc("/api/admin/users/delete", protect(requireAdmin(adminDeleteUserHandler), true))
 	http.HandleFunc("/api/health", healthCheck)
 
 	// serve frontend
 	fileServer := http.FileServer(http.Dir("./public"))
 	http.Handle("/", fileServer)
 
-	fmt.Println("gnotes started at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	host := os.Getenv("HOST")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	address := net.JoinHostPort(host, port)
+	fmt.Printf("gnotes started at http://%s\n", address)
+	log.Fatal(http.ListenAndServe(address, securityHeaders(http.DefaultServeMux)))
+}
+
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, destination any) error {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		return errors.New("content type must be application/json")
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return errors.New("request must contain one JSON object")
+	}
+	return nil
 }
 
 func createNoteHandler(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +100,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// decode incoming json
 	var n models.Note
-	err := json.NewDecoder(r.Body).Decode(&n)
+	err := decodeJSONBody(w, r, &n)
 	if err != nil {
 		http.Error(w, "Invalid input", 400)
 		return
@@ -71,8 +112,8 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	n.CreatedAt = time.Now()
 	// insert into sqlite
-	query := `INSERT INTO notes (title, content, created_at) VALUES(?,?,?)`
-	result, err := db.DB.Exec(query, n.Title, n.Content, n.CreatedAt)
+	query := `INSERT INTO notes (user_id, title, content, created_at) VALUES(?,?,?,?)`
+	result, err := db.DB.Exec(query, userIDFromRequest(r), n.Title, n.Content, n.CreatedAt)
 	if err != nil {
 		http.Error(w, "Database error", 500)
 		return
@@ -90,7 +131,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	// quey db
-	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned FROM notes WHERE deleted_at IS NULL ORDER BY pinned DESC, created_at DESC")
+	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned FROM notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Query error", 500)
 		return
@@ -130,8 +171,8 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conditions := []string{"deleted_at IS NULL"}
-	args := make([]any, 0, 4)
+	conditions := []string{"user_id = ?", "deleted_at IS NULL"}
+	args := []any{userIDFromRequest(r)}
 
 	fromDate, err := parseSearchDate(r.URL.Query().Get("from"))
 	if err != nil {
@@ -227,8 +268,8 @@ func pinNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := db.DB.Exec(
-		"UPDATE notes SET pinned = CASE pinned WHEN 1 THEN 0 ELSE 1 END WHERE id = ? AND deleted_at IS NULL",
-		id,
+		"UPDATE notes SET pinned = CASE pinned WHEN 1 THEN 0 ELSE 1 END WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+		id, userIDFromRequest(r),
 	)
 	if err != nil {
 		http.Error(w, "Could not change pin", http.StatusInternalServerError)
@@ -260,7 +301,7 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var n models.Note
-	if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
+	if err := decodeJSONBody(w, r, &n); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
@@ -270,10 +311,11 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := db.DB.Exec(
-		"UPDATE notes SET title = ?, content = ? WHERE id = ? AND deleted_at IS NULL",
+		"UPDATE notes SET title = ?, content = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
 		n.Title,
 		n.Content,
 		id,
+		userIDFromRequest(r),
 	)
 	if err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
@@ -304,9 +346,10 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := db.DB.Exec(
-		"UPDATE notes SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL",
+		"UPDATE notes SET deleted_at = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
 		time.Now(),
 		id,
+		userIDFromRequest(r),
 	)
 	if err != nil {
 		http.Error(w, "Delete failed", http.StatusInternalServerError)
@@ -331,7 +374,8 @@ func trashNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.DB.Query(
-		"SELECT id, title, content, created_at, deleted_at FROM notes WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+		"SELECT id, title, content, created_at, deleted_at FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+		userIDFromRequest(r),
 	)
 	if err != nil {
 		http.Error(w, "Query error", http.StatusInternalServerError)
@@ -369,8 +413,8 @@ func restoreNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "UPDATE notes SET deleted_at = NULL WHERE deleted_at IS NOT NULL"
-	args := []any{}
+	query := "UPDATE notes SET deleted_at = NULL WHERE user_id = ? AND deleted_at IS NOT NULL"
+	args := []any{userIDFromRequest(r)}
 	if id != "all" {
 		query += " AND id = ?"
 		args = append(args, id)
@@ -400,7 +444,7 @@ func emptyTrashHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.DB.Exec("DELETE FROM notes WHERE deleted_at IS NOT NULL"); err != nil {
+	if _, err := db.DB.Exec("DELETE FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL", userIDFromRequest(r)); err != nil {
 		http.Error(w, "Could not empty trash", http.StatusInternalServerError)
 		return
 	}

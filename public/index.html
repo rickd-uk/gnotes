@@ -962,6 +962,219 @@
         font-style: italic;
       }
 
+      [hidden] {
+        display: none !important;
+      }
+
+      .auth-screen {
+        display: grid;
+        min-height: 100vh;
+        padding: 24px;
+        place-items: center;
+      }
+
+      .auth-card {
+        width: min(420px, 100%);
+        padding: 34px;
+        border: 1px solid var(--line);
+        background: #f8f6f0;
+        box-shadow: 0 20px 55px rgba(51, 45, 35, 0.1);
+      }
+
+      .auth-card h1 {
+        margin: 0 0 6px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 2rem;
+        font-weight: 500;
+      }
+
+      .auth-intro,
+      .auth-help,
+      .auth-status {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .auth-tabs {
+        display: flex;
+        gap: 18px;
+        margin: 24px 0 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .auth-tab {
+        padding: 7px 0;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .auth-tab[aria-selected="true"] {
+        border-color: var(--accent);
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .auth-form {
+        display: grid;
+        gap: 18px;
+      }
+
+      .auth-form input {
+        padding: 9px 0;
+      }
+
+      .primary-action,
+      .admin-action {
+        padding: 8px 13px;
+        border: 0;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+      }
+
+      .primary-action:hover {
+        background: var(--accent-hover);
+      }
+
+      .auth-status {
+        min-height: 1.5em;
+        margin: 0;
+        color: var(--danger);
+      }
+
+      .account-control {
+        position: relative;
+        padding-left: 10px;
+        border-left: 1px solid #cfc8bc;
+      }
+
+      .account-control summary {
+        max-width: 100px;
+        overflow: hidden;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.76rem;
+        font-weight: 700;
+        list-style: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .account-control summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .account-menu {
+        position: absolute;
+        z-index: 45;
+        top: calc(100% + 15px);
+        right: 0;
+        min-width: 150px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        box-shadow: 0 16px 38px rgba(51, 45, 35, 0.18);
+      }
+
+      .account-menu button {
+        width: 100%;
+        padding: 7px 8px;
+        border: 0;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .account-menu button:hover {
+        background: #e9e4da;
+      }
+
+      .admin-panel {
+        position: fixed;
+        z-index: 60;
+        inset: 70px max(16px, calc((100vw - 860px) / 2)) auto;
+        max-height: calc(100vh - 90px);
+        padding: 22px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #f8f6f0;
+        box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
+      }
+
+      .admin-header,
+      .admin-setting,
+      .admin-user,
+      .admin-user-actions {
+        display: flex;
+        align-items: center;
+      }
+
+      .admin-header {
+        justify-content: space-between;
+      }
+
+      .admin-header h2 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 500;
+      }
+
+      .admin-close {
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 1.4rem;
+      }
+
+      .admin-setting {
+        justify-content: space-between;
+        margin: 18px 0;
+        padding: 11px 0;
+        border-block: 1px solid var(--line);
+      }
+
+      .admin-setting input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--accent);
+      }
+
+      .admin-user {
+        justify-content: space-between;
+        gap: 18px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .admin-user-meta {
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+
+      .admin-user-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 7px;
+      }
+
+      .admin-user-actions button {
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        background: transparent;
+        cursor: pointer;
+        font-size: 0.72rem;
+      }
+
+      .admin-user-actions .danger-action {
+        border-color: #dbb4af;
+        color: var(--danger);
+      }
+
       @media (max-width: 560px) {
         .shell {
           width: min(100% - 32px, 880px);
@@ -1010,6 +1223,23 @@
         .search-query-row select {
           grid-column: 1 / -1;
         }
+
+        .auth-card {
+          padding: 25px;
+        }
+
+        .account-control summary {
+          max-width: 64px;
+        }
+
+        .admin-user {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .admin-user-actions {
+          justify-content: flex-start;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -1021,7 +1251,26 @@
     </style>
   </head>
   <body>
-    <main class="shell">
+    <section class="auth-screen" id="auth-screen" aria-labelledby="auth-heading">
+      <div class="auth-card">
+        <h1 id="auth-heading">gnotes</h1>
+        <p class="auth-intro" id="auth-intro">Sign in to your private notes.</p>
+        <div class="auth-tabs" role="tablist" aria-label="Account access">
+          <button class="auth-tab" id="login-tab" type="button" role="tab" aria-selected="true">Sign in</button>
+          <button class="auth-tab" id="register-tab" type="button" role="tab" aria-selected="false">Create account</button>
+        </div>
+        <form class="auth-form" id="auth-form">
+          <input id="auth-username" name="username" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,31}" placeholder="Username" aria-label="Username" required />
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="72" placeholder="Password" aria-label="Password" required />
+          <input id="setup-token" name="setup-token" type="password" autocomplete="off" placeholder="Administrator setup token" aria-label="Administrator setup token" hidden />
+          <p class="auth-help" id="auth-help" hidden>Use 12–72 characters. Usernames are not case-sensitive.</p>
+          <button class="primary-action" id="auth-submit" type="submit">Sign in</button>
+          <p class="auth-status" id="auth-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <main class="shell" id="app-shell" hidden>
       <header class="site-header">
         <h1>gnotes</h1>
         <div class="header-actions">
@@ -1090,6 +1339,14 @@
               </div>
             </section>
           </div>
+
+          <details class="account-control" id="account-control">
+            <summary id="account-name" aria-label="Account menu">Account</summary>
+            <div class="account-menu">
+              <button id="admin-open" type="button" hidden>Admin</button>
+              <button id="logout-button" type="button">Sign out</button>
+            </div>
+          </details>
         </div>
         <section class="search-panel" id="search-panel" aria-label="Search notes" hidden>
           <form id="search-form">
@@ -1139,7 +1396,23 @@
       </section>
     </main>
 
+    <section class="admin-panel" id="admin-panel" aria-labelledby="admin-heading" hidden>
+      <div class="admin-header">
+        <h2 id="admin-heading">Administration</h2>
+        <button class="admin-close" id="admin-close" type="button" aria-label="Close administration">×</button>
+      </div>
+      <label class="admin-setting">
+        <span>Allow new account signups</span>
+        <input id="signups-enabled" type="checkbox" />
+      </label>
+      <p class="auth-status" id="admin-status" aria-live="polite"></p>
+      <div id="admin-users"></div>
+    </section>
+
     <script>
+      let csrfToken = "";
+      let currentUser = null;
+      let authMode = "login";
       let loadedNotes = new Map();
       const hiddenNoteIds = new Set();
       let noteObserver;
@@ -1147,6 +1420,137 @@
       let densityIndex = 0;
       let searchActive = false;
       let editingNoteId = null;
+
+      async function apiFetch(url, options = {}) {
+        const request = { ...options };
+        request.headers = new Headers(options.headers || {});
+        const method = (request.method || "GET").toUpperCase();
+        if (method !== "GET" && method !== "HEAD" && csrfToken) {
+          request.headers.set("X-CSRF-Token", csrfToken);
+        }
+        const response = await fetch(url, request);
+        if (response.status === 401) showAuth("Your session ended. Please sign in again.");
+        return response;
+      }
+
+      function switchAuthMode(mode) {
+        authMode = mode;
+        const registering = mode === "register";
+        document.getElementById("login-tab").setAttribute("aria-selected", String(!registering));
+        document.getElementById("register-tab").setAttribute("aria-selected", String(registering));
+        document.getElementById("auth-submit").textContent = registering ? "Create account" : "Sign in";
+        document.getElementById("auth-help").hidden = !registering;
+        document.getElementById("auth-password").autocomplete = registering ? "new-password" : "current-password";
+        document.getElementById("auth-status").textContent = "";
+      }
+
+      async function loadAuthConfig() {
+        try {
+          const response = await fetch("/api/auth/config");
+          if (!response.ok) return;
+          const config = await response.json();
+          const registerTab = document.getElementById("register-tab");
+          const setupToken = document.getElementById("setup-token");
+          registerTab.hidden = !config.signups_enabled;
+          setupToken.hidden = !config.setup_token_required;
+          setupToken.required = config.setup_token_required;
+          if (config.setup_required && config.signups_enabled) {
+            switchAuthMode("register");
+            document.getElementById("auth-intro").textContent =
+              "Initial setup: create the first account as rick to make it the administrator and claim your existing notes.";
+          } else {
+            document.getElementById("auth-intro").textContent = config.signups_enabled
+              ? "Sign in to your private notes."
+              : "Sign in to your private notes. New account signups are closed.";
+            if (!config.signups_enabled) switchAuthMode("login");
+          }
+        } catch {
+          document.getElementById("auth-status").textContent = "Could not reach the server.";
+        }
+      }
+
+      function showAuth(message = "") {
+        csrfToken = "";
+        currentUser = null;
+        document.getElementById("app-shell").hidden = true;
+        document.getElementById("admin-panel").hidden = true;
+        document.getElementById("auth-screen").hidden = false;
+        document.getElementById("auth-status").textContent = message;
+        loadAuthConfig().then(() => {
+          if (message) document.getElementById("auth-status").textContent = message;
+        });
+      }
+
+      async function enterApp(session) {
+        csrfToken = session.csrf_token;
+        currentUser = session;
+        document.getElementById("account-name").textContent = session.username;
+        document.getElementById("admin-open").hidden = session.role !== "admin";
+        document.getElementById("auth-screen").hidden = true;
+        document.getElementById("app-shell").hidden = false;
+        await Promise.all([loadNotes(), loadTrash()]);
+      }
+
+      async function initializeAuth() {
+        try {
+          const response = await fetch("/api/auth/me");
+          if (response.ok) {
+            await enterApp(await response.json());
+            return;
+          }
+        } catch {
+          showAuth("Could not reach the server.");
+          return;
+        }
+        showAuth();
+      }
+
+      async function loadAdmin() {
+        const response = await apiFetch("/api/admin/overview");
+        if (!response.ok) {
+          document.getElementById("admin-status").textContent = "Could not load administration.";
+          return;
+        }
+        const data = await response.json();
+        document.getElementById("signups-enabled").checked = data.signups_enabled;
+        document.getElementById("admin-users").innerHTML = data.users
+          .map((user) => {
+            const protectedUser = user.role === "admin";
+            return `<div class="admin-user">
+              <div><strong>${escapeHTML(user.username)}</strong>${protectedUser ? " · admin" : ""}
+                <div class="admin-user-meta">${user.active ? "Active" : "Disabled"} · ${user.note_count} notes · joined ${escapeHTML(new Date(user.created_at).toLocaleDateString())}</div>
+              </div>
+              <div class="admin-user-actions">
+                ${protectedUser ? "Protected administrator" : `<button type="button" onclick="setUserActive(${user.id}, ${!user.active})">${user.active ? "Disable" : "Enable"}</button>
+                <button type="button" onclick="revokeUserSessions(${user.id})">Sign out devices</button>
+                <button class="danger-action" type="button" onclick="deleteUser(${user.id}, '${escapeHTML(user.username)}')">Delete</button>`}
+              </div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      async function setUserActive(id, active) {
+        const response = await apiFetch(`/api/admin/users/status?id=${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active }),
+        });
+        if (response.ok) await loadAdmin();
+      }
+
+      async function revokeUserSessions(id) {
+        const response = await apiFetch(`/api/admin/users/revoke?id=${id}`, { method: "POST" });
+        document.getElementById("admin-status").textContent = response.ok
+          ? "Sessions revoked."
+          : "Could not revoke sessions.";
+      }
+
+      async function deleteUser(id, username) {
+        if (!confirm(`Permanently delete ${username} and all of their notes?`)) return;
+        const response = await apiFetch(`/api/admin/users/delete?id=${id}`, { method: "DELETE" });
+        if (response.ok) await loadAdmin();
+      }
 
       function applyObsidianFlavor(html) {
         // 1. Handle TIP: Find the blockquote containing [!TIP] and wrap it
@@ -1185,7 +1589,7 @@
       }
 
       async function loadNotes() {
-        const res = await fetch(searchActive ? buildSearchURL() : "/api/notes/list");
+        const res = await apiFetch(searchActive ? buildSearchURL() : "/api/notes/list");
         if (!res.ok) {
           const message = await res.text();
           document.getElementById("search-status").textContent =
@@ -1442,11 +1846,15 @@
           contentInput.focus();
           return;
         }
-        await fetch("/api/notes/create", {
+        const response = await apiFetch("/api/notes/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title, content }),
         });
+        if (!response.ok) {
+          alert("Could not save this note.");
+          return;
+        }
         document.getElementById("title").value = "";
         contentInput.value = "";
         contentInput.style.height = "";
@@ -1456,7 +1864,7 @@
       }
 
       async function deleteNote(id) {
-        const res = await fetch(`/api/notes/delete?id=${id}`, {
+        const res = await apiFetch(`/api/notes/delete?id=${id}`, {
           method: "POST",
         });
         if (!res.ok) {
@@ -1469,7 +1877,7 @@
       }
 
       async function togglePin(id) {
-        const res = await fetch(`/api/notes/pin?id=${id}`, {
+        const res = await apiFetch(`/api/notes/pin?id=${id}`, {
           method: "POST",
         });
         if (!res.ok) {
@@ -1480,7 +1888,7 @@
       }
 
       async function loadTrash() {
-        const res = await fetch("/api/notes/trash");
+        const res = await apiFetch("/api/notes/trash");
         if (!res.ok) return;
 
         const notes = await res.json();
@@ -1509,7 +1917,7 @@
       }
 
       async function restoreNote(id) {
-        const res = await fetch(`/api/notes/restore?id=${id}`, {
+        const res = await apiFetch(`/api/notes/restore?id=${id}`, {
           method: "POST",
         });
         if (!res.ok) {
@@ -1520,7 +1928,7 @@
       }
 
       async function restoreAllNotes() {
-        const res = await fetch("/api/notes/restore?id=all", {
+        const res = await apiFetch("/api/notes/restore?id=all", {
           method: "POST",
         });
         if (!res.ok) {
@@ -1532,7 +1940,7 @@
       }
 
       async function emptyTrash() {
-        const res = await fetch("/api/notes/empty-trash", {
+        const res = await apiFetch("/api/notes/empty-trash", {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -1604,7 +2012,7 @@
           contentInput.focus();
           return false;
         }
-        const res = await fetch(`/api/notes/update?id=${id}`, {
+        const res = await apiFetch(`/api/notes/update?id=${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title, content }),
@@ -1792,8 +2200,63 @@
         }
       });
 
-      loadNotes();
-      loadTrash();
+      document.getElementById("login-tab").addEventListener("click", () => switchAuthMode("login"));
+      document.getElementById("register-tab").addEventListener("click", () => switchAuthMode("register"));
+
+      document.getElementById("auth-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const status = document.getElementById("auth-status");
+        status.textContent = "";
+        const endpoint = authMode === "register" ? "/api/auth/register" : "/api/auth/login";
+        try {
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              username: document.getElementById("auth-username").value,
+              password: document.getElementById("auth-password").value,
+              setup_token: document.getElementById("setup-token").value,
+            }),
+          });
+          if (!response.ok) {
+            status.textContent = (await response.text()).trim() || "Could not sign in.";
+            return;
+          }
+          document.getElementById("auth-password").value = "";
+          await enterApp(await response.json());
+        } catch {
+          status.textContent = "Could not reach the server.";
+        }
+      });
+
+      document.getElementById("logout-button").addEventListener("click", async () => {
+        await apiFetch("/api/auth/logout", { method: "POST" });
+        showAuth("Signed out.");
+      });
+
+      document.getElementById("admin-open").addEventListener("click", async () => {
+        document.getElementById("account-control").open = false;
+        document.getElementById("admin-panel").hidden = false;
+        await loadAdmin();
+      });
+
+      document.getElementById("admin-close").addEventListener("click", () => {
+        document.getElementById("admin-panel").hidden = true;
+      });
+
+      document.getElementById("signups-enabled").addEventListener("change", async (event) => {
+        const response = await apiFetch("/api/admin/signups", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: event.target.checked }),
+        });
+        document.getElementById("admin-status").textContent = response.ok
+          ? `Signups ${event.target.checked ? "enabled" : "disabled"}.`
+          : "Could not update signups.";
+        if (!response.ok) event.target.checked = !event.target.checked;
+      });
+
+      initializeAuth();
     </script>
   </body>
 </html>
