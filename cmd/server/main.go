@@ -7,17 +7,20 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"gnotes/internal/db"
 	"gnotes/internal/models"
 )
 
 // helper for markdown
 func mdToHTML(raw string) string {
+	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
 	var buf bytes.Buffer
-	if err := goldmark.Convert([]byte(raw), &buf); err != nil {
+	if err := md.Convert([]byte(raw), &buf); err != nil {
 		return raw // Fallback to raw text if it fails
 	}
 	return buf.String()
@@ -30,7 +33,11 @@ func main() {
 	// routes
 	http.HandleFunc("/api/notes/create", createNoteHandler)
 	http.HandleFunc("/api/notes/list", listNotesHandler)
+	http.HandleFunc("/api/notes/update", updateNoteHandler)
 	http.HandleFunc("/api/notes/delete", deleteNoteHandler)
+	http.HandleFunc("/api/notes/trash", trashNotesHandler)
+	http.HandleFunc("/api/notes/restore", restoreNotesHandler)
+	http.HandleFunc("/api/notes/empty-trash", emptyTrashHandler)
 	http.HandleFunc("/api/health", healthCheck)
 
 	// serve frontend
@@ -55,6 +62,10 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid input", 400)
 		return
 	}
+	if strings.TrimSpace(n.Title) == "" && strings.TrimSpace(n.Content) == "" {
+		http.Error(w, "A title or content is required", http.StatusBadRequest)
+		return
+	}
 
 	n.CreatedAt = time.Now()
 	// insert into sqlite
@@ -77,7 +88,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	// quey db
-	rows, err := db.DB.Query("SELECT id, title, content, created_at FROM notes ORDER BY created_at DESC")
+	rows, err := db.DB.Query("SELECT id, title, content, created_at FROM notes WHERE deleted_at IS NULL ORDER BY created_at DESC")
 	if err != nil {
 		http.Error(w, "Query error", 500)
 		return
@@ -101,25 +112,164 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(allNotes)
 }
 
-func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
-	// we only wanr del. if user tells us to
-	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
-		http.Error(w, "Use DELETE or POST", 405)
+func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		http.Error(w, "Use PUT or POST", http.StatusMethodNotAllowed)
 		return
 	}
-	// get the is from URL /api/notes/delete?id=1
+
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		http.Error(w, "ID is required", 400)
+		http.Error(w, "ID is required", http.StatusBadRequest)
 		return
 	}
-	_, err := db.DB.Exec("DELETE FROM notes WHERE id = ?", id)
+
+	var n models.Note
+	if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(n.Title) == "" && strings.TrimSpace(n.Content) == "" {
+		http.Error(w, "A title or content is required", http.StatusBadRequest)
+		return
+	}
+
+	result, err := db.DB.Exec(
+		"UPDATE notes SET title = ?, content = ? WHERE id = ? AND deleted_at IS NULL",
+		n.Title,
+		n.Content,
+		id,
+	)
 	if err != nil {
-		http.Error(w, "Delete failed", 500)
+		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Note %s deleted successfully", id)
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "Note not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
+		http.Error(w, "Use DELETE or POST", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+	result, err := db.DB.Exec(
+		"UPDATE notes SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL",
+		time.Now(),
+		id,
+	)
+	if err != nil {
+		http.Error(w, "Delete failed", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Delete failed", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "Note not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func trashNotesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := db.DB.Query(
+		"SELECT id, title, content, created_at, deleted_at FROM notes WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+	)
+	if err != nil {
+		http.Error(w, "Query error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	trash := make([]models.Note, 0)
+	for rows.Next() {
+		var n models.Note
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.DeletedAt); err != nil {
+			log.Println("Trash scan error:", err)
+			continue
+		}
+		trash = append(trash, n)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Query error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(trash)
+}
+
+func restoreNotesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Use POST", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	query := "UPDATE notes SET deleted_at = NULL WHERE deleted_at IS NOT NULL"
+	args := []any{}
+	if id != "all" {
+		query += " AND id = ?"
+		args = append(args, id)
+	}
+
+	result, err := db.DB.Exec(query, args...)
+	if err != nil {
+		http.Error(w, "Restore failed", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Restore failed", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 && id != "all" {
+		http.Error(w, "Note not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func emptyTrashHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
+		http.Error(w, "Use DELETE or POST", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if _, err := db.DB.Exec("DELETE FROM notes WHERE deleted_at IS NOT NULL"); err != nil {
+		http.Error(w, "Could not empty trash", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
