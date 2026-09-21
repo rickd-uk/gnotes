@@ -3912,6 +3912,82 @@
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
       }
 
+      function activeCodeFenceBefore(value, position) {
+        let activeFence = null;
+        const lines = value.slice(0, position).split("\n");
+        for (const line of lines) {
+          const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+          if (!match) continue;
+          const fence = match[1];
+          const remainder = match[2];
+          if (
+            activeFence &&
+            fence[0] === activeFence.character &&
+            fence.length >= activeFence.length &&
+            remainder.trim() === ""
+          ) {
+            activeFence = null;
+          } else if (!activeFence) {
+            activeFence = { character: fence[0], length: fence.length };
+          }
+        }
+        return activeFence;
+      }
+
+      function completeOpeningCodeFence(event, textarea) {
+        if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) {
+          return false;
+        }
+        const start = textarea.selectionStart;
+        if (start !== textarea.selectionEnd) return false;
+        const lineStart = textarea.value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+        const nextNewline = textarea.value.indexOf("\n", start);
+        const lineEnd = nextNewline === -1 ? textarea.value.length : nextNewline;
+        if (start !== lineEnd || activeCodeFenceBefore(textarea.value, lineStart)) return false;
+
+        const line = textarea.value.slice(lineStart, lineEnd);
+        const match = line.match(/^(\s*)(`{3,}|~{3,})[a-z0-9_+#.-]*\s*$/i);
+        if (!match) return false;
+
+        event.preventDefault();
+        const closingFence = `${match[1]}${match[2]}`;
+        const replacement = `\n\n${closingFence}`;
+        replaceTextareaRange(textarea, start, start, replacement, start + 1, start + 1);
+        return true;
+      }
+
+      function pairCodeBlockBraces(event, textarea) {
+        if (event.ctrlKey || event.metaKey || event.altKey) return false;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        if (!activeCodeFenceBefore(textarea.value, start)) return false;
+
+        if (event.key === "}" && start === end && textarea.value[start] === "}") {
+          event.preventDefault();
+          textarea.setSelectionRange(start + 1, start + 1);
+          return true;
+        }
+        if (event.key !== "{") return false;
+
+        event.preventDefault();
+        const selected = textarea.value.slice(start, end);
+        const replacement = `{${selected}}`;
+        replaceTextareaRange(
+          textarea,
+          start,
+          end,
+          replacement,
+          start + 1,
+          start + 1 + selected.length,
+        );
+        return true;
+      }
+
+      function handleCodeAutoPair(event, textarea) {
+        if (event.isComposing) return false;
+        return completeOpeningCodeFence(event, textarea) || pairCodeBlockBraces(event, textarea);
+      }
+
       function wrapMarkdownSelection(textarea, open, close, placeholder) {
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
@@ -4180,6 +4256,9 @@
 
       function handleEditKeydown(event, id) {
         if (event.isComposing) return;
+        if (event.target.matches("textarea") && handleCodeAutoPair(event, event.target)) {
+          return;
+        }
         if (event.target.matches("textarea") && handleFormattingShortcut(event, `edit-content-${id}`)) {
           return;
         }
@@ -4236,6 +4315,9 @@
       });
 
       noteForm.addEventListener("keydown", (event) => {
+        if (event.target === newNoteContent && handleCodeAutoPair(event, newNoteContent)) {
+          return;
+        }
         if (event.target === newNoteContent && handleFormattingShortcut(event, "content")) {
           return;
         }
