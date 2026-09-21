@@ -1,0 +1,209 @@
+#!/bin/sh
+set -eu
+
+umask 077
+
+repository="${GNOTES_REPOSITORY:-rickd-uk/gnotes}"
+app_directory="${GNOTES_APP_DIRECTORY:-/opt/gnotes}"
+service_name="${GNOTES_SERVICE:-gnotes.service}"
+backup_service="${GNOTES_BACKUP_SERVICE:-gnotes-backup.service}"
+health_url="${GNOTES_HEALTH_URL:-http://127.0.0.1:8081/api/health}"
+
+usage() {
+    cat <<'EOF'
+Usage: sudo update-gnotes VERSION
+
+Install a tagged gnotes GitHub Release, for example:
+  sudo update-gnotes v0.2.0
+
+Optional environment overrides:
+  GNOTES_REPOSITORY       GitHub owner/repository (default: rickd-uk/gnotes)
+  GNOTES_APP_DIRECTORY    Application directory (default: /opt/gnotes)
+  GNOTES_SERVICE          systemd service (default: gnotes.service)
+  GNOTES_BACKUP_SERVICE   backup service (default: gnotes-backup.service)
+  GNOTES_HEALTH_URL       local health URL
+EOF
+}
+
+fail() {
+    echo "update-gnotes: $*" >&2
+    exit 1
+}
+
+case "${1:-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+    "")
+        usage >&2
+        exit 2
+        ;;
+esac
+
+version="$1"
+if [ "$#" -ne 1 ]; then
+    usage >&2
+    exit 2
+fi
+if ! printf '%s\n' "$version" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+    fail "version must look like v1.2.3 or v1.2.3-rc.1"
+fi
+if [ "$(id -u)" -ne 0 ]; then
+    fail "run this command with sudo"
+fi
+
+case "$(uname -m)" in
+    x86_64|amd64) architecture="amd64" ;;
+    *) fail "this release supports only Linux x86-64/amd64" ;;
+esac
+
+for command_name in awk cat chmod chown cp curl find grep id install mktemp mv rm sha256sum sleep systemctl tar uname; do
+    command -v "$command_name" >/dev/null 2>&1 || fail "required command is missing: $command_name"
+done
+
+[ -x "$app_directory/gnotes" ] || fail "current application binary is missing: $app_directory/gnotes"
+[ -d "$app_directory/public" ] || fail "current public assets are missing: $app_directory/public"
+systemctl is-active --quiet "$service_name" || fail "$service_name is not active before the update"
+curl -fsS --max-time 10 "$health_url" >/dev/null || fail "pre-update health check failed"
+
+asset="gnotes_${version}_linux_${architecture}.tar.gz"
+release_url="https://github.com/${repository}/releases/download/${version}"
+temporary_directory="$(mktemp -d /tmp/gnotes-update.XXXXXX)"
+package_directory="$temporary_directory/package"
+deployment_started=false
+
+cleanup() {
+    rm -rf "$temporary_directory"
+    rm -f "$app_directory/gnotes.new"
+    rm -rf "$app_directory/public.new"
+}
+
+rollback() {
+    deployment_started=false
+    set +e
+    echo "Update verification failed; restoring the previous application release." >&2
+    systemctl stop "$service_name" >/dev/null 2>&1 || true
+
+    if [ -x "$app_directory/gnotes.rollback" ]; then
+        install -o root -g root -m 0755 "$app_directory/gnotes.rollback" "$app_directory/gnotes.new"
+        mv -f "$app_directory/gnotes.new" "$app_directory/gnotes"
+    fi
+    if [ -d "$app_directory/public.rollback" ]; then
+        rm -rf "$app_directory/public"
+        cp -a "$app_directory/public.rollback" "$app_directory/public"
+    fi
+    if [ -f "$app_directory/VERSION.rollback" ]; then
+        cp -a "$app_directory/VERSION.rollback" "$app_directory/VERSION"
+    else
+        rm -f "$app_directory/VERSION"
+    fi
+
+    systemctl start "$service_name" || true
+    if curl -fsS --max-time 10 "$health_url" >/dev/null 2>&1; then
+        echo "Previous release restored and healthy." >&2
+    else
+        echo "Rollback did not restore health; inspect: journalctl -u $service_name" >&2
+    fi
+    set -e
+}
+
+finish() {
+    status="$?"
+    trap - EXIT
+    if [ "$deployment_started" = true ]; then
+        rollback
+    fi
+    cleanup
+    exit "$status"
+}
+
+on_signal() {
+    if [ "$deployment_started" = true ]; then
+        rollback
+    fi
+    cleanup
+    exit 130
+}
+
+trap finish EXIT
+trap on_signal HUP INT TERM
+
+echo "Downloading gnotes $version from $repository..."
+curl -fL --retry 3 --connect-timeout 15 \
+    -o "$temporary_directory/$asset" "$release_url/$asset"
+curl -fL --retry 3 --connect-timeout 15 \
+    -o "$temporary_directory/SHA256SUMS" "$release_url/SHA256SUMS"
+
+expected_checksum="$(awk -v asset="$asset" '$2 == asset || $2 == "*" asset { print $1; exit }' "$temporary_directory/SHA256SUMS")"
+case "$expected_checksum" in
+    ""|*[!0-9a-fA-F]*) fail "release checksum is missing or invalid" ;;
+esac
+[ "${#expected_checksum}" -eq 64 ] || fail "release checksum is not SHA-256"
+printf '%s  %s\n' "$expected_checksum" "$temporary_directory/$asset" | sha256sum -c - >/dev/null
+
+install -d "$package_directory"
+if tar -tzf "$temporary_directory/$asset" | grep -Eq '(^|/)\.\.(/|$)|^/'; then
+    fail "release archive contains an unsafe path"
+fi
+tar -xzf "$temporary_directory/$asset" -C "$package_directory"
+[ -z "$(find "$package_directory" -type l -print -quit)" ] || fail "release archive must not contain symbolic links"
+[ -x "$package_directory/gnotes" ] || fail "release does not contain an executable gnotes binary"
+[ -f "$package_directory/public/index.html" ] || fail "release does not contain public/index.html"
+[ -x "$package_directory/bin/update-gnotes" ] || fail "release does not contain update-gnotes"
+[ -x "$package_directory/bin/check-gnotes" ] || fail "release does not contain check-gnotes"
+[ "$(cat "$package_directory/VERSION")" = "$version" ] || fail "release version does not match requested version"
+
+echo "Creating and validating a database backup..."
+systemctl start "$backup_service"
+
+echo "Preparing rollback copy..."
+install -o root -g root -m 0755 "$app_directory/gnotes" "$app_directory/gnotes.rollback"
+rm -rf "$app_directory/public.rollback"
+cp -a "$app_directory/public" "$app_directory/public.rollback"
+if [ -f "$app_directory/VERSION" ]; then
+    cp -a "$app_directory/VERSION" "$app_directory/VERSION.rollback"
+else
+    rm -f "$app_directory/VERSION.rollback"
+fi
+
+install -o root -g root -m 0755 "$package_directory/gnotes" "$app_directory/gnotes.new"
+rm -rf "$app_directory/public.new"
+cp -a "$package_directory/public" "$app_directory/public.new"
+chown -R root:root "$app_directory/public.new"
+find "$app_directory/public.new" -type d -exec chmod 0755 {} \;
+find "$app_directory/public.new" -type f -exec chmod 0644 {} \;
+
+deployment_started=true
+systemctl stop "$service_name"
+mv -f "$app_directory/gnotes.new" "$app_directory/gnotes"
+rm -rf "$app_directory/public"
+mv "$app_directory/public.new" "$app_directory/public"
+install -o root -g root -m 0644 "$package_directory/VERSION" "$app_directory/VERSION"
+
+if ! systemctl start "$service_name"; then
+    rollback
+    fail "could not start $service_name; rollback attempted"
+fi
+
+attempt=1
+healthy=false
+while [ "$attempt" -le 20 ]; do
+    if curl -fsS --max-time 5 "$health_url" >/dev/null 2>&1; then
+        healthy=true
+        break
+    fi
+    sleep 1
+    attempt=$((attempt + 1))
+done
+if [ "$healthy" != true ]; then
+    rollback
+    fail "health check failed after installing $version; rollback attempted"
+fi
+
+deployment_started=false
+install -o root -g root -m 0755 "$package_directory/bin/update-gnotes" "$app_directory/bin/update-gnotes"
+install -o root -g root -m 0755 "$package_directory/bin/check-gnotes" "$app_directory/bin/check-gnotes"
+
+echo "gnotes $version is installed and healthy."
+echo "Rollback files remain in $app_directory with the .rollback suffix."

@@ -3,6 +3,7 @@
 A compact, multi-user Markdown notes application written in Go with SQLite and a vanilla browser interface.
 
 See [SECURITY.md](SECURITY.md) for the production checklist, threat boundaries, incident response, and restore procedure.
+See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command updates, health checks, and rollback procedure.
 
 ## Current features
 
@@ -80,6 +81,8 @@ From the repository checkout:
 sudo install -o root -g root -m 0755 gnotes /opt/gnotes/gnotes
 sudo cp -a public /opt/gnotes/public
 sudo install -o root -g root -m 0755 deploy/scripts/backup-gnotes /opt/gnotes/bin/backup-gnotes
+sudo install -o root -g root -m 0755 deploy/scripts/update-gnotes /opt/gnotes/bin/update-gnotes
+sudo install -o root -g root -m 0755 deploy/scripts/check-gnotes /opt/gnotes/bin/check-gnotes
 ```
 
 The service uses `/opt/gnotes` as its working directory, so the `public` directory must be installed there with the binary.
@@ -154,17 +157,13 @@ Local backups do not protect against total server loss. Replicate `/var/backups/
 
 ### Updating
 
-Build and test a new binary, then install the binary and public assets together:
+Tagged releases are tested and packaged by GitHub Actions. After publishing a version tag, update the server with:
 
 ```bash
-sudo systemctl stop gnotes.service
-sudo install -o root -g root -m 0755 gnotes /opt/gnotes/gnotes
-sudo rm -rf /opt/gnotes/public
-sudo cp -a public /opt/gnotes/public
-sudo systemctl start gnotes.service
+sudo /opt/gnotes/bin/update-gnotes v0.2.0
 ```
 
-Take a database backup before updates that include schema changes.
+The updater downloads the requested versioned release, verifies its SHA-256 checksum, runs a validated database backup, installs the binary and browser assets together, checks health, and automatically attempts application rollback on failure. See [OPERATIONS.md](OPERATIONS.md) for release creation, complete checks, and manual rollback.
 
 ## Security and production roadmap
 

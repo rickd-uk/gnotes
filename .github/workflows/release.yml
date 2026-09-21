@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Validate release tag
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          if ! printf '%s\n' "$RELEASE_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "Release tags must look like v1.2.3 or v1.2.3-rc.1" >&2
+            exit 1
+          fi
+
+      - name: Test
+        run: |
+          go test ./...
+          go test -race ./cmd/server
+          go vet ./...
+          shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/check-gnotes deploy/scripts/update-gnotes deploy/tests/*.sh
+          deploy/tests/update-gnotes-test.sh
+
+      - name: Build and package
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          set -eu
+          package_dir="dist/package"
+          asset="gnotes_${RELEASE_VERSION}_linux_amd64.tar.gz"
+
+          install -d "$package_dir/bin" "$package_dir/public"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags="-s -w" -o "$package_dir/gnotes" ./cmd/server
+          cp -a public/. "$package_dir/public/"
+          install -m 0755 deploy/scripts/update-gnotes "$package_dir/bin/update-gnotes"
+          install -m 0755 deploy/scripts/check-gnotes "$package_dir/bin/check-gnotes"
+          printf '%s\n' "$RELEASE_VERSION" > "$package_dir/VERSION"
+          cp LICENSE "$package_dir/LICENSE"
+
+          tar -C "$package_dir" -czf "dist/$asset" .
+          (cd dist && sha256sum "$asset" > SHA256SUMS)
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_VERSION" \
+            "dist/gnotes_${RELEASE_VERSION}_linux_amd64.tar.gz" \
+            dist/SHA256SUMS \
+            --verify-tag \
+            --title "gnotes $RELEASE_VERSION" \
+            --generate-notes
