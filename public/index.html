@@ -3075,9 +3075,9 @@
                 </div>
                 <div class="note-editor" id="note-editor-${n.id}" hidden>
                   <input class="edit-title" id="edit-title-${n.id}" aria-label="Edit note title" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" />
-                  <textarea class="edit-content" id="edit-content-${n.id}" aria-label="Edit note content" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter saves; Shift+Enter adds a new line"></textarea>
+                  <textarea class="edit-content" id="edit-content-${n.id}" aria-label="Edit note content" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
                   <div class="editor-actions">
-                    <span class="edit-hint">Autosaves · Enter to close · Shift+Enter for a new line</span>
+                    <span class="edit-hint">Autosaves · Ctrl/⌘ + Enter to close</span>
                     ${formattingToolbarHTML(`edit-content-${n.id}`, `edit-format-${n.id}`)}
                     <button class="editor-action" type="button" onclick="updateNote(${n.id})" aria-label="Close editor" title="Save and close editor">
                       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
@@ -4216,7 +4216,7 @@
             body: JSON.stringify(edit),
           });
           const hint = document.getElementById(`note-editor-${id}`)?.querySelector(".edit-hint");
-          if (hint) hint.textContent = response.ok ? "Saved · Enter to close" : "Could not autosave";
+          if (hint) hint.textContent = response.ok ? "Saved · Ctrl/⌘ + Enter to close" : "Could not autosave";
           if (response.ok && loadedNotes.has(id)) Object.assign(loadedNotes.get(id), edit);
           return response.ok;
         });
@@ -4263,7 +4263,9 @@
           return;
         }
 
-        if (event.key === "Enter" && !event.shiftKey) {
+        const isContentEditor = event.target.matches("textarea");
+        const closeWithEnter = !isContentEditor || event.ctrlKey || event.metaKey;
+        if (event.key === "Enter" && closeWithEnter) {
           event.preventDefault();
           updateNote(id);
         }
