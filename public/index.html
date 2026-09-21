@@ -350,8 +350,119 @@
         cursor: pointer;
       }
 
-      .search-toggle:hover {
+      .search-toggle:hover,
+      .search-toggle.is-active {
         color: var(--ink);
+      }
+
+      .calendar-jump {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .calendar-jump button,
+      .calendar-clear {
+        min-height: 38px;
+        padding: 7px 12px;
+        border: 1px solid #b9cec4;
+        background: #e4efe9;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+
+      .calendar-clear {
+        min-height: 0;
+        padding: 4px 9px;
+        border-radius: 999px;
+      }
+
+      .calendar-clear[hidden] { display: none; }
+
+      .hidden-notes-control {
+        position: relative;
+      }
+
+      .hidden-notes-control[hidden] { display: none; }
+
+      .hidden-notes-panel {
+        position: absolute;
+        z-index: 40;
+        top: calc(100% + 10px);
+        right: 0;
+        width: min(350px, calc(100vw - 32px));
+        border: 1px solid var(--line);
+        background: var(--paper);
+        box-shadow: 0 18px 44px rgba(51, 45, 35, 0.18);
+      }
+
+      .hidden-notes-panel[hidden] { display: none; }
+
+      .hidden-notes-header,
+      .hidden-notes-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+      }
+
+      .hidden-notes-header {
+        border-bottom: 1px solid var(--line);
+        font-family: Georgia, "Times New Roman", serif;
+      }
+
+      .hidden-notes-list {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .hidden-note-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .hidden-note-title {
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 0.86rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .show-hidden-note {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        place-items: center;
+        border: 1px solid #b9cec4;
+        border-radius: 50%;
+        background: #e4efe9;
+        color: var(--accent);
+        cursor: pointer;
+      }
+
+      .hidden-notes-actions { justify-content: flex-end; }
+
+      .hidden-notes-actions button {
+        padding: 6px 10px;
+        border: 0;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 700;
       }
 
       .search-panel {
@@ -803,17 +914,6 @@
         color: var(--ink);
       }
 
-      .editor-save {
-        border-color: transparent;
-        background: var(--edit-button);
-        color: var(--edit-ink);
-      }
-
-      .editor-save:hover {
-        background: var(--edit-button-hover);
-        color: var(--edit-ink);
-      }
-
       .date {
         display: block;
         color: var(--muted);
@@ -1174,6 +1274,95 @@
         box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
       }
 
+      .archive-panel {
+        position: fixed;
+        z-index: 60;
+        inset: 70px max(16px, calc((100vw - 760px) / 2)) auto;
+        max-height: calc(100vh - 90px);
+        padding: 22px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #f8f6f0;
+        box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
+      }
+
+      .archive-panel[hidden] { display: none; }
+
+      .archive-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .archive-header h2 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 500;
+      }
+
+      .archive-total {
+        margin: 18px 0;
+        padding: 14px;
+        border-block: 1px solid var(--line);
+        color: var(--accent);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.25rem;
+      }
+
+      .archive-groups {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+      }
+
+      .archive-groups h3,
+      .archive-groups summary {
+        margin: 0 0 8px;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .archive-row {
+        position: relative;
+        isolation: isolate;
+        display: grid;
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        margin: 0;
+        padding: 9px 10px;
+        overflow: hidden;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .archive-row:hover { background: #ebe8df; }
+
+      .archive-bar {
+        position: absolute;
+        z-index: -1;
+        inset: 3px auto 3px 0;
+        background: rgba(49, 91, 76, 0.09);
+      }
+
+      .archive-count {
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      .archive-empty {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
       .admin-header,
       .admin-setting,
       .admin-user,
@@ -1411,6 +1600,16 @@
         .admin-user-actions {
           justify-content: flex-start;
         }
+
+        .archive-panel {
+          inset: 58px 12px auto;
+          max-height: calc(100vh - 70px);
+          padding: 16px;
+        }
+
+        .archive-groups {
+          grid-template-columns: 1fr;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -1501,11 +1700,20 @@
             </svg>
             <span>Notes</span>
           </button>
-          <button class="toolbar-button" id="hidden-notes-toggle" type="button" aria-controls="notes-list" aria-label="Show all hidden notes" title="Show all hidden notes" hidden>
-            <span id="hidden-notes-label">Hidden 0</span>
-          </button>
+          <div class="hidden-notes-control" id="hidden-notes-control" hidden>
+            <button class="toolbar-button" id="hidden-notes-toggle" type="button" aria-controls="hidden-notes-panel" aria-expanded="false" aria-label="Open hidden notes" title="Hidden notes">
+              <span id="hidden-notes-label">Hidden 0</span>
+            </button>
+            <section class="hidden-notes-panel" id="hidden-notes-panel" aria-label="Hidden notes" hidden>
+              <div class="hidden-notes-header">Hidden notes</div>
+              <div class="hidden-notes-list" id="hidden-notes-list"></div>
+              <div class="hidden-notes-actions">
+                <button id="show-all-hidden" type="button">Show all</button>
+              </div>
+            </section>
+          </div>
 
-          <button class="search-toggle" id="search-toggle" type="button" aria-controls="search-panel" aria-expanded="false" aria-label="Search notes" title="Search notes">
+          <button class="search-toggle" id="search-toggle" type="button" aria-controls="search-panel" aria-expanded="false" aria-label="Find notes or jump to a date" title="Find or jump to date">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="10.5" cy="10.5" r="6.5" />
               <path d="m15.5 15.5 5 5" />
@@ -1541,8 +1749,12 @@
             </div>
           </details>
         </div>
-        <section class="search-panel" id="search-panel" aria-label="Search notes" hidden>
+        <section class="search-panel" id="search-panel" aria-label="Find notes" hidden>
           <form id="search-form">
+            <div class="calendar-jump">
+              <label for="calendar-date">Jump to date <input type="date" id="calendar-date" /></label>
+              <button type="button" id="calendar-open">Open date</button>
+            </div>
             <div class="search-query-row">
               <input type="search" id="search-query" placeholder="Search title or content…" aria-label="Search text" />
               <select id="search-scope" aria-label="Search within">
@@ -1558,6 +1770,7 @@
               <div class="search-actions">
                 <button type="submit">Search</button>
                 <button type="button" id="search-all">All notes</button>
+                <button type="button" id="archive-open">Overview</button>
               </div>
             </div>
             <p class="search-status" id="search-status" aria-live="polite"></p>
@@ -1577,11 +1790,30 @@
       <section id="notes-section" aria-labelledby="notes-heading">
         <div class="notes-toolbar">
           <h2 class="section-label" id="notes-heading">Recent notes</h2>
+          <button class="calendar-clear" id="calendar-clear" type="button" hidden>Recent</button>
         </div>
         <div id="notes-list"></div>
         <button class="load-more" id="load-more-notes" type="button" hidden>Load older</button>
       </section>
     </main>
+
+    <section class="archive-panel" id="archive-panel" role="dialog" aria-labelledby="archive-heading" hidden>
+      <div class="archive-header">
+        <h2 id="archive-heading">Notes overview</h2>
+        <button class="admin-close" id="archive-close" type="button" aria-label="Close notes overview">×</button>
+      </div>
+      <div class="archive-total" id="archive-total">Loading…</div>
+      <div class="archive-groups">
+        <section aria-labelledby="archive-months-heading">
+          <h3 id="archive-months-heading">By month</h3>
+          <div id="archive-months"></div>
+        </section>
+        <details open>
+          <summary>By week</summary>
+          <div id="archive-weeks"></div>
+        </details>
+      </div>
+    </section>
 
     <section class="admin-panel" id="admin-panel" aria-labelledby="admin-heading" hidden>
       <div class="admin-header">
@@ -1631,12 +1863,19 @@
       let trashNextCursor = "";
       let trashLoading = false;
       const hiddenNoteIds = new Set();
+      const hiddenNotes = new Map();
+      let revealedNoteId = null;
       let noteObserver;
       const densityModes = ["full", "compact", "titles"];
       let densityIndex = 0;
       let searchActive = false;
       let activeSearchURL = "";
+      let calendarActive = false;
+      let selectedCalendarDate = "";
+      let selectedArchiveLabel = "";
       let editingNoteId = null;
+      let editSaveTimer;
+      let editSaveChain = Promise.resolve();
       let collapsedDateSections = new Set();
 
       async function apiFetch(url, options = {}) {
@@ -1704,12 +1943,17 @@
         notesTotal = 0;
         searchActive = false;
         activeSearchURL = "";
+        calendarActive = false;
+        selectedCalendarDate = "";
+        selectedArchiveLabel = "";
         loadedNotes.clear();
         loadedTrash.clear();
         hiddenNoteIds.clear();
+        hiddenNotes.clear();
         document.getElementById("startup-screen").hidden = true;
         document.getElementById("app-shell").hidden = true;
         document.getElementById("admin-panel").hidden = true;
+        document.getElementById("archive-panel").hidden = true;
         document.getElementById("auth-screen").hidden = false;
         document.getElementById("auth-status").textContent = message;
         loadAuthConfig().then(() => {
@@ -1721,6 +1965,7 @@
         csrfToken = session.csrf_token;
         currentUser = session;
         loadCollapsedDateSections();
+        loadHiddenNoteIds();
         document.getElementById("account-name").textContent = session.username;
         document.getElementById("admin-open").hidden = session.role !== "admin";
         document.getElementById("auth-screen").hidden = true;
@@ -1928,15 +2173,30 @@
         const page = await res.json();
         if (!append) loadedNotes = new Map();
         (page.notes || []).forEach((note) => loadedNotes.set(note.id, note));
-        const notes = [...loadedNotes.values()];
+        if (!append) await loadRememberedEditingNote();
+        if (!append && revealedNoteId && !loadedNotes.has(revealedNoteId)) {
+          await loadNoteIntoView(revealedNoteId);
+        }
+        const notes = [...loadedNotes.values()].sort((left, right) =>
+          Number(right.pinned) - Number(left.pinned) ||
+          new Date(right.created_at) - new Date(left.created_at) ||
+          right.id - left.id,
+        );
+        notes.forEach((note) => {
+          if (hiddenNoteIds.has(note.id)) hiddenNotes.set(note.id, note);
+        });
         notesNextCursor = page.next_cursor || "";
         notesTotal = page.total || 0;
         if (!searchActive) setActiveNoteCount(notesTotal);
         const notesSection = document.getElementById("notes-section");
         notesSection.hidden = !searchActive && notesTotal === 0;
-        document.getElementById("notes-heading").textContent = searchActive
-          ? `Search results · ${notesTotal}`
-          : "Recent notes";
+        document.getElementById("notes-heading").textContent = calendarActive
+          ? `${selectedArchiveLabel || formatCalendarDate(selectedCalendarDate)} · ${notesTotal}`
+          : searchActive
+            ? `Search results · ${notesTotal}`
+            : "Recent notes";
+        document.getElementById("calendar-clear").hidden = !calendarActive;
+        document.getElementById("search-toggle").classList.toggle("is-active", calendarActive);
 
         updateHiddenNotesControl();
 
@@ -1951,9 +2211,7 @@
           return true;
         }
 
-        const visibleNotes = searchActive
-          ? notes
-          : notes.filter((note) => !hiddenNoteIds.has(note.id));
+        const visibleNotes = notes.filter((note) => !hiddenNoteIds.has(note.id));
         if (!visibleNotes.length) {
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML =
@@ -2046,15 +2304,12 @@
                   <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
                 </div>
                 <div class="note-editor" id="note-editor-${n.id}" hidden>
-                  <input class="edit-title" id="edit-title-${n.id}" aria-label="Edit note title" onkeydown="handleEditKeydown(event, ${n.id})" />
-                  <textarea class="edit-content" id="edit-content-${n.id}" aria-label="Edit note content" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter saves; Shift+Enter adds a new line"></textarea>
+                  <input class="edit-title" id="edit-title-${n.id}" aria-label="Edit note title" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" />
+                  <textarea class="edit-content" id="edit-content-${n.id}" aria-label="Edit note content" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter saves; Shift+Enter adds a new line"></textarea>
                   <div class="editor-actions">
-                    <span class="edit-hint">Enter to save · Shift+Enter for a new line</span>
-                    <button class="editor-action" type="button" onclick="cancelEdit(${n.id})" aria-label="Cancel editing" title="Cancel">
+                    <span class="edit-hint">Autosaves · Enter to close · Shift+Enter for a new line</span>
+                    <button class="editor-action" type="button" onclick="updateNote(${n.id})" aria-label="Close editor" title="Save and close editor">
                       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
-                    </button>
-                    <button class="editor-action editor-save" type="button" onclick="updateNote(${n.id})" aria-label="Save changes" title="Save changes (Ctrl/Command + Enter)">
-                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
                     </button>
                   </div>
                 </div>
@@ -2069,6 +2324,11 @@
 
         updateDateSectionsControl();
         observeNoteCards();
+        restoreRememberedEditingNote();
+        if (revealedNoteId) {
+          document.getElementById(`note-${revealedNoteId}`)?.scrollIntoView({ block: "center" });
+          revealedNoteId = null;
+        }
         notesLoading = false;
         return true;
       }
@@ -2091,6 +2351,35 @@
         return new URL(`/api/notes/search-page?${params.toString()}`, location.origin);
       }
 
+      function buildCalendarURL(dateValue) {
+        const parts = dateValue.split("-").map(Number);
+        if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part))) return null;
+        const start = new Date(parts[0], parts[1] - 1, parts[2]);
+        if (
+          start.getFullYear() !== parts[0] ||
+          start.getMonth() !== parts[1] - 1 ||
+          start.getDate() !== parts[2]
+        ) return null;
+        const end = new Date(parts[0], parts[1] - 1, parts[2] + 1);
+        const params = new URLSearchParams({
+          scope: "all",
+          from_time: start.toISOString(),
+          to_time: end.toISOString(),
+        });
+        return `/api/notes/search-page?${params.toString()}`;
+      }
+
+      function formatCalendarDate(dateValue) {
+        const [year, month, day] = dateValue.split("-").map(Number);
+        const date = new Date(year, month - 1, day);
+        return new Intl.DateTimeFormat(undefined, {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }).format(date);
+      }
+
       function setDefaultSearchDates() {
         const today = new Date();
         const localToday = [
@@ -2104,6 +2393,7 @@
         fromInput.value = "2025-01-01";
         toInput.defaultValue = localToday;
         toInput.value = localToday;
+        document.getElementById("calendar-date").value = localToday;
       }
 
       function observeNoteCards() {
@@ -2394,6 +2684,8 @@
         }
 
         hiddenNoteIds.delete(id);
+        hiddenNotes.delete(id);
+        saveHiddenNoteIds();
         setActiveNoteCount(activeNoteCount - 1);
         await Promise.all([loadNotes(), loadTrash()]);
       }
@@ -2406,6 +2698,8 @@
           return;
         }
         hiddenNoteIds.clear();
+        hiddenNotes.clear();
+        saveHiddenNoteIds();
         setActiveNoteCount(0);
         await Promise.all([loadNotes(), loadTrash()]);
       }
@@ -2527,16 +2821,170 @@
           .setAttribute("aria-expanded", "false");
       }
 
+      function hiddenNotesStorageKey() {
+        return currentUser ? `gnotes-hidden-notes:${currentUser.username.toLowerCase()}` : "";
+      }
+
+      function loadHiddenNoteIds() {
+        hiddenNoteIds.clear();
+        hiddenNotes.clear();
+        const key = hiddenNotesStorageKey();
+        if (!key) return;
+        try {
+          const ids = JSON.parse(localStorage.getItem(key) || "[]");
+          if (Array.isArray(ids)) {
+            ids.forEach((id) => {
+              if (Number.isInteger(id) && id > 0) hiddenNoteIds.add(id);
+            });
+          }
+        } catch {}
+      }
+
+      function saveHiddenNoteIds() {
+        const key = hiddenNotesStorageKey();
+        if (!key) return;
+        try { localStorage.setItem(key, JSON.stringify([...hiddenNoteIds])); } catch {}
+      }
+
       function hideNote(id) {
+        const note = loadedNotes.get(id);
+        if (note) hiddenNotes.set(id, note);
         hiddenNoteIds.add(id);
+        saveHiddenNoteIds();
         loadNotes();
       }
 
       function updateHiddenNotesControl() {
-        const toggle = document.getElementById("hidden-notes-toggle");
+        const control = document.getElementById("hidden-notes-control");
         const count = hiddenNoteIds.size;
-        toggle.hidden = count === 0;
+        control.hidden = count === 0;
         document.getElementById("hidden-notes-label").textContent = `Hidden ${count}`;
+        document.getElementById("hidden-notes-list").innerHTML = [...hiddenNoteIds]
+          .map((id) => {
+            const note = hiddenNotes.get(id);
+            const title = note ? getDisplayTitle(note) : `Note ${id}`;
+            return `<div class="hidden-note-item">
+              <div class="hidden-note-title">${escapeHTML(title)}</div>
+              <button class="show-hidden-note" type="button" onclick="showHiddenNote(${id})" aria-label="Show ${escapeHTML(title)}" title="Show note">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+              </button>
+            </div>`;
+          })
+          .join("");
+        if (count === 0) closeHiddenNotesPanel();
+      }
+
+      async function showHiddenNote(id) {
+        revealedNoteId = id;
+        hiddenNoteIds.delete(id);
+        hiddenNotes.delete(id);
+        saveHiddenNoteIds();
+        await loadNotes();
+        updateHiddenNotesControl();
+      }
+
+      async function showAllHiddenNotes() {
+        hiddenNoteIds.clear();
+        hiddenNotes.clear();
+        saveHiddenNoteIds();
+        closeHiddenNotesPanel();
+        await loadNotes();
+      }
+
+      async function hydrateHiddenNotes() {
+        const missing = [...hiddenNoteIds].filter((id) => !hiddenNotes.has(id));
+        await Promise.all(missing.map(async (id) => {
+          let response;
+          try {
+            response = await apiFetch(`/api/notes/get?id=${id}`);
+          } catch {
+            return;
+          }
+          if (response.ok) {
+            hiddenNotes.set(id, await response.json());
+          } else if (response.status === 404) {
+            hiddenNoteIds.delete(id);
+          }
+        }));
+        saveHiddenNoteIds();
+        updateHiddenNotesControl();
+      }
+
+      function closeHiddenNotesPanel() {
+        document.getElementById("hidden-notes-panel").hidden = true;
+        document.getElementById("hidden-notes-toggle").setAttribute("aria-expanded", "false");
+      }
+
+      function editingStorageKey() {
+        return currentUser ? `gnotes-editing-note:${currentUser.username.toLowerCase()}` : "";
+      }
+
+      function rememberedEditingNoteID() {
+        const key = editingStorageKey();
+        if (!key) return null;
+        try {
+          const id = Number(localStorage.getItem(key));
+          return Number.isInteger(id) && id > 0 ? id : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function rememberEditingNote(id) {
+        const key = editingStorageKey();
+        if (!key) return;
+        try { localStorage.setItem(key, String(id)); } catch {}
+      }
+
+      function forgetEditingNote() {
+        const key = editingStorageKey();
+        if (!key) return;
+        try { localStorage.removeItem(key); } catch {}
+      }
+
+      async function loadRememberedEditingNote() {
+        const id = rememberedEditingNoteID();
+        if (!id || loadedNotes.has(id)) return;
+        await loadNoteIntoView(id, true);
+      }
+
+      async function loadNoteIntoView(id, forgetMissingEdit = false) {
+        let response;
+        try {
+          response = await apiFetch(`/api/notes/get?id=${id}`);
+        } catch {
+          return;
+        }
+        if (response.ok) {
+          const note = await response.json();
+          loadedNotes.set(note.id, note);
+        } else if (response.status === 404 && forgetMissingEdit) {
+          forgetEditingNote();
+        }
+      }
+
+      function openNoteEditor(id, selectTitle = true) {
+        const note = loadedNotes.get(id);
+        const view = document.getElementById(`note-view-${id}`);
+        const editor = document.getElementById(`note-editor-${id}`);
+        if (!note || !view || !editor) return false;
+        const titleInput = document.getElementById(`edit-title-${id}`);
+        const contentInput = document.getElementById(`edit-content-${id}`);
+        titleInput.value = note.title;
+        contentInput.value = note.content;
+        view.hidden = true;
+        editor.hidden = false;
+        editingNoteId = id;
+        rememberEditingNote(id);
+        titleInput.focus();
+        if (selectTitle) titleInput.select();
+        return true;
+      }
+
+      function restoreRememberedEditingNote() {
+        if (editingNoteId !== null) return;
+        const id = rememberedEditingNoteID();
+        if (id) openNoteEditor(id, false);
       }
 
       async function editNote(id) {
@@ -2546,27 +2994,42 @@
           if (!saved) return;
         }
 
-        const note = loadedNotes.get(id);
-        if (!note) return;
-
-        const view = document.getElementById(`note-view-${id}`);
-        const editor = document.getElementById(`note-editor-${id}`);
-        const titleInput = document.getElementById(`edit-title-${id}`);
-        const contentInput = document.getElementById(`edit-content-${id}`);
-
-        titleInput.value = note.title;
-        contentInput.value = note.content;
-        view.hidden = true;
-        editor.hidden = false;
-        editingNoteId = id;
-        titleInput.focus();
-        titleInput.select();
+        openNoteEditor(id);
       }
 
-      function cancelEdit(id) {
-        document.getElementById(`note-view-${id}`).hidden = false;
-        document.getElementById(`note-editor-${id}`).hidden = true;
-        if (editingNoteId === id) editingNoteId = null;
+      function currentEdit(id) {
+        const titleInput = document.getElementById(`edit-title-${id}`);
+        const contentInput = document.getElementById(`edit-content-${id}`);
+        if (!titleInput || !contentInput) return null;
+        return { title: titleInput.value, content: contentInput.value };
+      }
+
+      function scheduleEditAutosave(id) {
+        if (editingNoteId !== id) return;
+        rememberEditingNote(id);
+        const editor = document.getElementById(`note-editor-${id}`);
+        const hint = editor?.querySelector(".edit-hint");
+        if (hint) hint.textContent = "Saving…";
+        clearTimeout(editSaveTimer);
+        editSaveTimer = setTimeout(() => queueEditAutosave(id), 400);
+      }
+
+      function queueEditAutosave(id) {
+        clearTimeout(editSaveTimer);
+        const edit = currentEdit(id);
+        if (!edit || (!edit.title.trim() && !edit.content.trim())) return editSaveChain;
+        editSaveChain = editSaveChain.catch(() => false).then(async () => {
+          const response = await apiFetch(`/api/notes/update?id=${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(edit),
+          });
+          const hint = document.getElementById(`note-editor-${id}`)?.querySelector(".edit-hint");
+          if (hint) hint.textContent = response.ok ? "Saved · Enter to close" : "Could not autosave";
+          if (response.ok && loadedNotes.has(id)) Object.assign(loadedNotes.get(id), edit);
+          return response.ok;
+        });
+        return editSaveChain;
       }
 
       async function updateNote(id) {
@@ -2581,6 +3044,8 @@
           contentInput.focus();
           return false;
         }
+        clearTimeout(editSaveTimer);
+        await editSaveChain.catch(() => false);
         const res = await apiFetch(`/api/notes/update?id=${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -2593,6 +3058,7 @@
         }
 
         editingNoteId = null;
+        forgetEditingNote();
         await loadNotes();
         return true;
       }
@@ -2606,7 +3072,7 @@
         }
         if (event.key === "Escape") {
           event.preventDefault();
-          cancelEdit(id);
+          updateNote(id);
         }
       }
 
@@ -2680,10 +3146,18 @@
 
       document
         .getElementById("hidden-notes-toggle")
-        .addEventListener("click", () => {
-          hiddenNoteIds.clear();
-          loadNotes();
+        .addEventListener("click", async () => {
+          const panel = document.getElementById("hidden-notes-panel");
+          const shouldOpen = panel.hidden;
+          panel.hidden = !shouldOpen;
+          document.getElementById("hidden-notes-toggle").setAttribute("aria-expanded", String(shouldOpen));
+          if (shouldOpen) {
+            closeSearchPanel();
+            closeTrashPanel();
+            await hydrateHiddenNotes();
+          }
         });
+      document.getElementById("show-all-hidden").addEventListener("click", showAllHiddenNotes);
 
       document
         .getElementById("load-more-notes")
@@ -2707,6 +3181,7 @@
         toggle.setAttribute("aria-expanded", String(shouldOpen));
         if (shouldOpen) {
           closeTrashPanel();
+          closeHiddenNotesPanel();
           document.getElementById("search-query").focus();
         }
       });
@@ -2714,6 +3189,9 @@
       document.getElementById("search-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         searchActive = true;
+        calendarActive = false;
+        selectedCalendarDate = "";
+        selectedArchiveLabel = "";
         const searchURL = buildSearchURL();
         activeSearchURL = `${searchURL.pathname}${searchURL.search}`;
         document.getElementById("search-status").textContent = "Searching…";
@@ -2724,13 +3202,122 @@
         }
       });
 
-      document.getElementById("search-all").addEventListener("click", async () => {
+      async function showRecentNotes() {
         document.getElementById("search-form").reset();
+        setDefaultSearchDates();
         document.getElementById("search-status").textContent = "";
         searchActive = false;
         activeSearchURL = "";
+        calendarActive = false;
+        selectedCalendarDate = "";
+        selectedArchiveLabel = "";
         await loadNotes();
         closeSearchPanel();
+      }
+
+      async function openCalendarDate() {
+        const dateInput = document.getElementById("calendar-date");
+        const calendarURL = buildCalendarURL(dateInput.value);
+        if (!calendarURL) {
+          dateInput.focus();
+          try { dateInput.showPicker?.(); } catch {}
+          return;
+        }
+        searchActive = true;
+        calendarActive = true;
+        selectedCalendarDate = dateInput.value;
+        selectedArchiveLabel = "";
+        activeSearchURL = calendarURL;
+        document.getElementById("search-status").textContent = "Opening date…";
+        const loaded = await loadNotes();
+        if (loaded) {
+          document.getElementById("search-status").textContent = "";
+          closeSearchPanel();
+        }
+      }
+
+      document.getElementById("calendar-open").addEventListener("click", openCalendarDate);
+      document.getElementById("calendar-date").addEventListener("change", openCalendarDate);
+      document.getElementById("calendar-clear").addEventListener("click", showRecentNotes);
+      document.getElementById("search-all").addEventListener("click", showRecentNotes);
+
+      function closeArchiveOverview() {
+        document.getElementById("archive-panel").hidden = true;
+      }
+
+      function archiveBucketLabel(bucket, type) {
+        const start = new Date(bucket.start);
+        if (type === "month") {
+          return start.toLocaleDateString([], { month: "long", year: "numeric" });
+        }
+        return `Week of ${start.toLocaleDateString([], {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}`;
+      }
+
+      function renderArchiveBuckets(buckets, type) {
+        if (!buckets.length) return '<p class="archive-empty">No notes.</p>';
+        const maximum = Math.max(...buckets.map((bucket) => bucket.count));
+        return buckets.map((bucket) => {
+          const label = archiveBucketLabel(bucket, type);
+          const width = Math.max(4, Math.round((bucket.count / maximum) * 100));
+          return `<button class="archive-row" type="button" data-start="${escapeHTML(bucket.start)}" data-end="${escapeHTML(bucket.end)}" data-label="${escapeHTML(label)}">
+            <span class="archive-bar" style="width:${width}%" aria-hidden="true"></span>
+            <span>${escapeHTML(label)}</span>
+            <span class="archive-count">${bucket.count}</span>
+          </button>`;
+        }).join("");
+      }
+
+      async function openArchiveOverview() {
+        closeSearchPanel();
+        closeTrashPanel();
+        closeHiddenNotesPanel();
+        const panel = document.getElementById("archive-panel");
+        panel.hidden = false;
+        document.getElementById("archive-total").textContent = "Loading…";
+        document.getElementById("archive-months").innerHTML = "";
+        document.getElementById("archive-weeks").innerHTML = "";
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+        let response;
+        try {
+          response = await apiFetch(`/api/notes/archive?timezone=${encodeURIComponent(timezone)}`);
+        } catch {
+          document.getElementById("archive-total").textContent = "Could not reach the server.";
+          return;
+        }
+        if (!response.ok) {
+          document.getElementById("archive-total").textContent = "Could not load overview.";
+          return;
+        }
+        const archive = await response.json();
+        document.getElementById("archive-total").textContent = `${archive.total} active ${archive.total === 1 ? "note" : "notes"}`;
+        document.getElementById("archive-months").innerHTML = renderArchiveBuckets(archive.months || [], "month");
+        document.getElementById("archive-weeks").innerHTML = renderArchiveBuckets(archive.weeks || [], "week");
+      }
+
+      async function openArchiveRange(button) {
+        const params = new URLSearchParams({
+          scope: "all",
+          from_time: button.dataset.start,
+          to_time: button.dataset.end,
+        });
+        searchActive = true;
+        calendarActive = true;
+        selectedCalendarDate = "";
+        selectedArchiveLabel = button.dataset.label;
+        activeSearchURL = `/api/notes/search-page?${params.toString()}`;
+        closeArchiveOverview();
+        await loadNotes();
+      }
+
+      document.getElementById("archive-open").addEventListener("click", openArchiveOverview);
+      document.getElementById("archive-close").addEventListener("click", closeArchiveOverview);
+      document.getElementById("archive-panel").addEventListener("click", (event) => {
+        const row = event.target.closest(".archive-row");
+        if (row) openArchiveRange(row);
       });
 
       document.getElementById("trash-toggle").addEventListener("click", () => {
@@ -2739,12 +3326,18 @@
         const shouldOpen = panel.hidden;
         panel.hidden = !shouldOpen;
         toggle.setAttribute("aria-expanded", String(shouldOpen));
-        if (shouldOpen) closeSearchPanel();
+        if (shouldOpen) {
+          closeSearchPanel();
+          closeHiddenNotesPanel();
+        }
       });
 
       document.addEventListener("click", (event) => {
         const control = document.querySelector(".trash-control");
         if (!control.contains(event.target)) closeTrashPanel();
+
+        const hiddenControl = document.getElementById("hidden-notes-control");
+        if (!hiddenControl.contains(event.target)) closeHiddenNotesPanel();
 
         const searchPanel = document.getElementById("search-panel");
         const searchToggle = document.getElementById("search-toggle");
@@ -2757,6 +3350,13 @@
 
         const accountControl = document.getElementById("account-control");
         if (!accountControl.contains(event.target)) accountControl.open = false;
+
+        const archivePanel = document.getElementById("archive-panel");
+        if (
+          !archivePanel.hidden &&
+          !archivePanel.contains(event.target) &&
+          !document.getElementById("archive-open").contains(event.target)
+        ) closeArchiveOverview();
       });
 
       document.addEventListener("pointerdown", (event) => {
@@ -2774,23 +3374,42 @@
       });
 
       window.addEventListener("pagehide", () => {
-        if (!csrfToken || draftVersion < 1) return;
-        clearTimeout(draftSaveTimer);
-        fetch("/api/draft/update", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrfToken,
-          },
-          body: JSON.stringify(currentDraft()),
-          keepalive: true,
-        });
+        if (!csrfToken) return;
+        if (editingNoteId !== null) {
+          const edit = currentEdit(editingNoteId);
+          if (edit && (edit.title.trim() || edit.content.trim())) {
+            clearTimeout(editSaveTimer);
+            fetch(`/api/notes/update?id=${editingNoteId}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrfToken,
+              },
+              body: JSON.stringify(edit),
+              keepalive: true,
+            });
+          }
+        }
+        if (draftVersion >= 1) {
+          clearTimeout(draftSaveTimer);
+          fetch("/api/draft/update", {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken,
+            },
+            body: JSON.stringify(currentDraft()),
+            keepalive: true,
+          });
+        }
       });
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
           closeTrashPanel();
           closeSearchPanel();
+          closeHiddenNotesPanel();
+          closeArchiveOverview();
           document.getElementById("account-control").open = false;
         }
 

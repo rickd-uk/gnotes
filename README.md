@@ -10,8 +10,9 @@ See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command upd
 - Per-user accounts, sessions, CSRF protection, and note isolation
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
-- Create, edit, pin, hide, search, recycle, recover, and permanently delete notes
+- Create, autosave, resume editing, pin, hide, search, recycle, recover, and permanently delete notes
 - Cursor-paginated note and recycle-bin loading with indexed full-text search
+- Calendar jumps and monthly/weekly archive overviews for large collections
 - Server-backed per-user draft autosave and refresh recovery
 - Responsive layouts and three note-density modes
 - Markdown rendering and writing guide

@@ -47,6 +47,31 @@ type renderedCacheUpdate struct {
 	HTML    string
 }
 
+func getNoteHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id, ok := noteIDFromRequest(w, r)
+	if !ok {
+		return
+	}
+	notes, _, err := queryActiveNotePage(`SELECT id, title, content, rendered_content, created_at, pinned
+    FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL LIMIT ?`,
+		[]any{id, userIDFromRequest(r)}, 1)
+	if err != nil {
+		http.Error(w, "Could not load note", http.StatusInternalServerError)
+		return
+	}
+	if len(notes) == 0 {
+		http.Error(w, "Note not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(notes[0])
+}
+
 func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -66,15 +91,15 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 	args := []any{userIDFromRequest(r)}
 	if hasCursor {
 		conditions = append(conditions, `(pinned < ? OR
-      (pinned = ? AND created_at < ?) OR
-      (pinned = ? AND created_at = ? AND id < ?))`)
+			(pinned = ? AND unixepoch(created_at) < ?) OR
+			(pinned = ? AND unixepoch(created_at) = ? AND id < ?))`)
 		pinned := boolInt(cursor.Pinned)
-		args = append(args, pinned, pinned, cursor.CreatedAt, pinned, cursor.CreatedAt, cursor.ID)
+		args = append(args, pinned, pinned, cursor.CreatedAt.Unix(), pinned, cursor.CreatedAt.Unix(), cursor.ID)
 	}
 
 	query := `SELECT id, title, content, rendered_content, created_at, pinned
     FROM notes WHERE ` + strings.Join(conditions, " AND ") + `
-    ORDER BY pinned DESC, created_at DESC, id DESC LIMIT ?`
+	ORDER BY pinned DESC, unixepoch(created_at) DESC, id DESC LIMIT ?`
 	notes, nextCursor, err := queryActiveNotePage(query, args, limit)
 	if err != nil {
 		http.Error(w, "Could not load notes", http.StatusInternalServerError)
@@ -115,15 +140,15 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	countArgs := append([]any(nil), args...)
 	if hasCursor {
 		conditions = append(conditions, `(n.pinned < ? OR
-      (n.pinned = ? AND n.created_at < ?) OR
-      (n.pinned = ? AND n.created_at = ? AND n.id < ?))`)
+			(n.pinned = ? AND unixepoch(n.created_at) < ?) OR
+			(n.pinned = ? AND unixepoch(n.created_at) = ? AND n.id < ?))`)
 		pinned := boolInt(cursor.Pinned)
-		args = append(args, pinned, pinned, cursor.CreatedAt, pinned, cursor.CreatedAt, cursor.ID)
+		args = append(args, pinned, pinned, cursor.CreatedAt.Unix(), pinned, cursor.CreatedAt.Unix(), cursor.ID)
 	}
 
 	fromClause := " FROM notes n " + join + " WHERE " + strings.Join(conditions, " AND ")
 	query := `SELECT n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned` +
-		fromClause + ` ORDER BY n.pinned DESC, n.created_at DESC, n.id DESC LIMIT ?`
+		fromClause + ` ORDER BY n.pinned DESC, unixepoch(n.created_at) DESC, n.id DESC LIMIT ?`
 	notes, nextCursor, err := queryActiveNotePage(query, args, limit)
 	if err != nil {
 		http.Error(w, "Search failed", http.StatusInternalServerError)
@@ -156,12 +181,12 @@ func pagedTrashNotesHandler(w http.ResponseWriter, r *http.Request) {
 	conditions := []string{"user_id = ?", "deleted_at IS NOT NULL"}
 	args := []any{userIDFromRequest(r)}
 	if hasCursor {
-		conditions = append(conditions, "(deleted_at < ? OR (deleted_at = ? AND id < ?))")
-		args = append(args, cursor.DeletedAt, cursor.DeletedAt, cursor.ID)
+		conditions = append(conditions, "(unixepoch(deleted_at) < ? OR (unixepoch(deleted_at) = ? AND id < ?))")
+		args = append(args, cursor.DeletedAt.Unix(), cursor.DeletedAt.Unix(), cursor.ID)
 	}
 	query := `SELECT id, title, content, created_at, deleted_at
     FROM notes WHERE ` + strings.Join(conditions, " AND ") + `
-    ORDER BY deleted_at DESC, id DESC LIMIT ?`
+	ORDER BY unixepoch(deleted_at) DESC, id DESC LIMIT ?`
 	queryArgs := append(append([]any{}, args...), limit+1)
 	rows, err := db.DB.Query(query, queryArgs...)
 	if err != nil {
@@ -221,24 +246,17 @@ func pagedSearchFilter(r *http.Request) (string, []string, []any, error) {
 
 	conditions := []string{"n.user_id = ?", "n.deleted_at IS NULL"}
 	args := []any{userIDFromRequest(r)}
-	fromDate, err := parseSearchDate(r.URL.Query().Get("from"))
+	fromDate, toDate, err := pagedSearchTimes(r)
 	if err != nil {
-		return "", nil, nil, errors.New("invalid start date")
-	}
-	toDate, err := parseSearchDate(r.URL.Query().Get("to"))
-	if err != nil {
-		return "", nil, nil, errors.New("invalid end date")
-	}
-	if !fromDate.IsZero() && !toDate.IsZero() && fromDate.After(toDate) {
-		return "", nil, nil, errors.New("start date must not be after end date")
+		return "", nil, nil, err
 	}
 	if !fromDate.IsZero() {
-		conditions = append(conditions, "n.created_at >= ?")
-		args = append(args, fromDate)
+		conditions = append(conditions, "unixepoch(n.created_at) >= ?")
+		args = append(args, fromDate.Unix())
 	}
 	if !toDate.IsZero() {
-		conditions = append(conditions, "n.created_at < ?")
-		args = append(args, toDate.AddDate(0, 0, 1))
+		conditions = append(conditions, "unixepoch(n.created_at) < ?")
+		args = append(args, toDate.Unix())
 	}
 
 	join := ""
@@ -277,6 +295,44 @@ func pagedSearchFilter(r *http.Request) (string, []string, []any, error) {
 		}
 	}
 	return join, conditions, args, nil
+}
+
+func pagedSearchTimes(r *http.Request) (time.Time, time.Time, error) {
+	fromTimeValue := r.URL.Query().Get("from_time")
+	toTimeValue := r.URL.Query().Get("to_time")
+	if fromTimeValue != "" || toTimeValue != "" {
+		if fromTimeValue == "" || toTimeValue == "" {
+			return time.Time{}, time.Time{}, errors.New("both time boundaries are required")
+		}
+		fromTime, err := time.Parse(time.RFC3339, fromTimeValue)
+		if err != nil {
+			return time.Time{}, time.Time{}, errors.New("invalid start time")
+		}
+		toTime, err := time.Parse(time.RFC3339, toTimeValue)
+		if err != nil {
+			return time.Time{}, time.Time{}, errors.New("invalid end time")
+		}
+		if !fromTime.Before(toTime) {
+			return time.Time{}, time.Time{}, errors.New("start time must be before end time")
+		}
+		return fromTime, toTime, nil
+	}
+
+	fromDate, err := parseSearchDate(r.URL.Query().Get("from"))
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("invalid start date")
+	}
+	toDate, err := parseSearchDate(r.URL.Query().Get("to"))
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("invalid end date")
+	}
+	if !fromDate.IsZero() && !toDate.IsZero() && fromDate.After(toDate) {
+		return time.Time{}, time.Time{}, errors.New("start date must not be after end date")
+	}
+	if !toDate.IsZero() {
+		toDate = toDate.AddDate(0, 0, 1)
+	}
+	return fromDate, toDate, nil
 }
 
 func ftsSearchEligible(query string) bool {
