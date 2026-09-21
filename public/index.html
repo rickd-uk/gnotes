@@ -949,6 +949,33 @@
         display: none !important;
       }
 
+      .startup-screen {
+        display: grid;
+        min-height: 100vh;
+        place-content: center;
+        place-items: center;
+        gap: 8px;
+        color: var(--muted);
+      }
+
+      .startup-brand {
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.65rem;
+        font-weight: 500;
+      }
+
+      .startup-status {
+        font-size: 0.76rem;
+        letter-spacing: 0.04em;
+        animation: startup-pulse 1.2s ease-in-out infinite alternate;
+      }
+
+      @keyframes startup-pulse {
+        from { opacity: 0.42; }
+        to { opacity: 0.9; }
+      }
+
       .auth-screen {
         display: grid;
         min-height: 100vh;
@@ -1332,6 +1359,10 @@
       }
 
       @media (prefers-reduced-motion: reduce) {
+        .startup-status {
+          animation: none;
+        }
+
         .note-card {
           transform: none;
           transition: none;
@@ -1340,7 +1371,12 @@
     </style>
   </head>
   <body>
-    <section class="auth-screen" id="auth-screen" aria-labelledby="auth-heading">
+    <section class="startup-screen" id="startup-screen" aria-label="Loading gnotes">
+      <span class="startup-brand">gnotes</span>
+      <span class="startup-status">Opening notes…</span>
+    </section>
+
+    <section class="auth-screen" id="auth-screen" aria-labelledby="auth-heading" hidden>
       <div class="auth-card">
         <h1 id="auth-heading">gnotes</h1>
         <p class="auth-intro" id="auth-intro">Sign in to your private notes.</p>
@@ -1586,6 +1622,7 @@
       function showAuth(message = "") {
         csrfToken = "";
         currentUser = null;
+        document.getElementById("startup-screen").hidden = true;
         document.getElementById("app-shell").hidden = true;
         document.getElementById("admin-panel").hidden = true;
         document.getElementById("auth-screen").hidden = false;
@@ -1601,8 +1638,12 @@
         document.getElementById("account-name").textContent = session.username;
         document.getElementById("admin-open").hidden = session.role !== "admin";
         document.getElementById("auth-screen").hidden = true;
+        document.getElementById("app-shell").hidden = true;
+        document.getElementById("startup-screen").hidden = false;
+        await Promise.allSettled([loadNotes(), loadTrash(), loadDraft()]);
+        if (currentUser !== session) return;
+        document.getElementById("startup-screen").hidden = true;
         document.getElementById("app-shell").hidden = false;
-        await Promise.all([loadNotes(), loadTrash(), loadDraft()]);
       }
 
       async function initializeAuth() {
