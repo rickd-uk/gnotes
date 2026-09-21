@@ -46,6 +46,29 @@ go test -race ./cmd/server
 go vet ./...
 ```
 
+### Generate test notes
+
+To exercise pagination, search, date sections, pinned notes, and the recycle bin in a local database, generate 500 notes for `rick`:
+
+```bash
+make seed
+```
+
+Choose a larger count, another local database, or another account with Make variables:
+
+```bash
+make seed SEED_COUNT=5000
+make seed SEED_DATABASE=/tmp/gnotes-test.db SEED_USER=alice SEED_COUNT=1000
+```
+
+The generator includes varied Markdown, untitled and long notes, dates from today through more than two years ago, mixed-case `OrchidSignal` search samples, pinned notes, and notes in the recycle bin. It refuses the production `/var/lib/gnotes` path unless its explicit production override is used.
+
+Remove only notes created by the generator with:
+
+```bash
+make seed-clean
+```
+
 ## Ubuntu and systemd deployment
 
 This layout keeps the application private on localhost and exposes it only through an HTTPS reverse proxy:
