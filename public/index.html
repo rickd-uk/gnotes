@@ -268,7 +268,6 @@
 
       .date-section-heading {
         margin: 12px 0 0;
-        padding: 7px 12px;
         border-bottom: 1px solid #cbd8d1;
         border-left: 3px solid var(--accent);
         background: rgba(49, 91, 76, 0.055);
@@ -277,6 +276,42 @@
         font-size: 1.18rem;
         font-weight: 600;
         letter-spacing: -0.01em;
+      }
+
+      .date-section-toggle {
+        display: flex;
+        width: 100%;
+        min-height: 40px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 7px 12px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        letter-spacing: inherit;
+        text-align: left;
+      }
+
+      .date-section-toggle:hover {
+        background: rgba(49, 91, 76, 0.065);
+      }
+
+      .date-section-chevron {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+        transition: transform 140ms ease;
+      }
+
+      .date-group.is-collapsed .date-section-chevron {
+        transform: rotate(-90deg);
+      }
+
+      .date-group.is-collapsed .note-card {
+        display: none;
       }
 
       .trash-control {
@@ -902,8 +937,12 @@
 
       #notes-list.density-titles .date-section-heading {
         margin-top: 12px;
-        padding: 6px 10px;
         font-size: 0.94rem;
+      }
+
+      #notes-list.density-titles .date-section-toggle {
+        min-height: 36px;
+        padding: 6px 10px;
       }
 
       #notes-list.density-titles .note-card {
@@ -1363,6 +1402,10 @@
           animation: none;
         }
 
+        .date-section-chevron {
+          transition: none;
+        }
+
         .note-card {
           transform: none;
           transition: none;
@@ -1428,6 +1471,12 @@
               <path d="M5 7h14M5 12h14M5 17h14" />
             </svg>
             <span id="density-toggle-label">Full</span>
+          </button>
+          <button class="toolbar-button" id="date-sections-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Collapse all date sections" title="Collapse all date sections" hidden>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m7 9 5-5 5 5M7 15l5 5 5-5" />
+            </svg>
+            <span id="date-sections-toggle-label">Fold</span>
           </button>
           <button class="notes-toggle" id="notes-toggle" type="button" aria-controls="notes-list" aria-expanded="true" aria-label="Hide notes" title="Hide notes">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -1563,6 +1612,7 @@
       let densityIndex = 0;
       let searchActive = false;
       let editingNoteId = null;
+      let collapsedDateSections = new Set();
 
       async function apiFetch(url, options = {}) {
         const request = { ...options };
@@ -1635,6 +1685,7 @@
       async function enterApp(session) {
         csrfToken = session.csrf_token;
         currentUser = session;
+        loadCollapsedDateSections();
         document.getElementById("account-name").textContent = session.username;
         document.getElementById("admin-open").hidden = session.role !== "admin";
         document.getElementById("auth-screen").hidden = true;
@@ -1838,6 +1889,7 @@
           document.getElementById("notes-list").innerHTML = searchActive
             ? '<p class="empty-state">No matching notes.</p>'
             : "";
+          updateDateSectionsControl();
           return true;
         }
 
@@ -1848,6 +1900,7 @@
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML =
             '<p class="empty-state">All notes are hidden.</p>';
+          updateDateSectionsControl();
           return true;
         }
 
@@ -1867,9 +1920,18 @@
               if (activeDateSection) renderedNotes += "</section>";
               activeDateSection = dateSection;
               dateSectionIndex += 1;
+              const dateSectionKey = n.pinned
+                ? "pinned"
+                : `date:${formatLocalDateKey(n.created_at)}`;
+              const sectionCollapsed = collapsedDateSections.has(dateSectionKey);
               renderedNotes += `
-                <section class="date-group ${dateSection === "Pinned" ? "pinned-section" : ""}" aria-labelledby="date-section-${dateSectionIndex}">
-                  <h3 class="date-section-heading" id="date-section-${dateSectionIndex}">${escapeHTML(dateSection)}</h3>`;
+                <section class="date-group ${dateSection === "Pinned" ? "pinned-section" : ""} ${sectionCollapsed ? "is-collapsed" : ""}" aria-labelledby="date-section-${dateSectionIndex}">
+                  <h3 class="date-section-heading" id="date-section-${dateSectionIndex}">
+                    <button class="date-section-toggle" type="button" data-section-key="${dateSectionKey}" aria-expanded="${String(!sectionCollapsed)}" onclick="toggleDateSection(this)">
+                      <span>${escapeHTML(dateSection)}</span>
+                      <svg class="date-section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                  </h3>`;
             }
 
             // TRANSFORM THE HTML STRING BEFORE INSERTING
@@ -1940,6 +2002,7 @@
         renderedNotes += "</section>";
         document.getElementById("notes-list").innerHTML = renderedNotes;
 
+        updateDateSectionsControl();
         observeNoteCards();
         return true;
       }
@@ -2005,6 +2068,84 @@
         const element = document.createElement("div");
         element.textContent = value;
         return element.innerHTML;
+      }
+
+      function collapsedDateSectionsStorageKey() {
+        if (!currentUser?.username) return "";
+        return `gnotes:collapsed-date-sections:${currentUser.username.toLowerCase()}`;
+      }
+
+      function loadCollapsedDateSections() {
+        collapsedDateSections = new Set();
+        const storageKey = collapsedDateSectionsStorageKey();
+        if (!storageKey) return;
+        try {
+          const savedSections = JSON.parse(localStorage.getItem(storageKey) || "[]");
+          if (Array.isArray(savedSections)) {
+            collapsedDateSections = new Set(
+              savedSections.filter((section) => typeof section === "string").slice(0, 1000),
+            );
+          }
+        } catch {
+          // Storage may be unavailable or contain data from an older version.
+        }
+      }
+
+      function saveCollapsedDateSections() {
+        const storageKey = collapsedDateSectionsStorageKey();
+        if (!storageKey) return;
+        try {
+          localStorage.setItem(storageKey, JSON.stringify([...collapsedDateSections]));
+        } catch {
+          // Collapsing still works for this page even when storage is unavailable.
+        }
+      }
+
+      function toggleDateSection(button) {
+        const sectionKey = button.dataset.sectionKey;
+        const section = button.closest(".date-group");
+        if (!sectionKey || !section) return;
+        const collapsed = section.classList.toggle("is-collapsed");
+        button.setAttribute("aria-expanded", String(!collapsed));
+        if (collapsed) collapsedDateSections.add(sectionKey);
+        else collapsedDateSections.delete(sectionKey);
+        saveCollapsedDateSections();
+        updateDateSectionsControl();
+      }
+
+      function updateDateSectionsControl() {
+        const control = document.getElementById("date-sections-toggle");
+        const sections = [...document.querySelectorAll("#notes-list .date-group")];
+        control.hidden = sections.length === 0;
+        if (!sections.length) return;
+        const allCollapsed = sections.every((section) => section.classList.contains("is-collapsed"));
+        control.setAttribute("aria-pressed", String(allCollapsed));
+        control.setAttribute("aria-label", allCollapsed ? "Expand all date sections" : "Collapse all date sections");
+        control.title = allCollapsed ? "Expand all date sections" : "Collapse all date sections";
+        document.getElementById("date-sections-toggle-label").textContent = allCollapsed ? "Open" : "Fold";
+      }
+
+      function toggleAllDateSections() {
+        const sections = [...document.querySelectorAll("#notes-list .date-group")];
+        if (!sections.length) return;
+        const shouldCollapse = sections.some((section) => !section.classList.contains("is-collapsed"));
+        if (!shouldCollapse) collapsedDateSections.clear();
+        sections.forEach((section) => {
+          section.classList.toggle("is-collapsed", shouldCollapse);
+          const sectionButton = section.querySelector(".date-section-toggle");
+          sectionButton.setAttribute("aria-expanded", String(!shouldCollapse));
+          if (shouldCollapse) collapsedDateSections.add(sectionButton.dataset.sectionKey);
+        });
+        saveCollapsedDateSections();
+        updateDateSectionsControl();
+      }
+
+      function formatLocalDateKey(value) {
+        const date = new Date(value);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
       }
 
       function setActiveNoteCount(count) {
@@ -2598,6 +2739,7 @@
       });
 
       document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
+      document.getElementById("date-sections-toggle").addEventListener("click", toggleAllDateSections);
 
       document.getElementById("admin-open").addEventListener("click", async () => {
         document.getElementById("account-control").open = false;
