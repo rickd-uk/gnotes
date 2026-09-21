@@ -125,8 +125,8 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 
 	createdAt := time.Now()
 	result, err := tx.Exec(
-		"INSERT INTO notes (user_id, title, content, created_at) VALUES (?, ?, ?, ?)",
-		userID, draft.Title, draft.Content, createdAt,
+		"INSERT INTO notes (user_id, title, content, rendered_content, created_at) VALUES (?, ?, ?, ?, ?)",
+		userID, draft.Title, draft.Content, mdToHTML(draft.Content), createdAt,
 	)
 	if err != nil {
 		http.Error(w, "Could not create note", http.StatusInternalServerError)

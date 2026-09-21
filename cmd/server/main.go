@@ -72,12 +72,15 @@ func run() error {
 	mux.HandleFunc("/api/draft/finalize", protect(finalizeDraftHandler, true))
 	mux.HandleFunc("/api/notes/create", protect(createNoteHandler, true))
 	mux.HandleFunc("/api/notes/list", protect(listNotesHandler, false))
+	mux.HandleFunc("/api/notes/page", protect(pagedListNotesHandler, false))
 	mux.HandleFunc("/api/notes/search", protect(searchNotesHandler, false))
+	mux.HandleFunc("/api/notes/search-page", protect(pagedSearchNotesHandler, false))
 	mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
 	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
 	mux.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
 	mux.HandleFunc("/api/notes/delete-all", protect(deleteAllNotesHandler, true))
 	mux.HandleFunc("/api/notes/trash", protect(trashNotesHandler, false))
+	mux.HandleFunc("/api/notes/trash-page", protect(pagedTrashNotesHandler, false))
 	mux.HandleFunc("/api/notes/restore", protect(restoreNotesHandler, true))
 	mux.HandleFunc("/api/notes/empty-trash", protect(emptyTrashHandler, true))
 	mux.HandleFunc("/api/admin/overview", protect(requireAdmin(adminOverviewHandler), false))
@@ -180,8 +183,9 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	n.CreatedAt = time.Now()
 	// insert into sqlite
-	query := `INSERT INTO notes (user_id, title, content, created_at) VALUES(?,?,?,?)`
-	result, err := db.DB.Exec(query, userIDFromRequest(r), n.Title, n.Content, n.CreatedAt)
+	renderedContent := mdToHTML(n.Content)
+	query := `INSERT INTO notes (user_id, title, content, rendered_content, created_at) VALUES(?,?,?,?,?)`
+	result, err := db.DB.Exec(query, userIDFromRequest(r), n.Title, n.Content, renderedContent, n.CreatedAt)
 	if err != nil {
 		http.Error(w, "Database error", 500)
 		return
@@ -194,6 +198,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	n.ID = int(id)
+	n.HTMLContent = template.HTML(renderedContent)
 
 	// respond with creted note (including its new ID)
 	w.Header().Set("Content-Type", "application/json")
@@ -395,9 +400,10 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := db.DB.Exec(
-		"UPDATE notes SET title = ?, content = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+		"UPDATE notes SET title = ?, content = ?, rendered_content = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
 		n.Title,
 		n.Content,
+		mdToHTML(n.Content),
 		id,
 		userIDFromRequest(r),
 	)

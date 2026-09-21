@@ -11,6 +11,7 @@ See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command upd
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
 - Create, edit, pin, hide, search, recycle, recover, and permanently delete notes
+- Cursor-paginated note and recycle-bin loading with indexed full-text search
 - Server-backed per-user draft autosave and refresh recovery
 - Responsive layouts and three note-density modes
 - Markdown rendering and writing guide

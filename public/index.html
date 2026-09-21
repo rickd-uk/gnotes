@@ -262,6 +262,22 @@
         border-top: 1px solid var(--line);
       }
 
+      .load-more {
+        display: block;
+        margin: 14px auto 0;
+        padding: 7px 14px;
+        border: 1px solid #b9cec4;
+        border-radius: 999px;
+        background: #edf4f0;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .load-more:hover { background: #dcebe3; }
+      .load-more[hidden] { display: none; }
+
       .date-group + .date-group {
         margin-top: 20px;
       }
@@ -1508,6 +1524,7 @@
                 <h2>Recycle bin</h2>
               </div>
               <div class="trash-list" id="trash-list"></div>
+              <button class="load-more" id="load-more-trash" type="button" hidden>Load more</button>
               <div class="trash-panel-actions">
                 <button class="recover-all" id="recover-all" type="button" onclick="restoreAllNotes()">Recover all</button>
                 <button class="empty-trash" id="empty-trash" type="button" onclick="emptyTrash()">Empty all</button>
@@ -1562,6 +1579,7 @@
           <h2 class="section-label" id="notes-heading">Recent notes</h2>
         </div>
         <div id="notes-list"></div>
+        <button class="load-more" id="load-more-notes" type="button" hidden>Load older</button>
       </section>
     </main>
 
@@ -1606,11 +1624,18 @@
       let draftSaveChain = Promise.resolve();
       let draftFinalizing = false;
       let loadedNotes = new Map();
+      let notesNextCursor = "";
+      let notesTotal = 0;
+      let notesLoading = false;
+      let loadedTrash = new Map();
+      let trashNextCursor = "";
+      let trashLoading = false;
       const hiddenNoteIds = new Set();
       let noteObserver;
       const densityModes = ["full", "compact", "titles"];
       let densityIndex = 0;
       let searchActive = false;
+      let activeSearchURL = "";
       let editingNoteId = null;
       let collapsedDateSections = new Set();
 
@@ -1672,6 +1697,16 @@
       function showAuth(message = "") {
         csrfToken = "";
         currentUser = null;
+        notesLoading = false;
+        trashLoading = false;
+        notesNextCursor = "";
+        trashNextCursor = "";
+        notesTotal = 0;
+        searchActive = false;
+        activeSearchURL = "";
+        loadedNotes.clear();
+        loadedTrash.clear();
+        hiddenNoteIds.clear();
         document.getElementById("startup-screen").hidden = true;
         document.getElementById("app-shell").hidden = true;
         document.getElementById("admin-panel").hidden = true;
@@ -1859,29 +1894,50 @@
         return html;
       }
 
-      async function loadNotes() {
-        const res = await apiFetch(searchActive ? buildSearchURL() : "/api/notes/list");
+      async function loadNotes(append = false) {
+        if (notesLoading) return false;
+        if (append && !notesNextCursor) return true;
+        notesLoading = true;
+        const loadMore = document.getElementById("load-more-notes");
+        loadMore.disabled = true;
+        loadMore.textContent = "Loading…";
+        const pageURL = searchActive
+          ? new URL(activeSearchURL || buildSearchURL(), location.origin)
+          : new URL("/api/notes/page", location.origin);
+        pageURL.searchParams.set("limit", "50");
+        if (append) pageURL.searchParams.set("cursor", notesNextCursor);
+        let res;
+        try {
+          res = await apiFetch(`${pageURL.pathname}${pageURL.search}`);
+        } catch {
+          document.getElementById("search-status").textContent = "Could not reach the server.";
+          notesLoading = false;
+          loadMore.disabled = false;
+          loadMore.textContent = searchActive ? "More results" : "Load older";
+          return false;
+        }
         if (!res.ok) {
           const message = await res.text();
           document.getElementById("search-status").textContent =
             message.trim() || "Search failed.";
+          notesLoading = false;
+          loadMore.disabled = false;
+          loadMore.textContent = searchActive ? "More results" : "Load older";
           return false;
         }
-        const notes = (await res.json()) || [];
-        if (!searchActive) setActiveNoteCount(notes.length);
+        const page = await res.json();
+        if (!append) loadedNotes = new Map();
+        (page.notes || []).forEach((note) => loadedNotes.set(note.id, note));
+        const notes = [...loadedNotes.values()];
+        notesNextCursor = page.next_cursor || "";
+        notesTotal = page.total || 0;
+        if (!searchActive) setActiveNoteCount(notesTotal);
         const notesSection = document.getElementById("notes-section");
-        notesSection.hidden = !searchActive && notes.length === 0;
-        loadedNotes = new Map(notes.map((note) => [note.id, note]));
+        notesSection.hidden = !searchActive && notesTotal === 0;
         document.getElementById("notes-heading").textContent = searchActive
-          ? `Search results · ${notes.length}`
+          ? `Search results · ${notesTotal}`
           : "Recent notes";
 
-        if (!searchActive) {
-          const existingIds = new Set(notes.map((note) => note.id));
-          hiddenNoteIds.forEach((id) => {
-            if (!existingIds.has(id)) hiddenNoteIds.delete(id);
-          });
-        }
         updateHiddenNotesControl();
 
         if (!notes.length) {
@@ -1889,7 +1945,9 @@
           document.getElementById("notes-list").innerHTML = searchActive
             ? '<p class="empty-state">No matching notes.</p>'
             : "";
+          loadMore.hidden = true;
           updateDateSectionsControl();
+          notesLoading = false;
           return true;
         }
 
@@ -1900,7 +1958,11 @@
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML =
             '<p class="empty-state">All notes are hidden.</p>';
+          loadMore.hidden = !notesNextCursor;
+          loadMore.disabled = false;
+          loadMore.textContent = searchActive ? "More results" : "Load older";
           updateDateSectionsControl();
+          notesLoading = false;
           return true;
         }
 
@@ -2001,9 +2063,13 @@
 
         renderedNotes += "</section>";
         document.getElementById("notes-list").innerHTML = renderedNotes;
+        loadMore.hidden = !notesNextCursor;
+        loadMore.disabled = false;
+        loadMore.textContent = searchActive ? "More results" : "Load older";
 
         updateDateSectionsControl();
         observeNoteCards();
+        notesLoading = false;
         return true;
       }
 
@@ -2022,7 +2088,7 @@
           params.set("match_case", "true");
         }
 
-        return `/api/notes/search?${params.toString()}`;
+        return new URL(`/api/notes/search-page?${params.toString()}`, location.origin);
       }
 
       function setDefaultSearchDates() {
@@ -2355,15 +2421,40 @@
         await loadNotes();
       }
 
-      async function loadTrash() {
-        const res = await apiFetch("/api/notes/trash");
-        if (!res.ok) return;
+      async function loadTrash(append = false) {
+        if (trashLoading) return;
+        if (append && !trashNextCursor) return;
+        trashLoading = true;
+        const loadMore = document.getElementById("load-more-trash");
+        loadMore.disabled = true;
+        loadMore.textContent = "Loading…";
+        const params = new URLSearchParams({ limit: "50" });
+        if (append) params.set("cursor", trashNextCursor);
+        let res;
+        try {
+          res = await apiFetch(`/api/notes/trash-page?${params.toString()}`);
+        } catch {
+          trashLoading = false;
+          loadMore.disabled = false;
+          loadMore.textContent = "Load more";
+          return;
+        }
+        if (!res.ok) {
+          trashLoading = false;
+          loadMore.disabled = false;
+          loadMore.textContent = "Load more";
+          return;
+        }
 
-        const notes = await res.json();
-        trashedNoteCount = notes.length;
-        document.getElementById("trash-count").textContent = notes.length;
-        document.getElementById("recover-all").disabled = notes.length === 0;
-        document.getElementById("empty-trash").disabled = notes.length === 0;
+        const page = await res.json();
+        if (!append) loadedTrash = new Map();
+        (page.notes || []).forEach((note) => loadedTrash.set(note.id, note));
+        const notes = [...loadedTrash.values()];
+        trashNextCursor = page.next_cursor || "";
+        trashedNoteCount = page.total || 0;
+        document.getElementById("trash-count").textContent = trashedNoteCount;
+        document.getElementById("recover-all").disabled = trashedNoteCount === 0;
+        document.getElementById("empty-trash").disabled = trashedNoteCount === 0;
 
         document.getElementById("trash-list").innerHTML = notes.length
           ? notes
@@ -2383,6 +2474,10 @@
               )
               .join("")
           : '<p class="trash-empty">The recycle bin is empty.</p>';
+        loadMore.hidden = !trashNextCursor;
+        loadMore.disabled = false;
+        loadMore.textContent = "Load more";
+        trashLoading = false;
       }
 
       async function restoreNote(id) {
@@ -2590,6 +2685,13 @@
           loadNotes();
         });
 
+      document
+        .getElementById("load-more-notes")
+        .addEventListener("click", () => loadNotes(true));
+      document
+        .getElementById("load-more-trash")
+        .addEventListener("click", () => loadTrash(true));
+
       function closeSearchPanel() {
         document.getElementById("search-panel").hidden = true;
         document
@@ -2612,6 +2714,8 @@
       document.getElementById("search-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         searchActive = true;
+        const searchURL = buildSearchURL();
+        activeSearchURL = `${searchURL.pathname}${searchURL.search}`;
         document.getElementById("search-status").textContent = "Searching…";
         const loaded = await loadNotes();
         if (loaded) {
@@ -2624,6 +2728,7 @@
         document.getElementById("search-form").reset();
         document.getElementById("search-status").textContent = "";
         searchActive = false;
+        activeSearchURL = "";
         await loadNotes();
         closeSearchPanel();
       });

@@ -137,12 +137,18 @@ func InitDB(filepath string) {
 	ensureColumn("deleted_at", "DATETIME")
 	ensureColumn("pinned", "INTEGER NOT NULL DEFAULT 0")
 	ensureColumn("user_id", "INTEGER")
+	ensureColumn("rendered_content", "TEXT")
 	ensureTableColumn("users", "role", "TEXT NOT NULL DEFAULT 'user'")
 	ensureTableColumn("users", "active", "INTEGER NOT NULL DEFAULT 1")
+	ensureNotesFTS()
 
 	indexSQL := `
   CREATE INDEX IF NOT EXISTS idx_notes_user_active
     ON notes (user_id, deleted_at, pinned, created_at);
+  CREATE INDEX IF NOT EXISTS idx_notes_user_active_page
+    ON notes (user_id, deleted_at, pinned DESC, created_at DESC, id DESC);
+  CREATE INDEX IF NOT EXISTS idx_notes_user_trash_page
+    ON notes (user_id, deleted_at DESC, id DESC);
   CREATE INDEX IF NOT EXISTS idx_sessions_expiry
     ON sessions (expires_at);
   CREATE INDEX IF NOT EXISTS idx_sessions_user
@@ -161,6 +167,57 @@ func InitDB(filepath string) {
 		if err := os.Chmod(filepath, 0o600); err != nil {
 			log.Printf("warning: could not restrict database file permissions: %v", err)
 		}
+	}
+}
+
+func ensureNotesFTS() {
+	var tableExists int
+	if err := DB.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'notes_fts'").Scan(&tableExists); err != nil {
+		log.Fatal(err)
+	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`
+  CREATE TRIGGER IF NOT EXISTS notes_rendered_content_invalidate
+    AFTER UPDATE OF content ON notes
+    WHEN new.rendered_content IS old.rendered_content
+  BEGIN
+    UPDATE notes SET rendered_content = NULL WHERE id = new.id;
+  END;
+  CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+    title,
+    content,
+    content = 'notes',
+    content_rowid = 'id',
+    tokenize = 'trigram'
+  );
+  CREATE TRIGGER IF NOT EXISTS notes_fts_insert AFTER INSERT ON notes BEGIN
+    INSERT INTO notes_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
+  END;
+  CREATE TRIGGER IF NOT EXISTS notes_fts_delete AFTER DELETE ON notes BEGIN
+    INSERT INTO notes_fts(notes_fts, rowid, title, content)
+      VALUES ('delete', old.id, old.title, old.content);
+  END;
+  CREATE TRIGGER IF NOT EXISTS notes_fts_update AFTER UPDATE OF title, content ON notes BEGIN
+    INSERT INTO notes_fts(notes_fts, rowid, title, content)
+      VALUES ('delete', old.id, old.title, old.content);
+    INSERT INTO notes_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
+  END;
+`); err != nil {
+		log.Fatal(err)
+	}
+	if tableExists == 0 {
+		if _, err := tx.Exec("INSERT INTO notes_fts(notes_fts) VALUES ('rebuild')"); err != nil {
+			log.Fatal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		log.Fatal(err)
 	}
 }
 

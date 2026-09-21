@@ -135,3 +135,47 @@ func TestConcurrentWritesAreSerialized(t *testing.T) {
 		t.Fatalf("stored %d concurrent writes, want %d", count, writes)
 	}
 }
+
+func TestNotesFTSStaysSynchronized(t *testing.T) {
+	InitDB(filepath.Join(t.TempDir(), "fts.db"))
+	t.Cleanup(func() { DB.Close() })
+
+	result, err := DB.Exec(
+		"INSERT INTO notes (title, content, rendered_content, created_at) VALUES ('Project', 'alpha marker', '<p>alpha marker</p>', ?)",
+		time.Now(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := result.LastInsertId()
+	assertFTSCount(t, `notes_fts MATCH '"alpha"'`, 1)
+
+	if _, err := DB.Exec("UPDATE notes SET content = 'beta marker' WHERE id = ?", id); err != nil {
+		t.Fatal(err)
+	}
+	var rendered sql.NullString
+	if err := DB.QueryRow("SELECT rendered_content FROM notes WHERE id = ?", id).Scan(&rendered); err != nil {
+		t.Fatal(err)
+	}
+	if rendered.Valid {
+		t.Fatal("content-only update did not invalidate rendered Markdown cache")
+	}
+	assertFTSCount(t, `notes_fts MATCH '"alpha"'`, 0)
+	assertFTSCount(t, `notes_fts MATCH '"beta"'`, 1)
+
+	if _, err := DB.Exec("DELETE FROM notes WHERE id = ?", id); err != nil {
+		t.Fatal(err)
+	}
+	assertFTSCount(t, `notes_fts MATCH '"beta"'`, 0)
+}
+
+func assertFTSCount(t *testing.T, condition string, want int) {
+	t.Helper()
+	var count int
+	if err := DB.QueryRow("SELECT COUNT(*) FROM notes_fts WHERE " + condition).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != want {
+		t.Fatalf("FTS count = %d, want %d", count, want)
+	}
+}
