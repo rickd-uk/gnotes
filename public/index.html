@@ -133,9 +133,89 @@
       .form-actions {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 10px;
         justify-content: space-between;
         margin-top: 10px;
+      }
+
+      .format-control {
+        position: relative;
+        flex: 0 0 auto;
+      }
+
+      .format-toggle {
+        min-width: 34px;
+        min-height: 30px;
+        padding: 4px 8px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .format-toggle:hover,
+      .format-toggle[aria-expanded="true"] {
+        border-color: var(--line);
+        background: #f0ede6;
+        color: var(--ink);
+      }
+
+      .format-toolbar {
+        position: absolute;
+        z-index: 35;
+        top: calc(100% + 6px);
+        right: 0;
+        display: flex;
+        width: max-content;
+        max-width: min(360px, calc(100vw - 32px));
+        align-items: center;
+        gap: 2px;
+        padding: 5px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #f8f6f0;
+        box-shadow: 0 9px 24px rgba(51, 45, 35, 0.13);
+      }
+
+      .format-toolbar[hidden] { display: none; }
+
+      .format-command,
+      .format-close {
+        min-width: 32px;
+        height: 32px;
+        padding: 0 7px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #656057;
+        cursor: pointer;
+        font-size: 0.75rem;
+      }
+
+      .format-command:hover,
+      .format-command:focus-visible,
+      .format-close:hover,
+      .format-close:focus-visible {
+        background: #e9e5dc;
+        color: var(--ink);
+        outline: none;
+      }
+
+      .format-command code {
+        font-size: 0.7rem;
+      }
+
+      .format-close {
+        min-width: 29px;
+        margin-left: 3px;
+        border-left: 1px solid var(--line);
+        border-radius: 0 4px 4px 0;
+        color: var(--muted);
+        font-size: 1rem;
       }
 
       .shortcut {
@@ -1551,6 +1631,35 @@
           margin: 22px 0 30px;
         }
 
+        .format-toggle {
+          min-width: 40px;
+          min-height: 40px;
+        }
+
+        .format-toolbar {
+          position: fixed;
+          top: auto;
+          right: 16px;
+          bottom: 16px;
+          left: 16px;
+          display: grid;
+          width: auto;
+          max-width: none;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .format-command,
+        .format-close {
+          min-width: 0;
+          height: 40px;
+          padding: 0 8px;
+        }
+
+        .format-close {
+          margin-left: 0;
+          border-left: 0;
+        }
+
         .markdown-guide {
           grid-template-columns: 1fr;
         }
@@ -1843,6 +1952,19 @@
 
         <div class="form-actions">
           <span class="shortcut" id="draft-status" aria-live="polite">Autosaves while you type</span>
+          <div class="format-control" id="new-note-format-control">
+            <button class="format-toggle" type="button" aria-controls="new-note-format-toolbar" aria-expanded="false" onclick="toggleFormattingToolbar('new-note-format-control')" title="Formatting" aria-label="Open formatting toolbar">Aa</button>
+            <div class="format-toolbar" id="new-note-format-toolbar" role="toolbar" aria-label="Format note content" hidden>
+              <button class="format-command" type="button" data-format="bold" data-target="content" title="Bold" aria-label="Bold"><strong>B</strong></button>
+              <button class="format-command" type="button" data-format="italic" data-target="content" title="Italic" aria-label="Italic"><em>I</em></button>
+              <button class="format-command" type="button" data-format="heading" data-target="content" title="Heading" aria-label="Heading">H₂</button>
+              <button class="format-command" type="button" data-format="list" data-target="content" title="Bulleted list" aria-label="Bulleted list">• List</button>
+              <button class="format-command" type="button" data-format="quote" data-target="content" title="Quote" aria-label="Quote">“</button>
+              <button class="format-command" type="button" data-format="code" data-target="content" title="Code" aria-label="Code"><code>&lt;/&gt;</code></button>
+              <button class="format-command" type="button" data-format="link" data-target="content" title="Link" aria-label="Link">↗</button>
+              <button class="format-close" type="button" onclick="closeFormattingToolbar('new-note-format-control')" title="Hide formatting" aria-label="Hide formatting toolbar">×</button>
+            </div>
+          </div>
         </div>
       </form>
 
@@ -1999,6 +2121,7 @@
 
       function showAuth(message = "") {
         clearTimeout(liveSearchTimer);
+        closeFormattingToolbars();
         csrfToken = "";
         currentUser = null;
         notesLoading = false;
@@ -2207,6 +2330,23 @@
         return html;
       }
 
+      function formattingToolbarHTML(targetID, controlID) {
+        const toolbarID = `${controlID}-toolbar`;
+        return `<div class="format-control" id="${controlID}">
+          <button class="format-toggle" type="button" aria-controls="${toolbarID}" aria-expanded="false" onclick="toggleFormattingToolbar('${controlID}')" title="Formatting" aria-label="Open formatting toolbar">Aa</button>
+          <div class="format-toolbar" id="${toolbarID}" role="toolbar" aria-label="Format note content" hidden>
+            <button class="format-command" type="button" data-format="bold" data-target="${targetID}" title="Bold" aria-label="Bold"><strong>B</strong></button>
+            <button class="format-command" type="button" data-format="italic" data-target="${targetID}" title="Italic" aria-label="Italic"><em>I</em></button>
+            <button class="format-command" type="button" data-format="heading" data-target="${targetID}" title="Heading" aria-label="Heading">H₂</button>
+            <button class="format-command" type="button" data-format="list" data-target="${targetID}" title="Bulleted list" aria-label="Bulleted list">• List</button>
+            <button class="format-command" type="button" data-format="quote" data-target="${targetID}" title="Quote" aria-label="Quote">“</button>
+            <button class="format-command" type="button" data-format="code" data-target="${targetID}" title="Code" aria-label="Code"><code>&lt;/&gt;</code></button>
+            <button class="format-command" type="button" data-format="link" data-target="${targetID}" title="Link" aria-label="Link">↗</button>
+            <button class="format-close" type="button" onclick="closeFormattingToolbar('${controlID}')" title="Hide formatting" aria-label="Hide formatting toolbar">×</button>
+          </div>
+        </div>`;
+      }
+
       async function loadNotes(append = false) {
         if (notesLoading) return false;
         if (append && !notesNextCursor) return true;
@@ -2379,6 +2519,7 @@
                   <textarea class="edit-content" id="edit-content-${n.id}" aria-label="Edit note content" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter saves; Shift+Enter adds a new line"></textarea>
                   <div class="editor-actions">
                     <span class="edit-hint">Autosaves · Enter to close · Shift+Enter for a new line</span>
+                    ${formattingToolbarHTML(`edit-content-${n.id}`, `edit-format-${n.id}`)}
                     <button class="editor-action" type="button" onclick="updateNote(${n.id})" aria-label="Close editor" title="Save and close editor">
                       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
                     </button>
@@ -2828,6 +2969,7 @@
           const createdNote = response.status === 201;
           titleInput.value = "";
           contentInput.value = "";
+          closeFormattingToolbar("new-note-format-control");
           contentInput.style.height = "";
           contentInput.style.overflowY = "hidden";
           draftVersion = 0;
@@ -3123,6 +3265,167 @@
         try { localStorage.removeItem(key); } catch {}
       }
 
+      function closeFormattingToolbar(controlID) {
+        const control = document.getElementById(controlID);
+        if (!control) return false;
+        const toolbar = control.querySelector(".format-toolbar");
+        const toggle = control.querySelector(".format-toggle");
+        const wasOpen = toolbar && !toolbar.hidden;
+        if (toolbar) toolbar.hidden = true;
+        if (toggle) {
+          toggle.setAttribute("aria-expanded", "false");
+          toggle.setAttribute("aria-label", "Open formatting toolbar");
+        }
+        return Boolean(wasOpen);
+      }
+
+      function closeFormattingToolbars(except = null) {
+        let closed = false;
+        document.querySelectorAll(".format-control").forEach((control) => {
+          if (control !== except) closed = closeFormattingToolbar(control.id) || closed;
+        });
+        return closed;
+      }
+
+      function toggleFormattingToolbar(controlID) {
+        const control = document.getElementById(controlID);
+        if (!control) return;
+        const toolbar = control.querySelector(".format-toolbar");
+        const toggle = control.querySelector(".format-toggle");
+        const shouldOpen = toolbar.hidden;
+        closeFormattingToolbars(control);
+        toolbar.hidden = !shouldOpen;
+        toggle.setAttribute("aria-expanded", String(shouldOpen));
+        toggle.setAttribute(
+          "aria-label",
+          shouldOpen ? "Hide formatting toolbar" : "Open formatting toolbar",
+        );
+      }
+
+      function replaceTextareaRange(textarea, start, end, replacement, selectStart, selectEnd) {
+        textarea.setRangeText(replacement, start, end, "end");
+        textarea.focus();
+        textarea.setSelectionRange(selectStart, selectEnd);
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
+      function wrapMarkdownSelection(textarea, open, close, placeholder) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = textarea.value.slice(start, end);
+        const before = textarea.value.slice(Math.max(0, start - open.length), start);
+        const after = textarea.value.slice(end, end + close.length);
+
+        if (selected && before === open && after === close) {
+          replaceTextareaRange(
+            textarea,
+            start - open.length,
+            end + close.length,
+            selected,
+            start - open.length,
+            end - open.length,
+          );
+          return;
+        }
+        if (selected.startsWith(open) && selected.endsWith(close)) {
+          const unwrapped = selected.slice(open.length, selected.length - close.length);
+          replaceTextareaRange(textarea, start, end, unwrapped, start, start + unwrapped.length);
+          return;
+        }
+
+        const inner = selected || placeholder;
+        const replacement = `${open}${inner}${close}`;
+        const innerStart = start + open.length;
+        replaceTextareaRange(
+          textarea,
+          start,
+          end,
+          replacement,
+          innerStart,
+          innerStart + inner.length,
+        );
+      }
+
+      function prefixMarkdownLines(textarea, prefix) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const hadSelection = end > start;
+        const lineStart = textarea.value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+        const endLookup = end > start && textarea.value[end - 1] === "\n" ? end - 1 : end;
+        const nextLine = textarea.value.indexOf("\n", endLookup);
+        const lineEnd = nextLine === -1 ? textarea.value.length : nextLine;
+        const lines = textarea.value.slice(lineStart, lineEnd).split("\n");
+        const nonEmpty = lines.filter((line) => line.length > 0);
+        const removePrefix = nonEmpty.length > 0 && nonEmpty.every((line) => line.startsWith(prefix));
+        const replacement = nonEmpty.length === 0
+          ? prefix
+          : lines
+              .map((line) => {
+                if (!line) return line;
+                return removePrefix ? line.slice(prefix.length) : `${prefix}${line}`;
+              })
+              .join("\n");
+        let nextStart = lineStart;
+        let nextEnd = lineStart + replacement.length;
+        if (!hadSelection) {
+          const offset = start - lineStart;
+          const adjustment = removePrefix ? -Math.min(prefix.length, offset) : prefix.length;
+          nextStart = lineStart + Math.max(0, offset + adjustment);
+          nextEnd = nextStart;
+        }
+        replaceTextareaRange(
+          textarea,
+          lineStart,
+          lineEnd,
+          replacement,
+          nextStart,
+          nextEnd,
+        );
+      }
+
+      function applyMarkdownFormat(targetID, format) {
+        const textarea = document.getElementById(targetID);
+        if (!(textarea instanceof HTMLTextAreaElement)) return;
+        if (format === "bold") wrapMarkdownSelection(textarea, "**", "**", "bold text");
+        if (format === "italic") wrapMarkdownSelection(textarea, "_", "_", "italic text");
+        if (format === "heading") prefixMarkdownLines(textarea, "## ");
+        if (format === "list") prefixMarkdownLines(textarea, "- ");
+        if (format === "quote") prefixMarkdownLines(textarea, "> ");
+        if (format === "code") {
+          const selected = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
+          if (selected.includes("\n")) {
+            wrapMarkdownSelection(textarea, "```\n", "\n```", "code");
+          } else {
+            wrapMarkdownSelection(textarea, "`", "`", "code");
+          }
+        }
+        if (format === "link") {
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const label = textarea.value.slice(start, end) || "link text";
+          const url = "https://";
+          const replacement = `[${label}](${url})`;
+          const urlStart = start + label.length + 3;
+          replaceTextareaRange(
+            textarea,
+            start,
+            end,
+            replacement,
+            urlStart,
+            urlStart + url.length,
+          );
+        }
+      }
+
+      function handleFormattingShortcut(event, targetID) {
+        if ((!event.ctrlKey && !event.metaKey) || event.altKey) return false;
+        const format = { b: "bold", i: "italic", k: "link" }[event.key.toLowerCase()];
+        if (!format) return false;
+        event.preventDefault();
+        applyMarkdownFormat(targetID, format);
+        return true;
+      }
+
       async function loadRememberedEditingNote() {
         const id = rememberedEditingNoteID();
         if (!id || loadedNotes.has(id)) return;
@@ -3246,6 +3549,9 @@
 
       function handleEditKeydown(event, id) {
         if (event.isComposing) return;
+        if (event.target.matches("textarea") && handleFormattingShortcut(event, `edit-content-${id}`)) {
+          return;
+        }
 
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
@@ -3253,6 +3559,10 @@
         }
         if (event.key === "Escape") {
           event.preventDefault();
+          if (closeFormattingToolbars()) {
+            event.stopPropagation();
+            return;
+          }
           updateNote(id);
         }
       }
@@ -3272,12 +3582,20 @@
 
       noteForm.addEventListener("input", scheduleDraftSave);
 
+      document.addEventListener("click", (event) => {
+        const command = event.target.closest(".format-command");
+        if (command) applyMarkdownFormat(command.dataset.target, command.dataset.format);
+      });
+
       noteForm.addEventListener("submit", (event) => {
         event.preventDefault();
         finalizeDraft();
       });
 
       noteForm.addEventListener("keydown", (event) => {
+        if (event.target === newNoteContent && handleFormattingShortcut(event, "content")) {
+          return;
+        }
         if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
           noteForm.requestSubmit();
@@ -3524,6 +3842,9 @@
       });
 
       document.addEventListener("click", (event) => {
+        const formatControl = event.target.closest(".format-control");
+        closeFormattingToolbars(formatControl);
+
         const control = document.querySelector(".trash-control");
         if (!control.contains(event.target)) closeTrashPanel();
 
@@ -3597,6 +3918,7 @@
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
+          closeFormattingToolbars();
           closeTrashPanel();
           closeSearchPanel();
           closeHiddenNotesPanel();

@@ -16,7 +16,7 @@ See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command upd
 - Calendar jumps and monthly/weekly archive overviews for large collections
 - Server-backed per-user draft autosave and refresh recovery
 - Responsive layouts and three note-density modes
-- Markdown rendering and writing guide
+- Markdown rendering, writing guide, and a compact dismissible formatting toolbar
 - User administration, account disabling, session revocation, and deletion
 
 ## Local development
