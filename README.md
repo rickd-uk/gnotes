@@ -80,6 +80,9 @@ From the repository checkout:
 ```bash
 sudo install -o root -g root -m 0755 gnotes /opt/gnotes/gnotes
 sudo cp -a public /opt/gnotes/public
+sudo chown -R root:root /opt/gnotes/public
+sudo find /opt/gnotes/public -type d -exec chmod 0755 {} \;
+sudo find /opt/gnotes/public -type f -exec chmod 0644 {} \;
 sudo install -o root -g root -m 0755 deploy/scripts/backup-gnotes /opt/gnotes/bin/backup-gnotes
 sudo install -o root -g root -m 0755 deploy/scripts/update-gnotes /opt/gnotes/bin/update-gnotes
 sudo install -o root -g root -m 0755 deploy/scripts/check-gnotes /opt/gnotes/bin/check-gnotes
