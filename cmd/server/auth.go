@@ -410,6 +410,11 @@ func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, us
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
 		return
 	}
+	if _, err := db.DB.Exec("UPDATE users SET last_login_at = ? WHERE id = ?", now, userID); err != nil {
+		db.DB.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(sessionToken))
+		http.Error(w, "Could not finish sign in", http.StatusInternalServerError)
+		return
+	}
 
 	db.DB.Exec("DELETE FROM sessions WHERE expires_at <= ?", now)
 	setSessionCookie(w, r, sessionToken, expiresAt)

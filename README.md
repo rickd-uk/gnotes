@@ -12,12 +12,12 @@ See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command upd
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
 - Create, autosave, resume editing, pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
 - Cursor-paginated note and recycle-bin loading with indexed full-text search
-- Live title/content search with match highlighting, date ranges, scope, and case controls
+- Live title/content search with note and occurrence counts, highlighting, date ranges, scope, and case controls
 - Calendar jumps and monthly/weekly archive overviews for large collections
 - Server-backed per-user draft autosave and refresh recovery
-- Responsive layouts and three note-density modes
-- Markdown rendering, writing guide, and a compact dismissible formatting toolbar
-- User administration, account disabling, session revocation, and deletion
+- Responsive layouts, three note-density modes, and per-user interface-state restoration
+- Markdown rendering, writing guide, and a compact formatter with optional code-block languages
+- User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion
 
 ## Local development
 

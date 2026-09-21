@@ -29,6 +29,7 @@ type notePage struct {
 	NextCursor string        `json:"next_cursor,omitempty"`
 	Total      int           `json:"total"`
 	Pinned     int           `json:"pinned_total,omitempty"`
+	MatchCount int           `json:"match_count,omitempty"`
 }
 
 type activeNoteCursor struct {
@@ -164,12 +165,49 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var total int
+	matchCount := 0
 	countFromClause := " FROM notes n " + join + " WHERE " + strings.Join(countConditions, " AND ")
-	if err := db.DB.QueryRow("SELECT COUNT(*)"+countFromClause, countArgs...).Scan(&total); err != nil {
+	if expression, expressionArgs := searchOccurrenceExpression(r); expression != "" {
+		queryArgs := append(expressionArgs, countArgs...)
+		if err := db.DB.QueryRow("SELECT COUNT(*), "+expression+countFromClause, queryArgs...).Scan(&total, &matchCount); err != nil {
+			http.Error(w, "Could not count search matches", http.StatusInternalServerError)
+			return
+		}
+	} else if err := db.DB.QueryRow("SELECT COUNT(*)"+countFromClause, countArgs...).Scan(&total); err != nil {
 		http.Error(w, "Could not count search results", http.StatusInternalServerError)
 		return
 	}
-	writeNotePage(w, notePage{Notes: notes, NextCursor: nextCursor, Total: total})
+	writeNotePage(w, notePage{Notes: notes, NextCursor: nextCursor, Total: total, MatchCount: matchCount})
+}
+
+func searchOccurrenceExpression(r *http.Request) (string, []any) {
+	queryText := r.URL.Query().Get("q")
+	if queryText == "" {
+		return "", nil
+	}
+	matchCase := r.URL.Query().Get("match_case") == "true"
+	occurrences := func(column string) (string, []any) {
+		text := "COALESCE(" + column + ", '')"
+		needle := "?"
+		if !matchCase {
+			text = "lower(" + text + ")"
+			needle = "lower(?)"
+		}
+		return "((length(" + text + ") - length(replace(" + text + ", " + needle + ", ''))) / length(" + needle + "))", []any{queryText, queryText}
+	}
+
+	scope := r.URL.Query().Get("scope")
+	if scope == "title" {
+		expression, args := occurrences("n.title")
+		return "COALESCE(SUM(" + expression + "), 0)", args
+	}
+	if scope == "content" {
+		expression, args := occurrences("n.content")
+		return "COALESCE(SUM(" + expression + "), 0)", args
+	}
+	titleExpression, titleArgs := occurrences("n.title")
+	contentExpression, contentArgs := occurrences("n.content")
+	return "COALESCE(SUM(" + titleExpression + " + " + contentExpression + "), 0)", append(titleArgs, contentArgs...)
 }
 
 func pagedTrashNotesHandler(w http.ResponseWriter, r *http.Request) {

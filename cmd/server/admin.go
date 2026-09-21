@@ -11,12 +11,21 @@ import (
 )
 
 type adminUser struct {
-	ID        int    `json:"id"`
-	Username  string `json:"username"`
-	Role      string `json:"role"`
-	Active    bool   `json:"active"`
-	CreatedAt string `json:"created_at"`
-	NoteCount int    `json:"note_count"`
+	ID            int            `json:"id"`
+	Username      string         `json:"username"`
+	Role          string         `json:"role"`
+	Active        bool           `json:"active"`
+	CreatedAt     string         `json:"created_at"`
+	LastLoginAt   *string        `json:"last_login_at,omitempty"`
+	NoteCount     int            `json:"note_count"`
+	ActiveNotes   int            `json:"active_note_count"`
+	RecycledNotes int            `json:"recycled_note_count"`
+	Sessions      []adminSession `json:"sessions"`
+}
+
+type adminSession struct {
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 type adminInvitation struct {
@@ -49,7 +58,11 @@ func adminOverviewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := db.DB.Query(`
-		SELECT users.id, users.username, users.role, users.active, users.created_at, COUNT(notes.id)
+		SELECT users.id, users.username, users.role, users.active, users.created_at,
+		       users.last_login_at,
+		       COUNT(notes.id),
+		       COUNT(CASE WHEN notes.deleted_at IS NULL THEN notes.id END),
+		       COUNT(CASE WHEN notes.deleted_at IS NOT NULL THEN notes.id END)
 		FROM users LEFT JOIN notes ON notes.user_id = users.id
 		GROUP BY users.id
 		ORDER BY users.created_at ASC`)
@@ -60,13 +73,30 @@ func adminOverviewHandler(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	users := make([]adminUser, 0)
+	userIndexes := make(map[int]int)
 	for rows.Next() {
 		var user adminUser
-		if err := rows.Scan(&user.ID, &user.Username, &user.Role, &user.Active, &user.CreatedAt, &user.NoteCount); err != nil {
+		var lastLogin sql.NullString
+		if err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Role,
+			&user.Active,
+			&user.CreatedAt,
+			&lastLogin,
+			&user.NoteCount,
+			&user.ActiveNotes,
+			&user.RecycledNotes,
+		); err != nil {
 			http.Error(w, "Could not load users", http.StatusInternalServerError)
 			return
 		}
+		if lastLogin.Valid {
+			user.LastLoginAt = &lastLogin.String
+		}
+		user.Sessions = make([]adminSession, 0)
 		users = append(users, user)
+		userIndexes[user.ID] = len(users) - 1
 	}
 	if err := rows.Err(); err != nil {
 		http.Error(w, "Could not load users", http.StatusInternalServerError)
@@ -74,6 +104,36 @@ func adminOverviewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := rows.Close(); err != nil {
 		http.Error(w, "Could not load users", http.StatusInternalServerError)
+		return
+	}
+	sessionRows, err := db.DB.Query(`
+		SELECT user_id, created_at, expires_at
+		FROM sessions
+		WHERE unixepoch(expires_at) > ?
+		ORDER BY unixepoch(created_at) DESC`, time.Now().Unix())
+	if err != nil {
+		http.Error(w, "Could not load active sessions", http.StatusInternalServerError)
+		return
+	}
+	for sessionRows.Next() {
+		var userID int
+		var session adminSession
+		if err := sessionRows.Scan(&userID, &session.CreatedAt, &session.ExpiresAt); err != nil {
+			sessionRows.Close()
+			http.Error(w, "Could not load active sessions", http.StatusInternalServerError)
+			return
+		}
+		if index, ok := userIndexes[userID]; ok {
+			users[index].Sessions = append(users[index].Sessions, session)
+		}
+	}
+	if err := sessionRows.Err(); err != nil {
+		sessionRows.Close()
+		http.Error(w, "Could not load active sessions", http.StatusInternalServerError)
+		return
+	}
+	if err := sessionRows.Close(); err != nil {
+		http.Error(w, "Could not load active sessions", http.StatusInternalServerError)
 		return
 	}
 	policy, err := loadRegistrationPolicy(db.DB)

@@ -49,6 +49,7 @@ func InitDB(filepath string) {
     password_hash BLOB NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
     active INTEGER NOT NULL DEFAULT 1,
+    last_login_at DATETIME,
     created_at DATETIME NOT NULL
   );
 
@@ -140,6 +141,7 @@ func InitDB(filepath string) {
 	ensureColumn("rendered_content", "TEXT")
 	ensureTableColumn("users", "role", "TEXT NOT NULL DEFAULT 'user'")
 	ensureTableColumn("users", "active", "INTEGER NOT NULL DEFAULT 1")
+	ensureTableColumn("users", "last_login_at", "DATETIME")
 	ensureNotesFTS()
 
 	indexSQL := `

@@ -209,6 +209,72 @@
         font-size: 0.7rem;
       }
 
+      .format-code-control {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .format-code-control .format-command {
+        min-width: 29px;
+        padding-right: 3px;
+      }
+
+      .code-language-toggle {
+        width: 18px;
+        height: 32px;
+        padding: 0;
+        border: 0;
+        border-radius: 0 4px 4px 0;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.62rem;
+      }
+
+      .code-language-toggle:hover,
+      .code-language-toggle[aria-expanded="true"] {
+        background: #e9e5dc;
+        color: var(--ink);
+      }
+
+      .code-language-menu {
+        position: absolute;
+        z-index: 37;
+        right: 0;
+        bottom: calc(100% + 8px);
+        display: grid;
+        width: min(250px, calc(100vw - 40px));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 2px;
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #f8f6f0;
+        box-shadow: 0 9px 24px rgba(51, 45, 35, 0.14);
+      }
+
+      .code-language-menu[hidden] { display: none; }
+
+      .code-language-option {
+        min-height: 32px;
+        padding: 5px 7px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #656057;
+        cursor: pointer;
+        font-size: 0.7rem;
+        text-align: left;
+      }
+
+      .code-language-option:hover,
+      .code-language-option:focus-visible {
+        background: #e9e5dc;
+        color: var(--ink);
+        outline: none;
+      }
+
       .format-close {
         min-width: 29px;
         margin-left: 3px;
@@ -1491,7 +1557,6 @@
       }
 
       .admin-header,
-      .admin-setting,
       .admin-user,
       .admin-user-actions {
         display: flex;
@@ -1516,35 +1581,63 @@
         font-size: 1.4rem;
       }
 
-      .admin-setting {
+      .admin-section {
+        margin-top: 18px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      .admin-section-header {
+        display: flex;
+        align-items: flex-start;
         justify-content: space-between;
-        margin: 18px 0;
-        padding: 11px 0;
-        border-block: 1px solid var(--line);
+        gap: 18px;
+      }
+
+      .admin-section-header h3 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.08rem;
+        font-weight: 600;
+      }
+
+      .admin-section-header p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      .admin-setting {
+        display: flex;
+        min-width: 112px;
+        min-height: 38px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #efebe3;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
       }
 
       .admin-setting input {
         width: 18px;
         height: 18px;
+        margin: 0;
         accent-color: var(--accent);
       }
 
-      .admin-security {
+      .admin-signups {
         display: grid;
-        gap: 12px;
-        margin: 16px 0 20px;
-        padding: 14px;
-        border: 1px solid var(--line);
-        background: #f1eee6;
-      }
-
-      .admin-security h3 {
-        margin: 0;
-        font-size: 0.92rem;
+        gap: 14px;
       }
 
       .security-stats,
-      .policy-fields,
       .invitation-create {
         display: flex;
         flex-wrap: wrap;
@@ -1553,11 +1646,20 @@
       }
 
       .security-stats {
+        padding: 9px 10px;
+        border-radius: 5px;
+        background: #efebe3;
         color: var(--muted);
         font-size: 0.76rem;
       }
 
-      .policy-fields label,
+      .policy-fields {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .policy-fields label:not(.policy-check),
       .invitation-create label {
         display: grid;
         gap: 4px;
@@ -1567,10 +1669,59 @@
 
       .policy-fields input[type="number"],
       .invitation-create input[type="number"] {
-        width: 90px;
-        padding: 5px 7px;
+        width: 100%;
+        padding: 7px 8px;
         border: 1px solid var(--line);
         background: var(--paper);
+      }
+
+      .policy-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 9px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      .policy-check input {
+        width: 17px;
+        height: 17px;
+        margin: 0;
+        accent-color: var(--accent);
+      }
+
+      .admin-action {
+        width: fit-content;
+        padding: 7px 11px;
+        border: 1px solid #b9cec4;
+        border-radius: 5px;
+        background: #edf3ef;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.73rem;
+        font-weight: 700;
+      }
+
+      .admin-action:hover {
+        background: #dfeae4;
+      }
+
+      .admin-invitations-section {
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .admin-invitations-section summary {
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+
+      .admin-invitations-section[open] summary {
+        margin-bottom: 12px;
       }
 
       .invite-result {
@@ -1593,13 +1744,79 @@
       .admin-user {
         justify-content: space-between;
         gap: 18px;
-        padding: 12px 0;
+        padding: 14px 0;
         border-bottom: 1px solid var(--line);
+      }
+
+      .admin-user:last-child { border-bottom: 0; }
+
+      .admin-user.is-disabled { opacity: 0.68; }
+
+      .admin-user-main {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .admin-user-name {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .admin-user-badge {
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #e5e1d8;
+        color: var(--muted);
+        font-size: 0.62rem;
+        font-weight: 700;
+      }
+
+      .admin-user-badge.is-signed-in {
+        background: #dce8e2;
+        color: var(--accent);
+      }
+
+      .admin-user-details {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px 16px;
+        margin: 8px 0 0;
+      }
+
+      .admin-user-details div {
+        min-width: 0;
+      }
+
+      .admin-user-details dt {
+        color: var(--muted);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .admin-user-details dd {
+        margin: 1px 0 0;
+        font-size: 0.74rem;
       }
 
       .admin-user-meta {
         color: var(--muted);
         font-size: 0.76rem;
+      }
+
+      .admin-session-details {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 0.7rem;
+      }
+
+      .admin-session-details summary { cursor: pointer; }
+
+      .admin-session-details ul {
+        margin: 6px 0 0;
+        padding-left: 18px;
       }
 
       .admin-user-actions {
@@ -1609,16 +1826,51 @@
       }
 
       .admin-user-actions button {
-        padding: 4px 8px;
+        padding: 6px 8px;
         border: 1px solid var(--line);
+        border-radius: 4px;
         background: transparent;
         cursor: pointer;
         font-size: 0.72rem;
       }
 
+      .admin-user-actions button:hover { background: #ece8df; }
+
+      .admin-user-actions button:disabled {
+        cursor: default;
+        opacity: 0.42;
+      }
+
       .admin-user-actions .danger-action {
+        margin-left: 4px;
         border-color: #dbb4af;
+        background: #f8efed;
         color: var(--danger);
+      }
+
+      .admin-user-filters {
+        display: flex;
+        gap: 3px;
+        padding: 3px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #efebe3;
+      }
+
+      .admin-user-filters button {
+        padding: 5px 9px;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.7rem;
+      }
+
+      .admin-user-filters button[aria-pressed="true"] {
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow: 0 1px 3px rgba(51, 45, 35, 0.12);
       }
 
       @media (max-width: 560px) {
@@ -1658,6 +1910,22 @@
         .format-close {
           margin-left: 0;
           border-left: 0;
+        }
+
+        .format-code-control {
+          justify-content: center;
+        }
+
+        .code-language-toggle {
+          height: 40px;
+        }
+
+        .code-language-menu {
+          position: fixed;
+          right: 16px;
+          bottom: 112px;
+          left: 16px;
+          width: auto;
         }
 
         .markdown-guide {
@@ -1753,8 +2021,26 @@
           flex-direction: column;
         }
 
+        .admin-section-header {
+          flex-direction: column;
+        }
+
+        .admin-users-header {
+          align-items: stretch;
+        }
+
+        .policy-fields,
+        .admin-user-details {
+          grid-template-columns: 1fr;
+        }
+
         .admin-user-actions {
           justify-content: flex-start;
+        }
+
+        .admin-user-actions .danger-action {
+          width: 100%;
+          margin: 4px 0 0;
         }
 
         .archive-panel {
@@ -1814,7 +2100,7 @@
       <header class="site-header">
         <h1>gnotes</h1>
         <div class="header-actions">
-          <details class="markdown-help">
+          <details class="markdown-help" id="markdown-help">
             <summary aria-label="Markdown help" title="Markdown help">MD</summary>
             <div class="markdown-guide">
               <p><span>Heading</span><code># Heading</code></p>
@@ -1960,7 +2246,23 @@
               <button class="format-command" type="button" data-format="heading" data-target="content" title="Heading" aria-label="Heading">H₂</button>
               <button class="format-command" type="button" data-format="list" data-target="content" title="Bulleted list" aria-label="Bulleted list">• List</button>
               <button class="format-command" type="button" data-format="quote" data-target="content" title="Quote" aria-label="Quote">“</button>
-              <button class="format-command" type="button" data-format="code" data-target="content" title="Code" aria-label="Code"><code>&lt;/&gt;</code></button>
+              <span class="format-code-control">
+                <button class="format-command" type="button" data-format="code" data-target="content" title="Inline or plain code" aria-label="Inline or plain code"><code>&lt;/&gt;</code></button>
+                <button class="code-language-toggle" type="button" data-menu="new-note-code-languages" aria-controls="new-note-code-languages" aria-expanded="false" title="Code block language" aria-label="Choose code block language">▾</button>
+                <span class="code-language-menu" id="new-note-code-languages" role="group" aria-label="Code block language" hidden>
+                  <button class="code-language-option" type="button" data-target="content" data-language="">Plain</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="python">Python</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="javascript">JavaScript</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="html">HTML</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="css">CSS</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="go">Go</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="rust">Rust</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="c">C</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="cpp">C++</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="bash">Shell</button>
+                  <button class="code-language-option" type="button" data-target="content" data-language="sql">SQL</button>
+                </span>
+              </span>
               <button class="format-command" type="button" data-format="link" data-target="content" title="Link" aria-label="Link">↗</button>
               <button class="format-close" type="button" onclick="closeFormattingToolbar('new-note-format-control')" title="Hide formatting" aria-label="Hide formatting toolbar">×</button>
             </div>
@@ -2001,28 +2303,48 @@
         <h2 id="admin-heading">Administration</h2>
         <button class="admin-close" id="admin-close" type="button" aria-label="Close administration">×</button>
       </div>
-      <label class="admin-setting">
-        <span>Allow new account signups</span>
-        <input id="signups-enabled" type="checkbox" />
-      </label>
-      <section class="admin-security" aria-labelledby="registration-security-heading">
-        <h3 id="registration-security-heading">Registration security</h3>
+      <section class="admin-section admin-signups" aria-labelledby="registration-security-heading">
+        <div class="admin-section-header">
+          <div>
+            <h3 id="registration-security-heading">Signups</h3>
+            <p>Control who can create an account and how quickly.</p>
+          </div>
+          <label class="admin-setting">
+            <span id="signups-state">Closed</span>
+            <input id="signups-enabled" type="checkbox" />
+          </label>
+        </div>
         <div class="security-stats" id="security-stats"></div>
         <div class="policy-fields">
-          <label>Daily total <input id="signup-daily-limit" type="number" min="1" max="10000" /></label>
-          <label>Per IP/day <input id="signup-ip-limit" type="number" min="1" max="100" /></label>
-          <label><span>Invitation required</span><input id="invite-required" type="checkbox" /></label>
-          <button class="admin-action" id="save-registration-policy" type="button">Save limits</button>
+          <label><span>Daily signup limit</span><input id="signup-daily-limit" type="number" min="1" max="10000" /></label>
+          <label><span>Per IP each day</span><input id="signup-ip-limit" type="number" min="1" max="100" /></label>
+          <label class="policy-check"><input id="invite-required" type="checkbox" /><span>Require an invitation</span></label>
         </div>
-        <div class="invitation-create">
-          <label>Valid days <input id="invite-valid-days" type="number" min="1" max="90" value="7" /></label>
-          <button id="create-invitation" type="button">Create invitation</button>
-        </div>
-        <p class="invite-result" id="invite-result" aria-live="polite"></p>
-        <div id="admin-invitations"></div>
+        <button class="admin-action" id="save-registration-policy" type="button">Save signup settings</button>
+        <details class="admin-invitations-section">
+          <summary>Invitations</summary>
+          <div class="invitation-create">
+            <label>Valid days <input id="invite-valid-days" type="number" min="1" max="90" value="7" /></label>
+            <button id="create-invitation" type="button">Create invitation</button>
+          </div>
+          <p class="invite-result" id="invite-result" aria-live="polite"></p>
+          <div id="admin-invitations"></div>
+        </details>
       </section>
       <p class="auth-status" id="admin-status" aria-live="polite"></p>
-      <div id="admin-users"></div>
+      <section class="admin-section admin-users-section" aria-labelledby="admin-users-heading">
+        <div class="admin-section-header admin-users-header">
+          <div>
+            <h3 id="admin-users-heading">Registered users</h3>
+            <p id="admin-users-summary"></p>
+          </div>
+          <div class="admin-user-filters" role="group" aria-label="Filter registered users">
+            <button type="button" data-user-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-user-filter="signed-in" aria-pressed="false">Signed in</button>
+          </div>
+        </div>
+        <div id="admin-users"></div>
+      </section>
     </section>
 
     <script>
@@ -2059,10 +2381,118 @@
       let highlightQuery = "";
       let highlightScope = "all";
       let highlightMatchCase = false;
+      let adminUsers = [];
+      let adminUserFilter = "all";
       let editingNoteId = null;
       let editSaveTimer;
       let editSaveChain = Promise.resolve();
       let collapsedDateSections = new Set();
+
+      function uiStateStorageKey() {
+        return currentUser ? `gnotes-ui:${currentUser.username.toLowerCase()}` : "";
+      }
+
+      function saveUIState() {
+        const key = uiStateStorageKey();
+        if (!key) return;
+        const notesList = document.getElementById("notes-list");
+        const state = {
+          searchOpen: !document.getElementById("search-panel").hidden,
+          trashOpen: !document.getElementById("trash-panel").hidden,
+          hiddenNotesOpen: !document.getElementById("hidden-notes-panel").hidden,
+          accountOpen: document.getElementById("account-control").open,
+          markdownOpen: document.getElementById("markdown-help").open,
+          invitationsOpen: document.querySelector(".admin-invitations-section").open,
+          adminOpen: !document.getElementById("admin-panel").hidden,
+          archiveOpen: !document.getElementById("archive-panel").hidden,
+          notesVisible: !notesList.hidden,
+          controlsHidden: notesList.classList.contains("controls-hidden"),
+          densityIndex,
+          adminUserFilter,
+          searchActive,
+          activeSearchURL,
+          calendarActive,
+          selectedCalendarDate,
+          selectedArchiveLabel,
+          search: {
+            query: document.getElementById("search-query").value,
+            scope: document.getElementById("search-scope").value,
+            from: document.getElementById("search-from").value,
+            to: document.getElementById("search-to").value,
+            matchCase: document.getElementById("search-match-case").checked,
+            calendarDate: document.getElementById("calendar-date").value,
+          },
+        };
+        try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
+      }
+
+      function setNotesVisibility(visible) {
+        const notesList = document.getElementById("notes-list");
+        const toggle = document.getElementById("notes-toggle");
+        notesList.hidden = !visible;
+        toggle.setAttribute("aria-expanded", String(visible));
+        toggle.setAttribute("aria-label", visible ? "Hide notes" : "Show notes");
+        toggle.title = visible ? "Hide notes" : "Show notes";
+      }
+
+      function applyDensityMode(index) {
+        densityIndex = Number.isInteger(index) && index >= 0 && index < densityModes.length ? index : 0;
+        const notesList = document.getElementById("notes-list");
+        const toggle = document.getElementById("density-toggle");
+        const label = document.getElementById("density-toggle-label");
+        const mode = densityModes[densityIndex];
+        notesList.classList.remove("density-compact", "density-titles");
+        if (mode !== "full") notesList.classList.add(`density-${mode}`);
+        const modeLabel = mode === "full" ? "Full" : mode === "compact" ? "Compact" : "Titles";
+        label.textContent = modeLabel;
+        toggle.setAttribute("aria-label", `Note density: ${modeLabel}`);
+      }
+
+      function loadUIState() {
+        const key = uiStateStorageKey();
+        if (!key) return {};
+        let state;
+        try { state = JSON.parse(localStorage.getItem(key) || "{}"); } catch { state = {}; }
+        const search = state.search || {};
+        document.getElementById("search-query").value = typeof search.query === "string" ? search.query : "";
+        if (["all", "title", "content"].includes(search.scope)) {
+          document.getElementById("search-scope").value = search.scope;
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(search.from || "")) document.getElementById("search-from").value = search.from;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(search.to || "")) document.getElementById("search-to").value = search.to;
+        document.getElementById("search-match-case").checked = Boolean(search.matchCase);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(search.calendarDate || "")) {
+          document.getElementById("calendar-date").value = search.calendarDate;
+        }
+
+        searchActive = Boolean(state.searchActive && String(state.activeSearchURL || "").startsWith("/api/notes/search-page?"));
+        activeSearchURL = searchActive ? state.activeSearchURL : "";
+        calendarActive = Boolean(searchActive && state.calendarActive);
+        selectedCalendarDate = typeof state.selectedCalendarDate === "string" ? state.selectedCalendarDate : "";
+        selectedArchiveLabel = typeof state.selectedArchiveLabel === "string" ? state.selectedArchiveLabel : "";
+        captureSearchHighlight();
+
+        document.getElementById("search-panel").hidden = !state.searchOpen;
+        document.getElementById("search-toggle").setAttribute("aria-expanded", String(Boolean(state.searchOpen)));
+        document.getElementById("trash-panel").hidden = !state.trashOpen;
+        document.getElementById("trash-toggle").setAttribute("aria-expanded", String(Boolean(state.trashOpen)));
+        document.getElementById("hidden-notes-panel").hidden = !state.hiddenNotesOpen;
+        document.getElementById("hidden-notes-toggle").setAttribute("aria-expanded", String(Boolean(state.hiddenNotesOpen)));
+        document.getElementById("account-control").open = Boolean(state.accountOpen);
+        document.getElementById("markdown-help").open = Boolean(state.markdownOpen);
+        document.querySelector(".admin-invitations-section").open = Boolean(state.invitationsOpen);
+        document.getElementById("admin-panel").hidden = !(state.adminOpen && currentUser.role === "admin");
+        document.getElementById("archive-panel").hidden = !state.archiveOpen;
+        setNotesVisibility(state.notesVisible !== false);
+        const controlsHidden = Boolean(state.controlsHidden);
+        document.getElementById("notes-list").classList.toggle("controls-hidden", controlsHidden);
+        document.getElementById("controls-toggle").setAttribute("aria-pressed", String(controlsHidden));
+        applyDensityMode(Number(state.densityIndex));
+        adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
+          ? state.adminUserFilter
+          : "all";
+        return state;
+      }
 
       async function apiFetch(url, options = {}) {
         const request = { ...options };
@@ -2157,6 +2587,7 @@
         currentUser = session;
         loadCollapsedDateSections();
         loadHiddenNoteIds();
+        const restoredUI = loadUIState();
         document.getElementById("account-name").textContent = session.username;
         document.getElementById("account-admin-section").hidden = session.role !== "admin";
         document.getElementById("auth-screen").hidden = true;
@@ -2164,6 +2595,8 @@
         document.getElementById("startup-screen").hidden = false;
         await Promise.allSettled([loadNotes(), loadTrash(), loadDraft()]);
         if (currentUser !== session) return;
+        if (restoredUI.adminOpen && session.role === "admin") await loadAdmin();
+        if (restoredUI.archiveOpen) await openArchiveOverview();
         document.getElementById("startup-screen").hidden = true;
         document.getElementById("app-shell").hidden = false;
       }
@@ -2190,6 +2623,7 @@
         }
         const data = await response.json();
         document.getElementById("signups-enabled").checked = data.signups_enabled;
+        document.getElementById("signups-state").textContent = data.signups_enabled ? "Open" : "Closed";
         document.getElementById("signup-daily-limit").value = data.registration_policy.daily_limit;
         document.getElementById("signup-ip-limit").value = data.registration_policy.ip_daily_limit;
         document.getElementById("invite-required").checked = data.registration_policy.invite_required;
@@ -2212,21 +2646,64 @@
               })
               .join("")
           : '<span class="admin-user-meta">No invitations created.</span>';
-        document.getElementById("admin-users").innerHTML = data.users
-          .map((user) => {
-            const protectedUser = user.role === "admin";
-            return `<div class="admin-user">
-              <div><strong>${escapeHTML(user.username)}</strong>${protectedUser ? " · admin" : ""}
-                <div class="admin-user-meta">${user.active ? "Active" : "Disabled"} · ${user.note_count} notes · joined ${escapeHTML(new Date(user.created_at).toLocaleDateString())}</div>
-              </div>
-              <div class="admin-user-actions">
-                ${protectedUser ? "Protected administrator" : `<button type="button" onclick="setUserActive(${user.id}, ${!user.active})">${user.active ? "Disable" : "Enable"}</button>
-                <button type="button" onclick="revokeUserSessions(${user.id})">Sign out devices</button>
-                <button class="danger-action" type="button" onclick="deleteUser(${user.id}, '${escapeHTML(user.username)}')">Delete</button>`}
-              </div>
-            </div>`;
-          })
-          .join("");
+        adminUsers = data.users || [];
+        renderAdminUsers();
+      }
+
+      function formatAdminTime(value) {
+        if (!value) return "Never";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "Unknown";
+        return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+      }
+
+      function renderAdminUsers() {
+        const signedInCount = adminUsers.filter((user) => (user.sessions || []).length > 0).length;
+        document.getElementById("admin-users-summary").textContent =
+          `${adminUsers.length} registered · ${signedInCount} signed in`;
+        document.querySelectorAll("[data-user-filter]").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.userFilter === adminUserFilter));
+        });
+        const visibleUsers = adminUsers.filter((user) =>
+          adminUserFilter === "all" || (user.sessions || []).length > 0,
+        );
+        document.getElementById("admin-users").innerHTML = visibleUsers.length
+          ? visibleUsers.map((user) => {
+              const protectedUser = user.role === "admin";
+              const sessions = user.sessions || [];
+              const noteSummary = user.recycled_note_count
+                ? `${user.active_note_count} active · ${user.recycled_note_count} recycled`
+                : `${user.active_note_count} active`;
+              const sessionDetails = sessions.length
+                ? `<details class="admin-session-details">
+                    <summary>${sessions.length} signed-in ${sessions.length === 1 ? "session" : "sessions"}</summary>
+                    <ul>${sessions.map((session) => `<li>Started ${escapeHTML(formatAdminTime(session.created_at))} · expires ${escapeHTML(formatAdminTime(session.expires_at))}</li>`).join("")}</ul>
+                  </details>`
+                : "";
+              return `<article class="admin-user ${user.active ? "" : "is-disabled"}">
+                <div class="admin-user-main">
+                  <div class="admin-user-name">
+                    <strong>${escapeHTML(user.username)}</strong>
+                    ${protectedUser ? '<span class="admin-user-badge">Admin</span>' : ""}
+                    ${sessions.length ? '<span class="admin-user-badge is-signed-in">Signed in</span>' : ""}
+                    ${user.active ? "" : '<span class="admin-user-badge">Disabled</span>'}
+                  </div>
+                  <dl class="admin-user-details">
+                    <div><dt>Joined</dt><dd>${escapeHTML(formatAdminTime(user.created_at))}</dd></div>
+                    <div><dt>Last sign-in</dt><dd>${escapeHTML(formatAdminTime(user.last_login_at))}</dd></div>
+                    <div><dt>Notes</dt><dd>${noteSummary}</dd></div>
+                    <div><dt>Sessions</dt><dd>${sessions.length ? `${sessions.length} active` : "Signed out"}</dd></div>
+                  </dl>
+                  ${sessionDetails}
+                </div>
+                <div class="admin-user-actions">
+                  ${protectedUser ? '<span class="admin-user-meta">Protected account</span>' : `<button type="button" onclick="setUserActive(${user.id}, ${!user.active})">${user.active ? "Disable account" : "Enable account"}</button>
+                    <button type="button" onclick="revokeUserSessions(${user.id})" ${sessions.length ? "" : "disabled"}>Sign out devices</button>
+                    <button class="danger-action" type="button" onclick="deleteUser(${user.id}, '${escapeHTML(user.username)}')">Delete user + notes</button>`}
+                </div>
+              </article>`;
+            }).join("")
+          : '<p class="admin-user-meta">No signed-in users.</p>';
       }
 
       async function setUserActive(id, active) {
@@ -2235,6 +2712,9 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ active }),
         });
+        document.getElementById("admin-status").textContent = response.ok
+          ? `Account ${active ? "enabled" : "disabled"}.`
+          : (await response.text()).trim() || "Could not update account.";
         if (response.ok) await loadAdmin();
       }
 
@@ -2248,6 +2728,9 @@
       async function deleteUser(id, username) {
         if (!confirm(`Permanently delete ${username} and all of their notes?`)) return;
         const response = await apiFetch(`/api/admin/users/delete?id=${id}`, { method: "DELETE" });
+        document.getElementById("admin-status").textContent = response.ok
+          ? `${username} and all associated notes were deleted.`
+          : (await response.text()).trim() || "Could not delete user.";
         if (response.ok) await loadAdmin();
       }
 
@@ -2340,7 +2823,23 @@
             <button class="format-command" type="button" data-format="heading" data-target="${targetID}" title="Heading" aria-label="Heading">H₂</button>
             <button class="format-command" type="button" data-format="list" data-target="${targetID}" title="Bulleted list" aria-label="Bulleted list">• List</button>
             <button class="format-command" type="button" data-format="quote" data-target="${targetID}" title="Quote" aria-label="Quote">“</button>
-            <button class="format-command" type="button" data-format="code" data-target="${targetID}" title="Code" aria-label="Code"><code>&lt;/&gt;</code></button>
+            <span class="format-code-control">
+              <button class="format-command" type="button" data-format="code" data-target="${targetID}" title="Inline or plain code" aria-label="Inline or plain code"><code>&lt;/&gt;</code></button>
+              <button class="code-language-toggle" type="button" data-menu="${controlID}-code-languages" aria-controls="${controlID}-code-languages" aria-expanded="false" title="Code block language" aria-label="Choose code block language">▾</button>
+              <span class="code-language-menu" id="${controlID}-code-languages" role="group" aria-label="Code block language" hidden>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="">Plain</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="python">Python</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="javascript">JavaScript</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="html">HTML</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="css">CSS</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="go">Go</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="rust">Rust</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="c">C</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="cpp">C++</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="bash">Shell</button>
+                <button class="code-language-option" type="button" data-target="${targetID}" data-language="sql">SQL</button>
+              </span>
+            </span>
             <button class="format-command" type="button" data-format="link" data-target="${targetID}" title="Link" aria-label="Link">↗</button>
             <button class="format-close" type="button" onclick="closeFormattingToolbar('${controlID}')" title="Hide formatting" aria-label="Hide formatting toolbar">×</button>
           </div>
@@ -2401,10 +2900,13 @@
         }
         const notesSection = document.getElementById("notes-section");
         notesSection.hidden = !searchActive && notesTotal === 0;
+        const searchSummary = highlightQuery
+          ? `${notesTotal} ${notesTotal === 1 ? "note" : "notes"} · ${page.match_count || 0} ${page.match_count === 1 ? "match" : "matches"}`
+          : String(notesTotal);
         document.getElementById("notes-heading").textContent = calendarActive
           ? `${selectedArchiveLabel || formatCalendarDate(selectedCalendarDate)} · ${notesTotal}`
           : searchActive
-            ? `Search results · ${notesTotal}`
+            ? `Search results · ${searchSummary}`
             : "Recent notes";
         document.getElementById("calendar-clear").hidden = !calendarActive;
         document.getElementById("search-toggle").classList.toggle("is-active", calendarActive);
@@ -2614,6 +3116,7 @@
         captureSearchHighlight();
         const searchURL = buildSearchURL();
         activeSearchURL = `${searchURL.pathname}${searchURL.search}`;
+        saveUIState();
         document.getElementById("search-status").textContent = "Searching…";
         const loaded = await loadNotes();
         if (loaded) {
@@ -2631,6 +3134,7 @@
           if (searchActive && !calendarActive) {
             searchActive = false;
             activeSearchURL = "";
+            saveUIState();
             document.getElementById("search-status").textContent = "";
             if (notesLoading) {
               liveSearchTimer = setTimeout(runLiveSearch, 100);
@@ -2649,6 +3153,17 @@
 
       function scheduleLiveSearch() {
         clearTimeout(liveSearchTimer);
+        const query = document.getElementById("search-query").value.trim();
+        if (query) {
+          searchActive = true;
+          calendarActive = false;
+          selectedCalendarDate = "";
+          selectedArchiveLabel = "";
+          captureSearchHighlight();
+          const searchURL = buildSearchURL();
+          activeSearchURL = `${searchURL.pathname}${searchURL.search}`;
+        }
+        saveUIState();
         liveSearchTimer = setTimeout(runLiveSearch, 250);
       }
 
@@ -3138,10 +3653,13 @@
       }
 
       function closeTrashPanel() {
-        document.getElementById("trash-panel").hidden = true;
+        const panel = document.getElementById("trash-panel");
+        if (panel.hidden) return;
+        panel.hidden = true;
         document
           .getElementById("trash-toggle")
           .setAttribute("aria-expanded", "false");
+        saveUIState();
       }
 
       function hiddenNotesStorageKey() {
@@ -3234,8 +3752,11 @@
       }
 
       function closeHiddenNotesPanel() {
-        document.getElementById("hidden-notes-panel").hidden = true;
+        const panel = document.getElementById("hidden-notes-panel");
+        if (panel.hidden) return;
+        panel.hidden = true;
         document.getElementById("hidden-notes-toggle").setAttribute("aria-expanded", "false");
+        saveUIState();
       }
 
       function editingStorageKey() {
@@ -3272,11 +3793,36 @@
         const toggle = control.querySelector(".format-toggle");
         const wasOpen = toolbar && !toolbar.hidden;
         if (toolbar) toolbar.hidden = true;
+        control.querySelectorAll(".code-language-menu").forEach((menu) => {
+          menu.hidden = true;
+        });
+        control.querySelectorAll(".code-language-toggle").forEach((button) => {
+          button.setAttribute("aria-expanded", "false");
+        });
         if (toggle) {
           toggle.setAttribute("aria-expanded", "false");
           toggle.setAttribute("aria-label", "Open formatting toolbar");
         }
         return Boolean(wasOpen);
+      }
+
+      function closeCodeLanguageMenus(exceptID = "") {
+        document.querySelectorAll(".code-language-menu").forEach((menu) => {
+          if (menu.id !== exceptID) menu.hidden = true;
+        });
+        document.querySelectorAll(".code-language-toggle").forEach((button) => {
+          if (button.dataset.menu !== exceptID) button.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      function toggleCodeLanguageMenu(button) {
+        const menu = document.getElementById(button.dataset.menu);
+        if (!menu) return;
+        const shouldOpen = menu.hidden;
+        closeCodeLanguageMenus(menu.id);
+        menu.hidden = !shouldOpen;
+        button.setAttribute("aria-expanded", String(shouldOpen));
+        if (shouldOpen) menu.querySelector("button")?.focus();
       }
 
       function closeFormattingToolbars(except = null) {
@@ -3383,6 +3929,34 @@
         );
       }
 
+      function applyFencedCode(targetID, language = "") {
+        const textarea = document.getElementById(targetID);
+        if (!(textarea instanceof HTMLTextAreaElement)) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = textarea.value.slice(start, end);
+        const longestTicks = Math.max(
+          0,
+          ...(selected.match(/`+/g) || []).map((ticks) => ticks.length),
+        );
+        const fence = "`".repeat(Math.max(3, longestTicks + 1));
+        const safeLanguage = language.replace(/[^a-z0-9+#-]/gi, "");
+        const leadingNewline = start > 0 && textarea.value[start - 1] !== "\n" ? "\n" : "";
+        const trailingNewline = end < textarea.value.length && textarea.value[end] !== "\n" ? "\n" : "";
+        const prefix = `${leadingNewline}${fence}${safeLanguage}\n`;
+        const suffix = `\n${fence}${trailingNewline}`;
+        const replacement = `${prefix}${selected}${suffix}`;
+        const contentStart = start + prefix.length;
+        replaceTextareaRange(
+          textarea,
+          start,
+          end,
+          replacement,
+          contentStart,
+          contentStart + selected.length,
+        );
+      }
+
       function applyMarkdownFormat(targetID, format) {
         const textarea = document.getElementById(targetID);
         if (!(textarea instanceof HTMLTextAreaElement)) return;
@@ -3394,7 +3968,7 @@
         if (format === "code") {
           const selected = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
           if (selected.includes("\n")) {
-            wrapMarkdownSelection(textarea, "```\n", "\n```", "code");
+            applyFencedCode(targetID);
           } else {
             wrapMarkdownSelection(textarea, "`", "`", "code");
           }
@@ -3583,6 +4157,18 @@
       noteForm.addEventListener("input", scheduleDraftSave);
 
       document.addEventListener("click", (event) => {
+        const languageOption = event.target.closest(".code-language-option");
+        if (languageOption) {
+          applyFencedCode(languageOption.dataset.target, languageOption.dataset.language);
+          closeCodeLanguageMenus();
+          return;
+        }
+        const languageToggle = event.target.closest(".code-language-toggle");
+        if (languageToggle) {
+          toggleCodeLanguageMenu(languageToggle);
+          return;
+        }
+        closeCodeLanguageMenus();
         const command = event.target.closest(".format-command");
         if (command) applyMarkdownFormat(command.dataset.target, command.dataset.format);
       });
@@ -3604,13 +4190,9 @@
 
       document.getElementById("notes-toggle").addEventListener("click", () => {
         const notesList = document.getElementById("notes-list");
-        const toggle = document.getElementById("notes-toggle");
         const shouldHide = !notesList.hidden;
-
-        notesList.hidden = shouldHide;
-        toggle.setAttribute("aria-expanded", String(!shouldHide));
-        toggle.setAttribute("aria-label", shouldHide ? "Show notes" : "Hide notes");
-        toggle.title = shouldHide ? "Show notes" : "Hide notes";
+        setNotesVisibility(!shouldHide);
+        saveUIState();
       });
 
       document.getElementById("controls-toggle").addEventListener("click", () => {
@@ -3625,22 +4207,12 @@
           shouldHide ? "Show note controls" : "Hide note controls",
         );
         toggle.title = shouldHide ? "Show note controls" : "Hide note controls";
+        saveUIState();
       });
 
       document.getElementById("density-toggle").addEventListener("click", () => {
-        const notesList = document.getElementById("notes-list");
-        const toggle = document.getElementById("density-toggle");
-        const label = document.getElementById("density-toggle-label");
-        densityIndex = (densityIndex + 1) % densityModes.length;
-        const mode = densityModes[densityIndex];
-
-        notesList.classList.remove("density-compact", "density-titles");
-        if (mode !== "full") notesList.classList.add(`density-${mode}`);
-
-        const modeLabel =
-          mode === "full" ? "Full" : mode === "compact" ? "Compact" : "Titles";
-        label.textContent = modeLabel;
-        toggle.setAttribute("aria-label", `Note density: ${modeLabel}`);
+        applyDensityMode((densityIndex + 1) % densityModes.length);
+        saveUIState();
       });
 
       document
@@ -3655,6 +4227,7 @@
             closeTrashPanel();
             await hydrateHiddenNotes();
           }
+          saveUIState();
         });
       document.getElementById("show-all-hidden").addEventListener("click", showAllHiddenNotes);
 
@@ -3666,10 +4239,13 @@
         .addEventListener("click", () => loadTrash(true));
 
       function closeSearchPanel() {
-        document.getElementById("search-panel").hidden = true;
+        const panel = document.getElementById("search-panel");
+        if (panel.hidden) return;
+        panel.hidden = true;
         document
           .getElementById("search-toggle")
           .setAttribute("aria-expanded", "false");
+        saveUIState();
       }
 
       document.getElementById("search-toggle").addEventListener("click", () => {
@@ -3683,7 +4259,11 @@
           closeHiddenNotesPanel();
           document.getElementById("search-query").focus();
         }
+        saveUIState();
       });
+
+      document.getElementById("search-form").addEventListener("input", saveUIState);
+      document.getElementById("search-form").addEventListener("change", saveUIState);
 
       document.getElementById("search-form").addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -3716,6 +4296,7 @@
         selectedCalendarDate = "";
         selectedArchiveLabel = "";
         highlightQuery = "";
+        saveUIState();
         await loadNotes();
         closeSearchPanel();
       }
@@ -3735,6 +4316,7 @@
         selectedArchiveLabel = "";
         highlightQuery = "";
         activeSearchURL = calendarURL;
+        saveUIState();
         document.getElementById("search-status").textContent = "Opening date…";
         const loaded = await loadNotes();
         if (loaded) {
@@ -3749,7 +4331,10 @@
       document.getElementById("search-all").addEventListener("click", showRecentNotes);
 
       function closeArchiveOverview() {
-        document.getElementById("archive-panel").hidden = true;
+        const panel = document.getElementById("archive-panel");
+        if (panel.hidden) return;
+        panel.hidden = true;
+        saveUIState();
       }
 
       function archiveBucketLabel(bucket, type) {
@@ -3784,6 +4369,7 @@
         closeHiddenNotesPanel();
         const panel = document.getElementById("archive-panel");
         panel.hidden = false;
+        saveUIState();
         document.getElementById("archive-total").textContent = "Loading…";
         document.getElementById("archive-months").innerHTML = "";
         document.getElementById("archive-weeks").innerHTML = "";
@@ -3818,6 +4404,7 @@
         selectedArchiveLabel = button.dataset.label;
         highlightQuery = "";
         activeSearchURL = `/api/notes/search-page?${params.toString()}`;
+        saveUIState();
         closeArchiveOverview();
         await loadNotes();
       }
@@ -3839,6 +4426,7 @@
           closeSearchPanel();
           closeHiddenNotesPanel();
         }
+        saveUIState();
       });
 
       document.addEventListener("click", (event) => {
@@ -3861,7 +4449,10 @@
         }
 
         const accountControl = document.getElementById("account-control");
-        if (!accountControl.contains(event.target)) accountControl.open = false;
+        if (!accountControl.contains(event.target) && accountControl.open) {
+          accountControl.open = false;
+          saveUIState();
+        }
 
         const archivePanel = document.getElementById("archive-panel");
         if (
@@ -3887,6 +4478,7 @@
 
       window.addEventListener("pagehide", () => {
         if (!csrfToken) return;
+        saveUIState();
         if (editingNoteId !== null) {
           const edit = currentEdit(editingNoteId);
           if (edit && (edit.title.trim() || edit.content.trim())) {
@@ -3923,7 +4515,9 @@
           closeSearchPanel();
           closeHiddenNotesPanel();
           closeArchiveOverview();
+          closeAdminPanel();
           document.getElementById("account-control").open = false;
+          saveUIState();
         }
 
         const target = event.target;
@@ -3936,8 +4530,13 @@
             .getElementById("search-toggle")
             .setAttribute("aria-expanded", "true");
           document.getElementById("search-query").focus();
+          saveUIState();
         }
       });
+
+      document.getElementById("account-control").addEventListener("toggle", saveUIState);
+      document.getElementById("markdown-help").addEventListener("toggle", saveUIState);
+      document.querySelector(".admin-invitations-section").addEventListener("toggle", saveUIState);
 
       document.getElementById("login-tab").addEventListener("click", () => switchAuthMode("login"));
       document.getElementById("register-tab").addEventListener("click", () => switchAuthMode("register"));
@@ -3982,13 +4581,19 @@
       document.getElementById("admin-open").addEventListener("click", async () => {
         document.getElementById("account-control").open = false;
         document.getElementById("admin-panel").hidden = false;
+        saveUIState();
         await loadAdmin();
       });
 
-      document.getElementById("admin-close").addEventListener("click", () => {
-        document.getElementById("admin-panel").hidden = true;
+      function closeAdminPanel() {
+        const panel = document.getElementById("admin-panel");
+        if (panel.hidden) return;
+        panel.hidden = true;
         document.getElementById("invite-result").textContent = "";
-      });
+        saveUIState();
+      }
+
+      document.getElementById("admin-close").addEventListener("click", closeAdminPanel);
 
       document.getElementById("signups-enabled").addEventListener("change", async (event) => {
         const response = await apiFetch("/api/admin/signups", {
@@ -4000,6 +4605,15 @@
           ? `Signups ${event.target.checked ? "enabled" : "disabled"}.`
           : "Could not update signups.";
         if (!response.ok) event.target.checked = !event.target.checked;
+        document.getElementById("signups-state").textContent = event.target.checked ? "Open" : "Closed";
+      });
+
+      document.querySelector(".admin-user-filters").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-user-filter]");
+        if (!button) return;
+        adminUserFilter = button.dataset.userFilter;
+        renderAdminUsers();
+        saveUIState();
       });
 
       document.getElementById("save-registration-policy").addEventListener("click", saveRegistrationPolicy);

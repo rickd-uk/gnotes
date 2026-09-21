@@ -97,7 +97,7 @@ func TestPagedSearchPreservesSubstringAndCaseSemantics(t *testing.T) {
 	now := time.Now()
 	for _, note := range []struct{ title, content string }{
 		{"Alpha project", "ordinary"},
-		{"lower", "contains alpha here"},
+		{"lower", "contains alpha alpha here"},
 		{"case", "contains ALPHA here"},
 		{"unrelated", "nothing"},
 	} {
@@ -113,9 +113,15 @@ func TestPagedSearchPreservesSubstringAndCaseSemantics(t *testing.T) {
 	if page.Total != 3 || len(page.Notes) != 3 {
 		t.Fatalf("case-insensitive search returned total=%d notes=%d, want 3", page.Total, len(page.Notes))
 	}
+	if page.MatchCount != 4 {
+		t.Fatalf("case-insensitive match count = %d, want 4", page.MatchCount)
+	}
 	page = requestNotePage(t, pagedSearchNotesHandler, "/api/notes/search-page?q=alpha&scope=all&match_case=true", userID)
 	if page.Total != 1 || len(page.Notes) != 1 || page.Notes[0].Title != "lower" {
 		t.Fatalf("case-sensitive search result = %+v, want one lowercase content match", page)
+	}
+	if page.MatchCount != 2 {
+		t.Fatalf("case-sensitive match count = %d, want 2", page.MatchCount)
 	}
 }
 
