@@ -8,6 +8,7 @@ See [SECURITY.md](SECURITY.md) for the production checklist, threat boundaries, 
 
 - Per-user accounts, sessions, CSRF protection, and note isolation
 - Protected `rick` administrator account and signup controls
+- Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
 - Create, edit, pin, hide, search, recycle, recover, and permanently delete notes
 - Server-backed per-user draft autosave and refresh recovery
 - Responsive layouts and three note-density modes
@@ -121,10 +122,12 @@ Before starting the units, confirm the server provides `sqlite3` and `gzip`, whi
 
 ### 6. Configure Nginx and HTTPS
 
-Copy `deploy/nginx/gnotes.conf`, replace every occurrence of `notes.example.com`, and point its certificate paths at the real certificate:
+Copy the Nginx server, proxy, and rate-limit snippets; replace every occurrence of `notes.example.com`, and point its certificate paths at the real certificate:
 
 ```bash
 sudo install -o root -g root -m 0644 deploy/nginx/gnotes.conf /etc/nginx/sites-available/gnotes
+sudo install -o root -g root -m 0644 deploy/nginx/gnotes-proxy.conf /etc/nginx/snippets/gnotes-proxy.conf
+sudo install -o root -g root -m 0644 deploy/nginx/gnotes-rate-limits.conf /etc/nginx/conf.d/gnotes-rate-limits.conf
 sudo ln -s /etc/nginx/sites-available/gnotes /etc/nginx/sites-enabled/gnotes
 sudo nginx -t
 sudo systemctl reload nginx
@@ -169,7 +172,7 @@ The following work is intentionally recorded for future releases:
 
 1. Client-side/end-to-end encryption for note titles, contents, and drafts, with a recovery-key design.
 2. Password reset, verified email or invitation-based registration, and administrator MFA.
-3. Durable shared rate limiting suitable for multiple application instances.
+3. Shared rate limiting suitable for multiple application instances; the current persistent limiter is designed for one SQLite-backed instance.
 4. Move inline CSS and JavaScript into static files so the Content Security Policy can remove `unsafe-inline`.
 5. Audit logging, service metrics, disk-space alerts, and backup-failure alerts.
 6. User data export and a complete self-service account deletion workflow.

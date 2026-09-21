@@ -56,6 +56,9 @@ func run() error {
 	}
 	db.InitDB(databasePath)
 	defer db.DB.Close()
+	if err := cleanupAbuseData(time.Now()); err != nil {
+		return fmt.Errorf("could not clean expired security data: %w", err)
+	}
 
 	// Authentication is public; all note and administration routes are protected.
 	mux := http.NewServeMux()
@@ -79,6 +82,9 @@ func run() error {
 	mux.HandleFunc("/api/notes/empty-trash", protect(emptyTrashHandler, true))
 	mux.HandleFunc("/api/admin/overview", protect(requireAdmin(adminOverviewHandler), false))
 	mux.HandleFunc("/api/admin/signups", protect(requireAdmin(adminSignupsHandler), true))
+	mux.HandleFunc("/api/admin/registration-policy", protect(requireAdmin(adminRegistrationPolicyHandler), true))
+	mux.HandleFunc("/api/admin/invitations/create", protect(requireAdmin(adminCreateInvitationHandler), true))
+	mux.HandleFunc("/api/admin/invitations/revoke", protect(requireAdmin(adminRevokeInvitationHandler), true))
 	mux.HandleFunc("/api/admin/users/status", protect(requireAdmin(adminUserStatusHandler), true))
 	mux.HandleFunc("/api/admin/users/revoke", protect(requireAdmin(adminRevokeSessionsHandler), true))
 	mux.HandleFunc("/api/admin/users/delete", protect(requireAdmin(adminDeleteUserHandler), true))

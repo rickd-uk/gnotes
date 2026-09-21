@@ -10,7 +10,6 @@ gnotes
 bin/
 pkg/
 vendor/
-go.sum
 
 # Local Development & HTTPS (mkcert)
 localhost.pem
@@ -23,6 +22,17 @@ localhost-key.pem
 *.db-journal
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
+*.db.gz
+backups/
+
+# Local configuration and secrets
+.env
+.env.*
+*.env
+*.env.local
+!*.env.example
 
 # OS Specific (Arco/Linux/MacOS)
 .DS_Store

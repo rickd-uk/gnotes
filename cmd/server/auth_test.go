@@ -152,6 +152,13 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("enable signups status = %d, want 204: %s", response.Code, response.Body.String())
 	}
+	response = authenticatedRequest(
+		t, protect(requireAdmin(adminRegistrationPolicyHandler), true), http.MethodPut,
+		"/api/admin/registration-policy", `{"daily_limit":20,"ip_daily_limit":3,"invite_required":false}`, rick, true,
+	)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("update registration policy status = %d, want 204: %s", response.Code, response.Body.String())
+	}
 	alice := registerTestUser(t, "alice", "another long test password")
 	if alice.role != "user" {
 		t.Fatalf("alice role = %q, want user", alice.role)

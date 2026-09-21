@@ -83,13 +83,56 @@ func InitDB(filepath string) {
     value TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS rate_limits (
+    scope TEXT NOT NULL,
+    key_hash TEXT NOT NULL,
+    attempts INTEGER NOT NULL,
+    window_started_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (scope, key_hash)
+  );
+
+  CREATE TABLE IF NOT EXISTS login_cooldowns (
+    username_hash TEXT PRIMARY KEY,
+    failures INTEGER NOT NULL,
+    last_failed_at DATETIME NOT NULL,
+    blocked_until DATETIME NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS signup_events (
+    user_id INTEGER PRIMARY KEY,
+    ip_hash TEXT NOT NULL,
+    created_at DATETIME NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS invitations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code_hash TEXT NOT NULL UNIQUE,
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at DATETIME NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    used_at DATETIME
+  );
+
+  CREATE TABLE IF NOT EXISTS security_daily (
+    day TEXT NOT NULL,
+    event TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, event)
+  );
+
   INSERT OR IGNORE INTO settings (key, value) VALUES ('signups_enabled', 'false');
+  INSERT OR IGNORE INTO settings (key, value) VALUES ('signup_daily_limit', '20');
+  INSERT OR IGNORE INTO settings (key, value) VALUES ('signup_ip_daily_limit', '3');
+  INSERT OR IGNORE INTO settings (key, value) VALUES ('invite_required', 'true');
 `
 
 	_, err = DB.Exec(setupSQL)
 	if err != nil {
 		log.Fatal(err)
 	}
+	migrateSignupEvents()
 
 	ensureColumn("deleted_at", "DATETIME")
 	ensureColumn("pinned", "INTEGER NOT NULL DEFAULT 0")
@@ -104,6 +147,12 @@ func InitDB(filepath string) {
     ON sessions (expires_at);
   CREATE INDEX IF NOT EXISTS idx_sessions_user
     ON sessions (user_id);
+  CREATE INDEX IF NOT EXISTS idx_rate_limits_updated
+    ON rate_limits (updated_at);
+  CREATE INDEX IF NOT EXISTS idx_signup_events_created
+    ON signup_events (created_at, ip_hash);
+  CREATE INDEX IF NOT EXISTS idx_invitations_expiry
+    ON invitations (expires_at, used_at);
 `
 	if _, err := DB.Exec(indexSQL); err != nil {
 		log.Fatal(err)
@@ -112,6 +161,42 @@ func InitDB(filepath string) {
 		if err := os.Chmod(filepath, 0o600); err != nil {
 			log.Printf("warning: could not restrict database file permissions: %v", err)
 		}
+	}
+}
+
+func migrateSignupEvents() {
+	rows, err := DB.Query("PRAGMA foreign_key_list(signup_events)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	hasForeignKey := rows.Next()
+	if err := rows.Close(); err != nil {
+		log.Fatal(err)
+	}
+	if !hasForeignKey {
+		return
+	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`
+  CREATE TABLE signup_events_new (
+    user_id INTEGER PRIMARY KEY,
+    ip_hash TEXT NOT NULL,
+    created_at DATETIME NOT NULL
+  );
+  INSERT INTO signup_events_new (user_id, ip_hash, created_at)
+    SELECT user_id, ip_hash, created_at FROM signup_events;
+  DROP TABLE signup_events;
+  ALTER TABLE signup_events_new RENAME TO signup_events;
+`); err != nil {
+		log.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		log.Fatal(err)
 	}
 }
 

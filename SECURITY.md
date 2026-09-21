@@ -8,7 +8,8 @@ This document defines the deployment baseline for gnotes. No internet-facing ser
 - Session tokens and CSRF tokens use 256 bits of operating-system randomness. Only a SHA-256 hash of each session token is stored.
 - Session cookies are `HttpOnly` and `SameSite=Strict`; the production environment enables `Secure` cookies and HSTS.
 - Passwords use bcrypt cost 12. Older bcrypt hashes are upgraded after a successful login.
-- Login and registration attempts are bounded in memory. Forwarded client addresses are accepted only from a loopback reverse proxy.
+- Login and registration limits persist in SQLite across restarts. Login failures trigger an account-level exponential cooldown, and forwarded client addresses are accepted only from a loopback reverse proxy.
+- Registration supports hashed single-use invitation codes plus configurable global and per-IP daily caps.
 - New installations allow creation of the first `rick` administrator, then leave further signups closed until the administrator enables them.
 - Request, title, note-body, search, and session-count limits constrain accidental or malicious resource use.
 - Markdown is rendered without raw active HTML, and browser security headers restrict scripts, framing, object embedding, referrers, and sensitive browser features.
@@ -16,9 +17,12 @@ This document defines the deployment baseline for gnotes. No internet-facing ser
 - The systemd unit runs without root privileges or Linux capabilities and receives write access only to the database directory.
 - Daily backups use SQLite's online backup operation, pass `PRAGMA quick_check`, and are compressed only after validation.
 
+Default application limits are 20 login requests per IP and 500 globally per 15 minutes, plus 10 registration requests per IP and 100 globally per hour. Five failed passwords for one username begin an escalating cooldown from 30 seconds up to 15 minutes. Successful registrations default to 20 globally and 3 per IP per UTC day; the administrator can lower these values and require a single-use invitation.
+
 ## Production launch checklist
 
 - [ ] Bind gnotes to `127.0.0.1`; expose only Nginx ports 80 and 443.
+- [ ] Keep Nginx as the only direct proxy. If a CDN is added, configure Nginx's trusted real-IP ranges before changing forwarded-header handling.
 - [ ] Use a real domain and valid TLS certificate; keep `GNOTES_SECURE_COOKIES=true`.
 - [ ] Use a long random `GNOTES_SETUP_TOKEN` for remote bootstrap, then remove it and restart gnotes.
 - [ ] Verify public signups are off unless they are deliberately needed.
@@ -56,7 +60,7 @@ If compromise is suspected:
 
 Notes are not yet end-to-end encrypted. Filesystem permissions and host encryption protect a lost disk, but an attacker who obtains the live database or compromises the running server can read note titles and contents. Backups contain the same plaintext and must be encrypted before being copied off-server.
 
-The current rate limiter is process-local, there is no MFA or password-reset flow, and JavaScript/CSS remain inline under the Content Security Policy. These are recorded in the README roadmap. End-to-end encryption requires a deliberate recovery-key and multi-device design; adding only server-side database encryption would not protect against an attacker controlling the running server.
+The current rate limiter is suitable for one SQLite-backed instance, not a horizontally scaled deployment. Hashed IP identifiers still count as sensitive operational data and are retained only for limiting registrations. There is no MFA or password-reset flow, and JavaScript/CSS remain inline under the Content Security Policy. These are recorded in the README roadmap. End-to-end encryption requires a deliberate recovery-key and multi-device design; adding only server-side database encryption would not protect against an attacker controlling the running server.
 
 ## Reporting a vulnerability
 

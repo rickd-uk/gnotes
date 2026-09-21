@@ -1131,6 +1131,67 @@
         accent-color: var(--accent);
       }
 
+      .admin-security {
+        display: grid;
+        gap: 12px;
+        margin: 16px 0 20px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        background: #f1eee6;
+      }
+
+      .admin-security h3 {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+
+      .security-stats,
+      .policy-fields,
+      .invitation-create {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        align-items: center;
+      }
+
+      .security-stats {
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+
+      .policy-fields label,
+      .invitation-create label {
+        display: grid;
+        gap: 4px;
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      .policy-fields input[type="number"],
+      .invitation-create input[type="number"] {
+        width: 90px;
+        padding: 5px 7px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+      }
+
+      .invite-result {
+        margin: 0;
+        overflow-wrap: anywhere;
+        color: var(--accent);
+        font-size: 0.78rem;
+      }
+
+      .admin-invitation {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 7px 0;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.74rem;
+      }
+
       .admin-user {
         justify-content: space-between;
         gap: 18px;
@@ -1291,6 +1352,7 @@
           <input id="auth-username" name="username" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9](?:[A-Za-z0-9_]|-){2,31}" placeholder="Username" aria-label="Username" required />
           <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="72" placeholder="Password" aria-label="Password" required />
           <input id="setup-token" name="setup-token" type="password" autocomplete="off" placeholder="Administrator setup token" aria-label="Administrator setup token" hidden />
+          <input id="invite-code" name="invite-code" type="text" autocomplete="off" maxlength="80" placeholder="Invitation code" aria-label="Invitation code" hidden />
           <p class="auth-help" id="auth-help" hidden>Use 12–72 characters. Usernames are not case-sensitive.</p>
           <button class="primary-action" id="auth-submit" type="submit">Sign in</button>
           <p class="auth-status" id="auth-status" aria-live="polite"></p>
@@ -1427,6 +1489,22 @@
         <span>Allow new account signups</span>
         <input id="signups-enabled" type="checkbox" />
       </label>
+      <section class="admin-security" aria-labelledby="registration-security-heading">
+        <h3 id="registration-security-heading">Registration security</h3>
+        <div class="security-stats" id="security-stats"></div>
+        <div class="policy-fields">
+          <label>Daily total <input id="signup-daily-limit" type="number" min="1" max="10000" /></label>
+          <label>Per IP/day <input id="signup-ip-limit" type="number" min="1" max="100" /></label>
+          <label><span>Invitation required</span><input id="invite-required" type="checkbox" /></label>
+          <button class="admin-action" id="save-registration-policy" type="button">Save limits</button>
+        </div>
+        <div class="invitation-create">
+          <label>Valid days <input id="invite-valid-days" type="number" min="1" max="90" value="7" /></label>
+          <button id="create-invitation" type="button">Create invitation</button>
+        </div>
+        <p class="invite-result" id="invite-result" aria-live="polite"></p>
+        <div id="admin-invitations"></div>
+      </section>
       <p class="auth-status" id="admin-status" aria-live="polite"></p>
       <div id="admin-users"></div>
     </section>
@@ -1435,6 +1513,7 @@
       let csrfToken = "";
       let currentUser = null;
       let authMode = "login";
+      let inviteRequired = false;
       let activeNoteCount = 0;
       let trashedNoteCount = 0;
       let draftVersion = 0;
@@ -1469,6 +1548,9 @@
         document.getElementById("auth-submit").textContent = registering ? "Create account" : "Sign in";
         document.getElementById("auth-help").hidden = !registering;
         document.getElementById("auth-password").autocomplete = registering ? "new-password" : "current-password";
+        const inviteCode = document.getElementById("invite-code");
+        inviteCode.hidden = !registering || !inviteRequired;
+        inviteCode.required = registering && inviteRequired;
         document.getElementById("auth-status").textContent = "";
       }
 
@@ -1479,9 +1561,13 @@
           const config = await response.json();
           const registerTab = document.getElementById("register-tab");
           const setupToken = document.getElementById("setup-token");
+          inviteRequired = Boolean(config.invite_required);
           registerTab.hidden = !config.signups_enabled;
           setupToken.hidden = !config.setup_token_required;
           setupToken.required = config.setup_token_required;
+          const inviteCode = document.getElementById("invite-code");
+          inviteCode.hidden = authMode !== "register" || !inviteRequired;
+          inviteCode.required = authMode === "register" && inviteRequired;
           if (config.setup_required && config.signups_enabled) {
             switchAuthMode("register");
             document.getElementById("auth-intro").textContent =
@@ -1541,6 +1627,28 @@
         }
         const data = await response.json();
         document.getElementById("signups-enabled").checked = data.signups_enabled;
+        document.getElementById("signup-daily-limit").value = data.registration_policy.daily_limit;
+        document.getElementById("signup-ip-limit").value = data.registration_policy.ip_daily_limit;
+        document.getElementById("invite-required").checked = data.registration_policy.invite_required;
+        const security = data.security_today;
+        document.getElementById("security-stats").textContent =
+          `Today (UTC): ${security.registrations} registrations · ${security.failed_logins} failed logins · ${security.blocked_logins} blocked logins · ${security.blocked_signups} blocked signups`;
+        document.getElementById("admin-invitations").innerHTML = data.invitations.length
+          ? data.invitations
+              .map((invitation) => {
+                const expired = new Date(invitation.expires_at) <= new Date();
+                const state = invitation.used_by
+                  ? `Used by ${escapeHTML(invitation.used_by)}`
+                  : expired
+                    ? "Expired"
+                    : `Expires ${escapeHTML(new Date(invitation.expires_at).toLocaleString())}`;
+                return `<div class="admin-invitation">
+                  <span>Invitation ${invitation.id} · ${state}</span>
+                  ${invitation.used_by ? "" : `<button type="button" onclick="revokeInvitation(${invitation.id})">Revoke</button>`}
+                </div>`;
+              })
+              .join("")
+          : '<span class="admin-user-meta">No invitations created.</span>';
         document.getElementById("admin-users").innerHTML = data.users
           .map((user) => {
             const protectedUser = user.role === "admin";
@@ -1577,6 +1685,49 @@
       async function deleteUser(id, username) {
         if (!confirm(`Permanently delete ${username} and all of their notes?`)) return;
         const response = await apiFetch(`/api/admin/users/delete?id=${id}`, { method: "DELETE" });
+        if (response.ok) await loadAdmin();
+      }
+
+      async function saveRegistrationPolicy() {
+        const dailyLimit = Number(document.getElementById("signup-daily-limit").value);
+        const ipDailyLimit = Number(document.getElementById("signup-ip-limit").value);
+        const response = await apiFetch("/api/admin/registration-policy", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            daily_limit: dailyLimit,
+            ip_daily_limit: ipDailyLimit,
+            invite_required: document.getElementById("invite-required").checked,
+          }),
+        });
+        document.getElementById("admin-status").textContent = response.ok
+          ? "Registration limits saved."
+          : (await response.text()).trim() || "Could not save registration limits.";
+        if (response.ok) await loadAdmin();
+      }
+
+      async function createInvitation() {
+        const validDays = Number(document.getElementById("invite-valid-days").value);
+        const response = await apiFetch("/api/admin/invitations/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ valid_days: validDays }),
+        });
+        const result = document.getElementById("invite-result");
+        if (!response.ok) {
+          result.textContent = (await response.text()).trim() || "Could not create invitation.";
+          return;
+        }
+        const invitation = await response.json();
+        result.textContent = `Copy now; this code is shown once: ${invitation.code}`;
+        await loadAdmin();
+      }
+
+      async function revokeInvitation(id) {
+        const response = await apiFetch(`/api/admin/invitations/revoke?id=${id}`, { method: "DELETE" });
+        document.getElementById("admin-status").textContent = response.ok
+          ? "Invitation revoked."
+          : "Could not revoke invitation.";
         if (response.ok) await loadAdmin();
       }
 
@@ -2385,6 +2536,7 @@
               username: document.getElementById("auth-username").value,
               password: document.getElementById("auth-password").value,
               setup_token: document.getElementById("setup-token").value,
+              invite_code: document.getElementById("invite-code").value,
             }),
           });
           if (!response.ok) {
@@ -2392,6 +2544,7 @@
             return;
           }
           document.getElementById("auth-password").value = "";
+          document.getElementById("invite-code").value = "";
           await enterApp(await response.json());
         } catch {
           status.textContent = "Could not reach the server.";
@@ -2413,6 +2566,7 @@
 
       document.getElementById("admin-close").addEventListener("click", () => {
         document.getElementById("admin-panel").hidden = true;
+        document.getElementById("invite-result").textContent = "";
       });
 
       document.getElementById("signups-enabled").addEventListener("change", async (event) => {
@@ -2426,6 +2580,9 @@
           : "Could not update signups.";
         if (!response.ok) event.target.checked = !event.target.checked;
       });
+
+      document.getElementById("save-registration-policy").addEventListener("click", saveRegistrationPolicy);
+      document.getElementById("create-invitation").addEventListener("click", createInvitation);
 
       setDefaultSearchDates();
       initializeAuth();

@@ -17,7 +17,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"gnotes/internal/db"
@@ -29,7 +28,6 @@ const (
 	sessionLifetime   = 7 * 24 * time.Hour
 	maxAuthBodyBytes  = 16 * 1024
 	passwordHashCost  = 12
-	maxAuthAttempts   = 10_000
 	maxUserSessions   = 20
 	maxPasswordWork   = 4
 )
@@ -47,21 +45,12 @@ type credentials struct {
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 	SetupToken string `json:"setup_token,omitempty"`
+	InviteCode string `json:"invite_code,omitempty"`
 }
 
 var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$`)
 var dummyPasswordHash, _ = bcrypt.GenerateFromPassword([]byte("dummy password used only for timing"), passwordHashCost)
 var passwordWork = make(chan struct{}, maxPasswordWork)
-
-type authAttempt struct {
-	count   int
-	resetAt time.Time
-}
-
-var authAttempts = struct {
-	sync.Mutex
-	entries map[string]authAttempt
-}{entries: make(map[string]authAttempt)}
 
 func authConfigHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -69,12 +58,12 @@ func authConfigHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var userCount int
-	var signupsEnabled string
 	if err := db.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount); err != nil {
 		http.Error(w, "Could not load configuration", http.StatusInternalServerError)
 		return
 	}
-	if err := db.DB.QueryRow("SELECT value FROM settings WHERE key = 'signups_enabled'").Scan(&signupsEnabled); err != nil {
+	policy, err := loadRegistrationPolicy(db.DB)
+	if err != nil {
 		http.Error(w, "Could not load configuration", http.StatusInternalServerError)
 		return
 	}
@@ -83,7 +72,8 @@ func authConfigHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{
 		"setup_required":       userCount == 0,
 		"setup_token_required": userCount == 0 && setupTokenRequired(r),
-		"signups_enabled":      userCount == 0 || signupsEnabled == "true",
+		"signups_enabled":      userCount == 0 || policy.Enabled,
+		"invite_required":      userCount > 0 && policy.Enabled && policy.InvitationNeeded,
 	})
 }
 
@@ -97,7 +87,21 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !allowAuthAttempt(r, "register", "", 10, time.Hour) {
+	allowed, retryAfter, err := consumePersistentLimit("register-global", "all", 100, time.Hour)
+	if err != nil {
+		http.Error(w, "Could not check registration", http.StatusInternalServerError)
+		return
+	}
+	if allowed {
+		allowed, retryAfter, err = consumePersistentLimit("register-ip", clientIP(r), 10, time.Hour)
+		if err != nil {
+			http.Error(w, "Could not check registration", http.StatusInternalServerError)
+			return
+		}
+	}
+	if !allowed {
+		setRetryAfter(w, retryAfter)
+		recordBlockedEvent("blocked_signup")
 		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
 		return
 	}
@@ -108,6 +112,20 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if passwordLength := len([]byte(creds.Password)); passwordLength < 12 || passwordLength > 72 {
 		http.Error(w, "Password must be 12-72 bytes", http.StatusBadRequest)
 		return
+	}
+
+	now := time.Now().UTC()
+	ipHash := hashedClientIP(r)
+	var preliminaryUserCount int
+	if err := db.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&preliminaryUserCount); err != nil {
+		http.Error(w, "Could not create account", http.StatusInternalServerError)
+		return
+	}
+	if preliminaryUserCount > 0 {
+		if _, err := checkRegistrationAccess(db.DB, creds.InviteCode, ipHash, now); err != nil {
+			writeRegistrationError(w, err)
+			return
+		}
 	}
 
 	passwordHash, err := hashPassword(creds.Password)
@@ -129,13 +147,9 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if userCount > 0 {
-		var signupsEnabled string
-		if err := tx.QueryRow("SELECT value FROM settings WHERE key = 'signups_enabled'").Scan(&signupsEnabled); err != nil {
-			http.Error(w, "Could not create account", http.StatusInternalServerError)
-			return
-		}
-		if signupsEnabled != "true" {
-			http.Error(w, "New account registration is currently closed", http.StatusForbidden)
+		if _, err := checkRegistrationAccess(tx, creds.InviteCode, ipHash, now); err != nil {
+			_ = tx.Rollback()
+			writeRegistrationError(w, err)
 			return
 		}
 	}
@@ -159,7 +173,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		creds.Username,
 		passwordHash,
 		role,
-		time.Now(),
+		now,
 	)
 	if err != nil {
 		http.Error(w, "Username is unavailable", http.StatusConflict)
@@ -170,7 +184,30 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not create account", http.StatusInternalServerError)
 		return
 	}
-
+	if userCount > 0 {
+		policy, err := loadRegistrationPolicy(tx)
+		if err != nil {
+			http.Error(w, "Could not create account", http.StatusInternalServerError)
+			return
+		}
+		if policy.InvitationNeeded {
+			if err := consumeInvitation(tx, creds.InviteCode, userID, now); err != nil {
+				http.Error(w, "Invitation is no longer available", http.StatusConflict)
+				return
+			}
+		}
+		if _, err := tx.Exec(
+			"INSERT INTO signup_events (user_id, ip_hash, created_at) VALUES (?, ?, ?)",
+			userID, ipHash, now,
+		); err != nil {
+			http.Error(w, "Could not create account", http.StatusInternalServerError)
+			return
+		}
+		if err := incrementSecurityEvent(tx, "registration", now); err != nil {
+			http.Error(w, "Could not create account", http.StatusInternalServerError)
+			return
+		}
+	}
 	// The first account to register claims notes created before accounts existed.
 	if _, err := tx.Exec("UPDATE notes SET user_id = ? WHERE user_id IS NULL", userID); err != nil {
 		http.Error(w, "Could not create account", http.StatusInternalServerError)
@@ -184,6 +221,22 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	finishAuthentication(w, r, int(userID), creds.Username, role)
 }
 
+func writeRegistrationError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errSignupsClosed):
+		recordBlockedEvent("blocked_signup")
+		http.Error(w, "New account registration is currently closed", http.StatusForbidden)
+	case errors.Is(err, errSignupLimitReached):
+		recordBlockedEvent("blocked_signup")
+		http.Error(w, "Daily registration limit reached. Please try again later", http.StatusTooManyRequests)
+	case errors.Is(err, errInvitationRequired):
+		recordBlockedEvent("blocked_signup")
+		http.Error(w, "A valid invitation code is required", http.StatusForbidden)
+	default:
+		http.Error(w, "Could not check registration", http.StatusInternalServerError)
+	}
+}
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Use POST", http.StatusMethodNotAllowed)
@@ -194,8 +247,30 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !allowAuthAttempt(r, "login-ip", "", 20, 15*time.Minute) ||
-		!allowAuthAttempt(r, "login-user", creds.Username, 10, 15*time.Minute) {
+	allowed, retryAfter, err := consumePersistentLimit("login-global", "all", 500, 15*time.Minute)
+	if err != nil {
+		http.Error(w, "Could not sign in", http.StatusInternalServerError)
+		return
+	}
+	if allowed {
+		allowed, retryAfter, err = consumePersistentLimit("login-ip", clientIP(r), 20, 15*time.Minute)
+		if err != nil {
+			http.Error(w, "Could not sign in", http.StatusInternalServerError)
+			return
+		}
+	}
+	if !allowed {
+		setRetryAfter(w, retryAfter)
+		recordBlockedEvent("blocked_login")
+		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
+		return
+	}
+	if retryAfter, err := loginCooldown(creds.Username); err != nil {
+		http.Error(w, "Could not sign in", http.StatusInternalServerError)
+		return
+	} else if retryAfter > 0 {
+		setRetryAfter(w, retryAfter)
+		recordBlockedEvent("blocked_login")
 		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
 		return
 	}
@@ -205,14 +280,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var role string
 	var active bool
 	var passwordHash []byte
-	err := db.DB.QueryRow(
+	err = db.DB.QueryRow(
 		"SELECT id, username, password_hash, role, active FROM users WHERE username = ?",
 		creds.Username,
 	).Scan(&userID, &username, &passwordHash, &role, &active)
 	if errors.Is(err, sql.ErrNoRows) {
 		// Do equivalent password work so account existence is not disclosed by timing.
 		passwordMatches(dummyPasswordHash, creds.Password)
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		writeLoginFailure(w, creds.Username)
 		return
 	}
 	if err != nil {
@@ -220,7 +295,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !passwordMatches(passwordHash, creds.Password) {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		writeLoginFailure(w, creds.Username)
 		return
 	}
 	if !active {
@@ -233,9 +308,26 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			db.DB.Exec("UPDATE users SET password_hash = ? WHERE id = ?", upgradedHash, userID)
 		}
 	}
-	clearAuthAttempts(r, "login-ip", "")
-	clearAuthAttempts(r, "login-user", creds.Username)
+	if err := clearLoginCooldown(creds.Username); err != nil {
+		http.Error(w, "Could not sign in", http.StatusInternalServerError)
+		return
+	}
 	finishAuthentication(w, r, userID, username, role)
+}
+
+func writeLoginFailure(w http.ResponseWriter, username string) {
+	cooldown, err := recordLoginFailure(username)
+	if err != nil {
+		http.Error(w, "Could not sign in", http.StatusInternalServerError)
+		return
+	}
+	if cooldown > 0 {
+		setRetryAfter(w, cooldown)
+		recordBlockedEvent("blocked_login")
+		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
+		return
+	}
+	http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 }
 
 func hashPassword(password string) ([]byte, error) {
@@ -407,38 +499,6 @@ func validCSRFToken(provided, expected string) bool {
 	return subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1
 }
 
-func authAttemptKey(r *http.Request, action, username string) string {
-	host := clientIP(r)
-	if action == "register" || action == "login-ip" {
-		return action + ":" + host
-	}
-	return action + ":" + host + ":" + strings.ToLower(username)
-}
-
-func allowAuthAttempt(r *http.Request, action, username string, limit int, window time.Duration) bool {
-	now := time.Now()
-	key := authAttemptKey(r, action, username)
-	authAttempts.Lock()
-	defer authAttempts.Unlock()
-	if len(authAttempts.entries) >= maxAuthAttempts {
-		for entryKey, entry := range authAttempts.entries {
-			if !entry.resetAt.After(now) {
-				delete(authAttempts.entries, entryKey)
-			}
-		}
-		if _, exists := authAttempts.entries[key]; !exists && len(authAttempts.entries) >= maxAuthAttempts {
-			return false
-		}
-	}
-	attempt := authAttempts.entries[key]
-	if attempt.resetAt.Before(now) {
-		attempt = authAttempt{resetAt: now.Add(window)}
-	}
-	attempt.count++
-	authAttempts.entries[key] = attempt
-	return attempt.count <= limit
-}
-
 func clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
@@ -455,12 +515,6 @@ func clientIP(r *http.Request) string {
 		return remoteIP.String()
 	}
 	return host
-}
-
-func clearAuthAttempts(r *http.Request, action, username string) {
-	authAttempts.Lock()
-	delete(authAttempts.entries, authAttemptKey(r, action, username))
-	authAttempts.Unlock()
 }
 
 func randomToken() (string, error) {
