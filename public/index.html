@@ -63,11 +63,27 @@
       .site-header h1 {
         flex-shrink: 0;
         margin: 0;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(1.65rem, 4vw, 2.3rem);
-        font-weight: 400;
-        letter-spacing: -0.05em;
-        line-height: 1;
+        color: #315b4c;
+        font-family: "Snell Roundhand", "Segoe Script", "Apple Chancery",
+          "URW Chancery L", Z003, "Brush Script MT", cursive;
+        font-size: clamp(1.9rem, 4.8vw, 2.4rem);
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        line-height: 0.9;
+        text-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.72),
+          0 2px 3px rgba(55, 47, 36, 0.2);
+      }
+
+      @supports ((background-clip: text) or (-webkit-background-clip: text)) {
+        .site-header h1,
+        .startup-brand,
+        .auth-card h1 {
+          background: linear-gradient(165deg, #244a3d 12%, #587467 54%, #29483e 88%);
+          background-clip: text;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
       }
 
       .header-actions {
@@ -963,16 +979,33 @@
       }
 
       .pin-btn {
-        border: 1px solid #d7c99f;
-        background: #f1ead6;
-        color: #7b6525;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: #817b70;
       }
 
-      .pin-btn:hover,
+      .pin-btn:hover {
+        border-color: #aaa397;
+        background: #e9e5dc;
+        color: #514d46;
+      }
+
       .pin-btn.is-pinned {
-        border-color: #b99b3d;
-        background: #dfcf96;
-        color: #5f4a0f;
+        border-color: #82a697;
+        background: #d8e8e0;
+        color: #235b47;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48);
+      }
+
+      .pin-btn.is-pinned .icon {
+        fill: currentColor;
+        stroke-width: 1.8;
+      }
+
+      .pin-btn.is-pinned:hover {
+        border-color: #568674;
+        background: #c4ded2;
+        color: #164936;
       }
 
       .pinned-section .date-section-heading {
@@ -1268,10 +1301,16 @@
       }
 
       .startup-brand {
-        color: var(--ink);
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: 1.65rem;
+        color: #315b4c;
+        font-family: "Snell Roundhand", "Segoe Script", "Apple Chancery",
+          "URW Chancery L", Z003, "Brush Script MT", cursive;
+        font-size: 2rem;
         font-weight: 500;
+        letter-spacing: 0.01em;
+        line-height: 0.9;
+        text-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.72),
+          0 2px 3px rgba(55, 47, 36, 0.2);
       }
 
       .startup-status {
@@ -1302,9 +1341,16 @@
 
       .auth-card h1 {
         margin: 0 0 6px;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: 2rem;
+        color: #315b4c;
+        font-family: "Snell Roundhand", "Segoe Script", "Apple Chancery",
+          "URW Chancery L", Z003, "Brush Script MT", cursive;
+        font-size: 2.35rem;
         font-weight: 500;
+        letter-spacing: 0.01em;
+        line-height: 0.95;
+        text-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.72),
+          0 2px 3px rgba(55, 47, 36, 0.2);
       }
 
       .auth-intro,
