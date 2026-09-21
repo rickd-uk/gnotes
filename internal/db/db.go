@@ -11,6 +11,8 @@ import (
 
 var DB *sql.DB
 
+const renderedContentCacheVersion = "2"
+
 func InitDB(filepath string) {
 	var err error
 	DB, err = sql.Open("sqlite", filepath)
@@ -142,6 +144,7 @@ func InitDB(filepath string) {
 	ensureTableColumn("users", "role", "TEXT NOT NULL DEFAULT 'user'")
 	ensureTableColumn("users", "active", "INTEGER NOT NULL DEFAULT 1")
 	ensureTableColumn("users", "last_login_at", "DATETIME")
+	ensureRenderedContentCacheVersion()
 	ensureNotesFTS()
 
 	indexSQL := `
@@ -173,6 +176,38 @@ func InitDB(filepath string) {
 		if err := os.Chmod(filepath, 0o600); err != nil {
 			log.Printf("warning: could not restrict database file permissions: %v", err)
 		}
+	}
+}
+
+// ensureRenderedContentCacheVersion invalidates cached Markdown after renderer
+// changes. Notes are rendered lazily when they are next requested, avoiding a
+// potentially expensive startup-time rewrite for large databases.
+func ensureRenderedContentCacheVersion() {
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	var version string
+	err = tx.QueryRow("SELECT value FROM settings WHERE key = 'rendered_content_cache_version'").Scan(&version)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatal(err)
+	}
+	if version == renderedContentCacheVersion {
+		return
+	}
+	if _, err := tx.Exec("UPDATE notes SET rendered_content = NULL WHERE rendered_content IS NOT NULL"); err != nil {
+		log.Fatal(err)
+	}
+	if _, err := tx.Exec(`
+		INSERT INTO settings (key, value) VALUES ('rendered_content_cache_version', ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value
+	`, renderedContentCacheVersion); err != nil {
+		log.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		log.Fatal(err)
 	}
 }
 

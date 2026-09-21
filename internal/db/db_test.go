@@ -89,6 +89,35 @@ func TestInitDBConfiguresSQLiteForReliability(t *testing.T) {
 	}
 }
 
+func TestInitDBInvalidatesOldRenderedContentCache(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "render-cache.db")
+	InitDB(path)
+	if _, err := DB.Exec(
+		"INSERT INTO notes (title, content, rendered_content, created_at) VALUES (?, ?, ?, ?)",
+		"Code", "```c\\nint main(void) {}\\n```", "<pre>old rendering</pre>", time.Now(),
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(
+		"UPDATE settings SET value = '1' WHERE key = 'rendered_content_cache_version'",
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := DB.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	InitDB(path)
+	t.Cleanup(func() { DB.Close() })
+	var rendered sql.NullString
+	if err := DB.QueryRow("SELECT rendered_content FROM notes LIMIT 1").Scan(&rendered); err != nil {
+		t.Fatal(err)
+	}
+	if rendered.Valid {
+		t.Fatalf("old rendered content cache was retained: %q", rendered.String)
+	}
+}
+
 func TestConcurrentWritesAreSerialized(t *testing.T) {
 	InitDB(filepath.Join(t.TempDir(), "concurrent.db"))
 	t.Cleanup(func() { DB.Close() })

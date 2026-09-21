@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
 	"gnotes/internal/db"
 	"gnotes/internal/models"
@@ -32,11 +33,21 @@ const (
 	maxSearchBytes    = 4 * 1024
 )
 
-// helper for markdown
+var markdownRenderer = goldmark.New(
+	goldmark.WithExtensions(
+		extension.GFM,
+		highlighting.NewHighlighting(
+			highlighting.WithStyle("github"),
+			highlighting.WithGuessLanguage(false),
+		),
+	),
+)
+
+// mdToHTML renders Markdown and highlights fenced code blocks that name a
+// recognized language. Unlabelled and unknown languages remain plain code.
 func mdToHTML(raw string) string {
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
 	var buf bytes.Buffer
-	if err := md.Convert([]byte(raw), &buf); err != nil {
+	if err := markdownRenderer.Convert([]byte(raw), &buf); err != nil {
 		return raw // Fallback to raw text if it fails
 	}
 	return buf.String()

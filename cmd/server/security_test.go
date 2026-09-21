@@ -20,6 +20,32 @@ func TestMarkdownRendererRejectsActiveContent(t *testing.T) {
 	}
 }
 
+func TestMarkdownRendererHighlightsFencedCode(t *testing.T) {
+	examples := map[string]string{
+		"c":      "int main(void) { return 0; }",
+		"go":     "func main() { println(\"hello\") }",
+		"html":   "<main>Hello</main>",
+		"python": "def hello(): return True",
+		"rust":   "fn main() { println!(\"hello\"); }",
+	}
+	for language, source := range examples {
+		rendered := mdToHTML("```" + language + "\n" + source + "\n```")
+		if !strings.Contains(rendered, `<span style=`) || !strings.Contains(rendered, "color:") {
+			t.Errorf("fenced %s code was not highlighted: %s", language, rendered)
+		}
+	}
+}
+
+func TestMarkdownRendererEscapesHighlightedHTML(t *testing.T) {
+	rendered := strings.ToLower(mdToHTML("```html\n<script>alert('no')</script>\n```"))
+	if strings.Contains(rendered, "<script") {
+		t.Fatalf("highlighted code contains executable markup: %s", rendered)
+	}
+	if !strings.Contains(rendered, "&lt;") {
+		t.Fatalf("highlighted HTML was not escaped: %s", rendered)
+	}
+}
+
 func TestClientIPOnlyTrustsLoopbackProxy(t *testing.T) {
 	trusted := httptest.NewRequest(http.MethodPost, "/", nil)
 	trusted.RemoteAddr = "127.0.0.1:1234"
