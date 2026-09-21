@@ -1,0 +1,17 @@
+[Unit]
+Description=Back up the gnotes SQLite database
+
+[Service]
+Type=oneshot
+User=gnotes
+Group=gnotes
+EnvironmentFile=/etc/gnotes/gnotes.env
+ExecStart=/opt/gnotes/bin/backup-gnotes
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/gnotes
+ReadWritePaths=/var/backups/gnotes

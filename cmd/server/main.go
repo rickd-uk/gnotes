@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +13,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/yuin/goldmark"
@@ -33,7 +36,12 @@ func mdToHTML(raw string) string {
 
 func main() {
 	// initialize SQLite
-	db.InitDB("gnotes.db")
+	databasePath := os.Getenv("DATABASE_PATH")
+	if databasePath == "" {
+		databasePath = "gnotes.db"
+	}
+	db.InitDB(databasePath)
+	defer db.DB.Close()
 
 	// Authentication is public; all note and administration routes are protected.
 	http.HandleFunc("/api/auth/register", registerHandler)
@@ -74,8 +82,42 @@ func main() {
 		host = "127.0.0.1"
 	}
 	address := net.JoinHostPort(host, port)
+	server := &http.Server{
+		Addr:              address,
+		Handler:           securityHeaders(http.DefaultServeMux),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Fatalf("could not listen on %s: %v", address, err)
+	}
 	fmt.Printf("gnotes started at http://%s\n", address)
-	log.Fatal(http.ListenAndServe(address, securityHeaders(http.DefaultServeMux)))
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErrors <- err
+		}
+	}()
+
+	shutdownSignal, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	select {
+	case err := <-serverErrors:
+		log.Fatal(err)
+	case <-shutdownSignal.Done():
+		log.Println("gnotes shutting down")
+	}
+
+	shutdownContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownContext); err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
+	}
 }
 
 func decodeJSONBody(w http.ResponseWriter, r *http.Request, destination any) error {
@@ -471,5 +513,21 @@ func emptyTrashHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.Error(w, "Use GET or HEAD", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := db.DB.PingContext(ctx); err != nil {
+		http.Error(w, "Database is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if r.Method == http.MethodHead {
+		return
+	}
 	fmt.Fprint(w, "Backend is healthy and SQLite is connected.")
 }

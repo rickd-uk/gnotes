@@ -1,0 +1,37 @@
+[Unit]
+Description=gnotes private note service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=gnotes
+Group=gnotes
+WorkingDirectory=/opt/gnotes
+EnvironmentFile=/etc/gnotes/gnotes.env
+ExecStart=/opt/gnotes/gnotes
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=20s
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/gnotes
+
+[Install]
+WantedBy=multi-user.target

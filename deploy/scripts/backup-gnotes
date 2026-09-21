@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+umask 077
+
+database_path="${DATABASE_PATH:-/var/lib/gnotes/gnotes.db}"
+backup_directory="${BACKUP_DIRECTORY:-/var/backups/gnotes}"
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+temporary_backup="${backup_directory}/.gnotes-${timestamp}.db"
+final_backup="${backup_directory}/gnotes-${timestamp}.db.gz"
+
+cleanup() {
+    rm -f "$temporary_backup"
+}
+trap cleanup EXIT HUP INT TERM
+
+test -f "$database_path"
+mkdir -p "$backup_directory"
+sqlite3 -batch "$database_path" ".timeout 10000" ".backup '$temporary_backup'"
+
+if [ "$(sqlite3 -batch -noheader -cmd '.mode list' "$temporary_backup" "PRAGMA quick_check;")" != "ok" ]; then
+    echo "gnotes backup integrity check failed" >&2
+    exit 1
+fi
+
+gzip -9 -c "$temporary_backup" > "$final_backup"
+find "$backup_directory" -type f -name 'gnotes-*.db.gz' -mtime +30 -delete
+
+echo "Created $final_backup"
