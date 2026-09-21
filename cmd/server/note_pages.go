@@ -28,6 +28,7 @@ type notePage struct {
 	Notes      []models.Note `json:"notes"`
 	NextCursor string        `json:"next_cursor,omitempty"`
 	Total      int           `json:"total"`
+	Pinned     int           `json:"pinned_total,omitempty"`
 }
 
 type activeNoteCursor struct {
@@ -113,7 +114,15 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not count notes", http.StatusInternalServerError)
 		return
 	}
-	writeNotePage(w, notePage{Notes: notes, NextCursor: nextCursor, Total: total})
+	var pinned int
+	if err := db.DB.QueryRow(
+		"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND pinned = 1",
+		userIDFromRequest(r),
+	).Scan(&pinned); err != nil {
+		http.Error(w, "Could not count pinned notes", http.StatusInternalServerError)
+		return
+	}
+	writeNotePage(w, notePage{Notes: notes, NextCursor: nextCursor, Total: total, Pinned: pinned})
 }
 
 func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {

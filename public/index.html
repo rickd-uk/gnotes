@@ -566,6 +566,14 @@
         font-size: 0.72rem;
       }
 
+      mark.search-highlight {
+        padding: 0 0.08em;
+        border-radius: 2px;
+        background: #f2dfa0;
+        color: inherit;
+        box-shadow: 0 0 0 1px rgba(152, 113, 21, 0.1);
+      }
+
       .trash-toggle {
         position: relative;
         display: grid;
@@ -1237,8 +1245,8 @@
         z-index: 45;
         top: calc(100% + 15px);
         right: 0;
-        min-width: 150px;
-        padding: 8px;
+        min-width: 218px;
+        padding: 10px;
         border: 1px solid var(--line);
         background: var(--paper);
         box-shadow: 0 16px 38px rgba(51, 45, 35, 0.18);
@@ -1246,7 +1254,8 @@
 
       .account-menu button {
         width: 100%;
-        padding: 7px 8px;
+        min-height: 38px;
+        padding: 8px 10px;
         border: 0;
         background: transparent;
         color: var(--ink);
@@ -1258,8 +1267,46 @@
         background: #e9e4da;
       }
 
+      .account-menu-section + .account-menu-section {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+      }
+
+      .account-menu-section[hidden] { display: none; }
+
+      .account-menu-label {
+        display: block;
+        padding: 2px 10px 5px;
+        color: var(--muted);
+        font-size: 0.62rem;
+        font-weight: 750;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
       .account-menu .account-danger {
+        border: 1px solid transparent;
         color: var(--danger);
+      }
+
+      .account-menu .account-danger:hover {
+        border-color: #e3c6c1;
+        background: #f7ebe8;
+      }
+
+      .account-menu .account-signout {
+        border: 1px solid #c6c1b6;
+        background: #f4f1ea;
+        color: #58534a;
+        font-weight: 700;
+        text-align: center;
+      }
+
+      .account-menu .account-signout:hover {
+        border-color: #aaa397;
+        background: #e9e5dc;
+        color: var(--ink);
       }
 
       .admin-panel {
@@ -1743,9 +1790,21 @@
           <details class="account-control" id="account-control">
             <summary id="account-name" aria-label="Account menu">Account</summary>
             <div class="account-menu">
-              <button id="admin-open" type="button" hidden>Admin</button>
-              <button class="account-danger" id="delete-all-notes" type="button" hidden>Delete all notes</button>
-              <button id="logout-button" type="button">Sign out</button>
+              <div class="account-menu-section" id="account-notes-section">
+                <span class="account-menu-label">Notes</span>
+                <button id="unpin-all-notes" type="button" hidden>Unpin all notes</button>
+              </div>
+              <div class="account-menu-section" id="account-admin-section" hidden>
+                <span class="account-menu-label">Administration</span>
+                <button id="admin-open" type="button">Manage users and signups</button>
+              </div>
+              <div class="account-menu-section" id="account-data-section">
+                <span class="account-menu-label">Data</span>
+                <button class="account-danger" id="delete-all-notes" type="button" hidden>Delete all notes</button>
+              </div>
+              <div class="account-menu-section">
+                <button class="account-signout" id="logout-button" type="button">Sign out</button>
+              </div>
             </div>
           </details>
         </div>
@@ -1850,6 +1909,7 @@
       let authMode = "login";
       let inviteRequired = false;
       let activeNoteCount = 0;
+      let pinnedNoteCount = 0;
       let trashedNoteCount = 0;
       let draftVersion = 0;
       let draftSaveTimer;
@@ -1873,6 +1933,10 @@
       let calendarActive = false;
       let selectedCalendarDate = "";
       let selectedArchiveLabel = "";
+      let liveSearchTimer;
+      let highlightQuery = "";
+      let highlightScope = "all";
+      let highlightMatchCase = false;
       let editingNoteId = null;
       let editSaveTimer;
       let editSaveChain = Promise.resolve();
@@ -1934,6 +1998,7 @@
       }
 
       function showAuth(message = "") {
+        clearTimeout(liveSearchTimer);
         csrfToken = "";
         currentUser = null;
         notesLoading = false;
@@ -1946,6 +2011,9 @@
         calendarActive = false;
         selectedCalendarDate = "";
         selectedArchiveLabel = "";
+        highlightQuery = "";
+        setActiveNoteCount(0);
+        setPinnedNoteCount(0);
         loadedNotes.clear();
         loadedTrash.clear();
         hiddenNoteIds.clear();
@@ -1967,7 +2035,7 @@
         loadCollapsedDateSections();
         loadHiddenNoteIds();
         document.getElementById("account-name").textContent = session.username;
-        document.getElementById("admin-open").hidden = session.role !== "admin";
+        document.getElementById("account-admin-section").hidden = session.role !== "admin";
         document.getElementById("auth-screen").hidden = true;
         document.getElementById("app-shell").hidden = true;
         document.getElementById("startup-screen").hidden = false;
@@ -2187,7 +2255,10 @@
         });
         notesNextCursor = page.next_cursor || "";
         notesTotal = page.total || 0;
-        if (!searchActive) setActiveNoteCount(notesTotal);
+        if (!searchActive) {
+          setActiveNoteCount(notesTotal);
+          setPinnedNoteCount(page.pinned_total || 0);
+        }
         const notesSection = document.getElementById("notes-section");
         notesSection.hidden = !searchActive && notesTotal === 0;
         document.getElementById("notes-heading").textContent = calendarActive
@@ -2318,6 +2389,7 @@
 
         renderedNotes += "</section>";
         document.getElementById("notes-list").innerHTML = renderedNotes;
+        highlightSearchMatches();
         loadMore.hidden = !notesNextCursor;
         loadMore.disabled = false;
         loadMore.textContent = searchActive ? "More results" : "Load older";
@@ -2349,6 +2421,94 @@
         }
 
         return new URL(`/api/notes/search-page?${params.toString()}`, location.origin);
+      }
+
+      function captureSearchHighlight() {
+        highlightQuery = document.getElementById("search-query").value.trim();
+        highlightScope = document.getElementById("search-scope").value;
+        highlightMatchCase = document.getElementById("search-match-case").checked;
+      }
+
+      function highlightSearchMatches() {
+        if (!searchActive || calendarActive || !highlightQuery) return;
+        const escaped = highlightQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const expression = new RegExp(escaped, highlightMatchCase ? "g" : "gi");
+        const selectors = [];
+        if (highlightScope === "all" || highlightScope === "title") selectors.push(".note-view h2");
+        if (highlightScope === "all" || highlightScope === "content") selectors.push(".note-content");
+        document.querySelectorAll(selectors.join(",")).forEach((root) => {
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          const nodes = [];
+          while (walker.nextNode()) nodes.push(walker.currentNode);
+          nodes.forEach((node) => {
+            expression.lastIndex = 0;
+            if (!expression.test(node.data)) return;
+            expression.lastIndex = 0;
+            const fragment = document.createDocumentFragment();
+            let offset = 0;
+            for (const match of node.data.matchAll(expression)) {
+              fragment.append(node.data.slice(offset, match.index));
+              const marker = document.createElement("mark");
+              marker.className = "search-highlight";
+              marker.textContent = match[0];
+              fragment.append(marker);
+              offset = match.index + match[0].length;
+            }
+            fragment.append(node.data.slice(offset));
+            node.replaceWith(fragment);
+          });
+        });
+      }
+
+      async function runTextSearch(closeWhenDone = false) {
+        if (notesLoading) {
+          clearTimeout(liveSearchTimer);
+          liveSearchTimer = setTimeout(() => runTextSearch(closeWhenDone), 100);
+          return false;
+        }
+        searchActive = true;
+        calendarActive = false;
+        selectedCalendarDate = "";
+        selectedArchiveLabel = "";
+        captureSearchHighlight();
+        const searchURL = buildSearchURL();
+        activeSearchURL = `${searchURL.pathname}${searchURL.search}`;
+        document.getElementById("search-status").textContent = "Searching…";
+        const loaded = await loadNotes();
+        if (loaded) {
+          document.getElementById("search-status").textContent = "";
+          if (closeWhenDone) closeSearchPanel();
+        }
+        return loaded;
+      }
+
+      async function runLiveSearch() {
+        if (!currentUser) return;
+        const query = document.getElementById("search-query").value.trim();
+        if (!query) {
+          highlightQuery = "";
+          if (searchActive && !calendarActive) {
+            searchActive = false;
+            activeSearchURL = "";
+            document.getElementById("search-status").textContent = "";
+            if (notesLoading) {
+              liveSearchTimer = setTimeout(runLiveSearch, 100);
+              return;
+            }
+            await loadNotes();
+          }
+          return;
+        }
+        if (notesLoading) {
+          liveSearchTimer = setTimeout(runLiveSearch, 100);
+          return;
+        }
+        await runTextSearch(false);
+      }
+
+      function scheduleLiveSearch() {
+        clearTimeout(liveSearchTimer);
+        liveSearchTimer = setTimeout(runLiveSearch, 250);
       }
 
       function buildCalendarURL(dateValue) {
@@ -2507,6 +2667,13 @@
       function setActiveNoteCount(count) {
         activeNoteCount = Math.max(0, count);
         document.getElementById("delete-all-notes").hidden = activeNoteCount === 0;
+        document.getElementById("account-data-section").hidden = activeNoteCount === 0;
+      }
+
+      function setPinnedNoteCount(count) {
+        pinnedNoteCount = Math.max(0, count);
+        document.getElementById("unpin-all-notes").hidden = pinnedNoteCount === 0;
+        document.getElementById("account-notes-section").hidden = pinnedNoteCount === 0;
       }
 
       function getDisplayTitle(note) {
@@ -2701,10 +2868,12 @@
         hiddenNotes.clear();
         saveHiddenNoteIds();
         setActiveNoteCount(0);
+        setPinnedNoteCount(0);
         await Promise.all([loadNotes(), loadTrash()]);
       }
 
       async function togglePin(id) {
+        const wasPinned = Boolean(loadedNotes.get(id)?.pinned);
         const res = await apiFetch(`/api/notes/pin?id=${id}`, {
           method: "POST",
         });
@@ -2712,6 +2881,18 @@
           alert("Could not change this note's pin.");
           return;
         }
+        if (searchActive) setPinnedNoteCount(pinnedNoteCount + (wasPinned ? -1 : 1));
+        await loadNotes();
+      }
+
+      async function unpinAllNotes() {
+        document.getElementById("account-control").open = false;
+        const response = await apiFetch("/api/notes/unpin-all", { method: "POST" });
+        if (!response.ok) {
+          alert("Could not unpin your notes.");
+          return;
+        }
+        setPinnedNoteCount(0);
         await loadNotes();
       }
 
@@ -3188,21 +3369,26 @@
 
       document.getElementById("search-form").addEventListener("submit", async (event) => {
         event.preventDefault();
-        searchActive = true;
-        calendarActive = false;
-        selectedCalendarDate = "";
-        selectedArchiveLabel = "";
-        const searchURL = buildSearchURL();
-        activeSearchURL = `${searchURL.pathname}${searchURL.search}`;
-        document.getElementById("search-status").textContent = "Searching…";
-        const loaded = await loadNotes();
-        if (loaded) {
-          document.getElementById("search-status").textContent = "";
-          closeSearchPanel();
-        }
+        clearTimeout(liveSearchTimer);
+        await runTextSearch(true);
+      });
+
+      document.getElementById("search-query").addEventListener("input", scheduleLiveSearch);
+      document.getElementById("search-scope").addEventListener("change", () => {
+        if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+      });
+      document.getElementById("search-match-case").addEventListener("change", () => {
+        if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+      });
+      document.getElementById("search-from").addEventListener("change", () => {
+        if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+      });
+      document.getElementById("search-to").addEventListener("change", () => {
+        if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
       });
 
       async function showRecentNotes() {
+        clearTimeout(liveSearchTimer);
         document.getElementById("search-form").reset();
         setDefaultSearchDates();
         document.getElementById("search-status").textContent = "";
@@ -3211,11 +3397,13 @@
         calendarActive = false;
         selectedCalendarDate = "";
         selectedArchiveLabel = "";
+        highlightQuery = "";
         await loadNotes();
         closeSearchPanel();
       }
 
       async function openCalendarDate() {
+        clearTimeout(liveSearchTimer);
         const dateInput = document.getElementById("calendar-date");
         const calendarURL = buildCalendarURL(dateInput.value);
         if (!calendarURL) {
@@ -3227,6 +3415,7 @@
         calendarActive = true;
         selectedCalendarDate = dateInput.value;
         selectedArchiveLabel = "";
+        highlightQuery = "";
         activeSearchURL = calendarURL;
         document.getElementById("search-status").textContent = "Opening date…";
         const loaded = await loadNotes();
@@ -3299,6 +3488,7 @@
       }
 
       async function openArchiveRange(button) {
+        clearTimeout(liveSearchTimer);
         const params = new URLSearchParams({
           scope: "all",
           from_time: button.dataset.start,
@@ -3308,6 +3498,7 @@
         calendarActive = true;
         selectedCalendarDate = "";
         selectedArchiveLabel = button.dataset.label;
+        highlightQuery = "";
         activeSearchURL = `/api/notes/search-page?${params.toString()}`;
         closeArchiveOverview();
         await loadNotes();
@@ -3463,6 +3654,7 @@
       });
 
       document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
+      document.getElementById("unpin-all-notes").addEventListener("click", unpinAllNotes);
       document.getElementById("date-sections-toggle").addEventListener("click", toggleAllDateSections);
 
       document.getElementById("admin-open").addEventListener("click", async () => {

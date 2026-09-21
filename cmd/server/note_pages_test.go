@@ -54,6 +54,9 @@ func TestPagedNotesTraversesLargeCollectionWithoutDuplicates(t *testing.T) {
 		if response.Total != 125 {
 			t.Fatalf("page %d total = %d, want 125", pageNumber, response.Total)
 		}
+		if response.Pinned != 5 {
+			t.Fatalf("page %d pinned total = %d, want 5", pageNumber, response.Pinned)
+		}
 		if len(response.Notes) > 17 {
 			t.Fatalf("page %d returned %d notes, want at most 17", pageNumber, len(response.Notes))
 		}
@@ -234,6 +237,53 @@ func TestPaginationOrdersMixedTimezoneTimestampsByAbsoluteTime(t *testing.T) {
 	page = requestNotePage(t, pagedListNotesHandler, "/api/notes/page?limit=1&cursor="+url.QueryEscape(page.NextCursor), userID)
 	if len(page.Notes) != 1 || page.Notes[0].Title != "earlier local date" {
 		t.Fatalf("second page = %+v", page)
+	}
+}
+
+func TestUnpinAllOnlyChangesCurrentUsersActiveNotes(t *testing.T) {
+	db.InitDB(filepath.Join(t.TempDir(), "unpin-all.db"))
+	t.Cleanup(func() { db.DB.Close() })
+	userID := insertPageTestUser(t, "pinner")
+	otherID := insertPageTestUser(t, "other-pinner")
+	now := time.Now()
+	for _, note := range []struct {
+		userID  int
+		deleted any
+	}{
+		{userID, nil},
+		{userID, now},
+		{otherID, nil},
+	} {
+		if _, err := db.DB.Exec(
+			"INSERT INTO notes (user_id, title, content, created_at, deleted_at, pinned) VALUES (?, 'Pinned', 'body', ?, ?, 1)",
+			note.userID, now, note.deleted,
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/notes/unpin-all", nil)
+	request = request.WithContext(context.WithValue(
+		request.Context(), authContextKey{}, authSession{UserID: userID, Username: "pinner"},
+	))
+	response := httptest.NewRecorder()
+	unpinAllNotesHandler(response, request)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d: %s", response.Code, response.Body.String())
+	}
+
+	var activePinned, deletedPinned, otherPinned int
+	if err := db.DB.QueryRow("SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND pinned = 1", userID).Scan(&activePinned); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.DB.QueryRow("SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL AND pinned = 1", userID).Scan(&deletedPinned); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.DB.QueryRow("SELECT COUNT(*) FROM notes WHERE user_id = ? AND pinned = 1", otherID).Scan(&otherPinned); err != nil {
+		t.Fatal(err)
+	}
+	if activePinned != 0 || deletedPinned != 1 || otherPinned != 1 {
+		t.Fatalf("pinned counts active=%d deleted=%d other=%d", activePinned, deletedPinned, otherPinned)
 	}
 }
 

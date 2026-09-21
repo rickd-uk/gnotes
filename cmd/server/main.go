@@ -78,6 +78,7 @@ func run() error {
 	mux.HandleFunc("/api/notes/search-page", protect(pagedSearchNotesHandler, false))
 	mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
 	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
+	mux.HandleFunc("/api/notes/unpin-all", protect(unpinAllNotesHandler, true))
 	mux.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
 	mux.HandleFunc("/api/notes/delete-all", protect(deleteAllNotesHandler, true))
 	mux.HandleFunc("/api/notes/trash", protect(trashNotesHandler, false))
@@ -377,6 +378,21 @@ func pinNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func unpinAllNotesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodPut {
+		http.Error(w, "Use POST or PUT", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, err := db.DB.Exec(
+		"UPDATE notes SET pinned = 0 WHERE user_id = ? AND deleted_at IS NULL AND pinned = 1",
+		userIDFromRequest(r),
+	); err != nil {
+		http.Error(w, "Could not unpin notes", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
