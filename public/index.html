@@ -187,7 +187,7 @@
         right: 0;
         display: flex;
         width: max-content;
-        max-width: min(360px, calc(100vw - 32px));
+        max-width: min(430px, calc(100vw - 32px));
         align-items: center;
         gap: 2px;
         padding: 5px;
@@ -229,6 +229,10 @@
         position: relative;
         display: flex;
         align-items: center;
+      }
+
+      .format-more-control {
+        position: relative;
       }
 
       .format-code-control .format-command {
@@ -289,6 +293,50 @@
         background: #e9e5dc;
         color: var(--ink);
         outline: none;
+      }
+
+      .format-more-toggle {
+        min-width: 32px;
+        height: 32px;
+        padding: 0 7px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 1rem;
+        letter-spacing: 0.08em;
+      }
+
+      .format-more-toggle:hover,
+      .format-more-toggle:focus-visible,
+      .format-more-toggle[aria-expanded="true"] {
+        background: #e9e5dc;
+        color: var(--ink);
+        outline: none;
+      }
+
+      .format-more-menu {
+        position: absolute;
+        z-index: 37;
+        right: 0;
+        bottom: calc(100% + 8px);
+        display: grid;
+        width: 150px;
+        gap: 2px;
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #f8f6f0;
+        box-shadow: 0 9px 24px rgba(51, 45, 35, 0.14);
+      }
+
+      .format-more-menu[hidden] { display: none; }
+
+      .format-more-menu .format-command {
+        width: 100%;
+        justify-self: stretch;
+        text-align: left;
       }
 
       .format-close {
@@ -1985,6 +2033,17 @@
           width: auto;
         }
 
+        .format-more-toggle {
+          height: 40px;
+        }
+
+        .format-more-menu {
+          position: fixed;
+          right: 16px;
+          bottom: 112px;
+          width: 160px;
+        }
+
         .markdown-guide {
           grid-template-columns: 1fr;
         }
@@ -2301,7 +2360,9 @@
               <button class="format-command" type="button" data-format="bold" data-target="content" title="Bold" aria-label="Bold"><strong>B</strong></button>
               <button class="format-command" type="button" data-format="italic" data-target="content" title="Italic" aria-label="Italic"><em>I</em></button>
               <button class="format-command" type="button" data-format="heading" data-target="content" title="Heading" aria-label="Heading">H₂</button>
-              <button class="format-command" type="button" data-format="list" data-target="content" title="Bulleted list" aria-label="Bulleted list">• List</button>
+              <button class="format-command" type="button" data-format="list" data-target="content" title="Bulleted list" aria-label="Bulleted list">•</button>
+              <button class="format-command" type="button" data-format="ordered-list" data-target="content" title="Numbered list" aria-label="Numbered list">1.</button>
+              <button class="format-command" type="button" data-format="task-list" data-target="content" title="Task checkbox" aria-label="Task checkbox">☐</button>
               <button class="format-command" type="button" data-format="quote" data-target="content" title="Quote" aria-label="Quote">“</button>
               <span class="format-code-control">
                 <button class="format-command" type="button" data-format="code" data-target="content" title="Inline or plain code" aria-label="Inline or plain code"><code>&lt;/&gt;</code></button>
@@ -2321,6 +2382,14 @@
                 </span>
               </span>
               <button class="format-command" type="button" data-format="link" data-target="content" title="Link" aria-label="Link">↗</button>
+              <span class="format-more-control">
+                <button class="format-more-toggle" type="button" data-menu="new-note-format-more" aria-controls="new-note-format-more" aria-expanded="false" title="More formatting" aria-label="More formatting">…</button>
+                <span class="format-more-menu" id="new-note-format-more" role="group" aria-label="More formatting" hidden>
+                  <button class="format-command" type="button" data-format="strikethrough" data-target="content">Strikethrough</button>
+                  <button class="format-command" type="button" data-format="divider" data-target="content">Divider</button>
+                  <button class="format-command" type="button" data-format="table" data-target="content">Table</button>
+                </span>
+              </span>
               <button class="format-close" type="button" onclick="closeFormattingToolbar('new-note-format-control')" title="Hide formatting" aria-label="Hide formatting toolbar">×</button>
             </div>
           </div>
@@ -2878,7 +2947,9 @@
             <button class="format-command" type="button" data-format="bold" data-target="${targetID}" title="Bold" aria-label="Bold"><strong>B</strong></button>
             <button class="format-command" type="button" data-format="italic" data-target="${targetID}" title="Italic" aria-label="Italic"><em>I</em></button>
             <button class="format-command" type="button" data-format="heading" data-target="${targetID}" title="Heading" aria-label="Heading">H₂</button>
-            <button class="format-command" type="button" data-format="list" data-target="${targetID}" title="Bulleted list" aria-label="Bulleted list">• List</button>
+            <button class="format-command" type="button" data-format="list" data-target="${targetID}" title="Bulleted list" aria-label="Bulleted list">•</button>
+            <button class="format-command" type="button" data-format="ordered-list" data-target="${targetID}" title="Numbered list" aria-label="Numbered list">1.</button>
+            <button class="format-command" type="button" data-format="task-list" data-target="${targetID}" title="Task checkbox" aria-label="Task checkbox">☐</button>
             <button class="format-command" type="button" data-format="quote" data-target="${targetID}" title="Quote" aria-label="Quote">“</button>
             <span class="format-code-control">
               <button class="format-command" type="button" data-format="code" data-target="${targetID}" title="Inline or plain code" aria-label="Inline or plain code"><code>&lt;/&gt;</code></button>
@@ -2898,6 +2969,14 @@
               </span>
             </span>
             <button class="format-command" type="button" data-format="link" data-target="${targetID}" title="Link" aria-label="Link">↗</button>
+            <span class="format-more-control">
+              <button class="format-more-toggle" type="button" data-menu="${controlID}-more" aria-controls="${controlID}-more" aria-expanded="false" title="More formatting" aria-label="More formatting">…</button>
+              <span class="format-more-menu" id="${controlID}-more" role="group" aria-label="More formatting" hidden>
+                <button class="format-command" type="button" data-format="strikethrough" data-target="${targetID}">Strikethrough</button>
+                <button class="format-command" type="button" data-format="divider" data-target="${targetID}">Divider</button>
+                <button class="format-command" type="button" data-format="table" data-target="${targetID}">Table</button>
+              </span>
+            </span>
             <button class="format-close" type="button" onclick="closeFormattingToolbar('${controlID}')" title="Hide formatting" aria-label="Hide formatting toolbar">×</button>
           </div>
         </div>`;
@@ -3856,6 +3935,12 @@
         control.querySelectorAll(".code-language-toggle").forEach((button) => {
           button.setAttribute("aria-expanded", "false");
         });
+        control.querySelectorAll(".format-more-menu").forEach((menu) => {
+          menu.hidden = true;
+        });
+        control.querySelectorAll(".format-more-toggle").forEach((button) => {
+          button.setAttribute("aria-expanded", "false");
+        });
         if (toggle) {
           toggle.setAttribute("aria-expanded", "false");
           toggle.setAttribute("aria-label", "Open formatting toolbar");
@@ -3877,6 +3962,27 @@
         if (!menu) return;
         const shouldOpen = menu.hidden;
         closeCodeLanguageMenus(menu.id);
+        closeFormatMoreMenus();
+        menu.hidden = !shouldOpen;
+        button.setAttribute("aria-expanded", String(shouldOpen));
+        if (shouldOpen) menu.querySelector("button")?.focus();
+      }
+
+      function closeFormatMoreMenus(exceptID = "") {
+        document.querySelectorAll(".format-more-menu").forEach((menu) => {
+          if (menu.id !== exceptID) menu.hidden = true;
+        });
+        document.querySelectorAll(".format-more-toggle").forEach((button) => {
+          if (button.dataset.menu !== exceptID) button.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      function toggleFormatMoreMenu(button) {
+        const menu = document.getElementById(button.dataset.menu);
+        if (!menu) return;
+        const shouldOpen = menu.hidden;
+        closeFormatMoreMenus(menu.id);
+        closeCodeLanguageMenus();
         menu.hidden = !shouldOpen;
         button.setAttribute("aria-expanded", String(shouldOpen));
         if (shouldOpen) menu.querySelector("button")?.focus();
@@ -4062,6 +4168,64 @@
         );
       }
 
+      function toggleMarkdownLinePattern(textarea, prefixPattern, prefixForLine) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const hadSelection = end > start;
+        const lineStart = textarea.value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+        const endLookup = end > start && textarea.value[end - 1] === "\n" ? end - 1 : end;
+        const nextLine = textarea.value.indexOf("\n", endLookup);
+        const lineEnd = nextLine === -1 ? textarea.value.length : nextLine;
+        const lines = textarea.value.slice(lineStart, lineEnd).split("\n");
+        const nonEmpty = lines.filter((line) => line.length > 0);
+        const removePrefixes = nonEmpty.length > 0 && nonEmpty.every((line) => prefixPattern.test(line));
+        const replacement = nonEmpty.length === 0
+          ? prefixForLine(0)
+          : lines
+              .map((line, index) => {
+                if (!line) return line;
+                return removePrefixes
+                  ? line.replace(prefixPattern, "")
+                  : `${prefixForLine(index)}${line}`;
+              })
+              .join("\n");
+        let nextStart = lineStart;
+        let nextEnd = lineStart + replacement.length;
+        if (!hadSelection) {
+          const oldPrefix = lines[0].match(prefixPattern)?.[0] || "";
+          const newPrefix = removePrefixes ? "" : prefixForLine(0);
+          const offset = start - lineStart;
+          nextStart = lineStart + Math.max(0, offset - oldPrefix.length + newPrefix.length);
+          nextEnd = nextStart;
+        }
+        replaceTextareaRange(
+          textarea,
+          lineStart,
+          lineEnd,
+          replacement,
+          nextStart,
+          nextEnd,
+        );
+      }
+
+      function insertMarkdownBlock(textarea, block, selectedText = "") {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const leading = start === 0 ? "" : textarea.value[start - 1] === "\n" ? "\n" : "\n\n";
+        const trailing = end === textarea.value.length ? "" : textarea.value[end] === "\n" ? "\n" : "\n\n";
+        const replacement = `${leading}${block}${trailing}`;
+        const selectionOffset = selectedText ? replacement.indexOf(selectedText) : replacement.length;
+        const selectionStart = start + selectionOffset;
+        replaceTextareaRange(
+          textarea,
+          start,
+          end,
+          replacement,
+          selectionStart,
+          selectionStart + selectedText.length,
+        );
+      }
+
       function applyFencedCode(targetID, language = "") {
         const textarea = document.getElementById(targetID);
         if (!(textarea instanceof HTMLTextAreaElement)) return;
@@ -4097,7 +4261,22 @@
         if (format === "italic") wrapMarkdownSelection(textarea, "_", "_", "italic text");
         if (format === "heading") prefixMarkdownLines(textarea, "## ");
         if (format === "list") prefixMarkdownLines(textarea, "- ");
+        if (format === "ordered-list") {
+          toggleMarkdownLinePattern(textarea, /^\d+\.\s+/, (index) => `${index + 1}. `);
+        }
+        if (format === "task-list") {
+          toggleMarkdownLinePattern(textarea, /^- \[[ xX]\]\s+/, () => "- [ ] ");
+        }
         if (format === "quote") prefixMarkdownLines(textarea, "> ");
+        if (format === "strikethrough") wrapMarkdownSelection(textarea, "~~", "~~", "struck text");
+        if (format === "divider") insertMarkdownBlock(textarea, "---");
+        if (format === "table") {
+          insertMarkdownBlock(
+            textarea,
+            "| Column 1 | Column 2 |\n| --- | --- |\n| Value | Value |",
+            "Column 1",
+          );
+        }
         if (format === "code") {
           const selected = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
           if (selected.includes("\n")) {
@@ -4306,7 +4485,13 @@
           toggleCodeLanguageMenu(languageToggle);
           return;
         }
+        const moreToggle = event.target.closest(".format-more-toggle");
+        if (moreToggle) {
+          toggleFormatMoreMenu(moreToggle);
+          return;
+        }
         closeCodeLanguageMenus();
+        closeFormatMoreMenus();
         const command = event.target.closest(".format-command");
         if (command) applyMarkdownFormat(command.dataset.target, command.dataset.format);
       });

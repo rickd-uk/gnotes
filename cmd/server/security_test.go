@@ -46,6 +46,21 @@ func TestMarkdownRendererEscapesHighlightedHTML(t *testing.T) {
 	}
 }
 
+func TestMarkdownRendererSupportsToolbarFormatting(t *testing.T) {
+	rendered := mdToHTML(`~~finished~~
+
+- [ ] pending
+
+| Column 1 | Column 2 |
+| --- | --- |
+| Value | Value |`)
+	for _, element := range []string{"<del>", `type="checkbox"`, "<table>"} {
+		if !strings.Contains(rendered, element) {
+			t.Errorf("toolbar Markdown did not render %s: %s", element, rendered)
+		}
+	}
+}
+
 func TestClientIPOnlyTrustsLoopbackProxy(t *testing.T) {
 	trusted := httptest.NewRequest(http.MethodPost, "/", nil)
 	trusted.RemoteAddr = "127.0.0.1:1234"
