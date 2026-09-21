@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -22,6 +23,13 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"gnotes/internal/db"
 	"gnotes/internal/models"
+)
+
+const (
+	maxJSONBodyBytes  = 2 * 1024 * 1024
+	maxNoteTitleBytes = 4 * 1024
+	maxNoteBodyBytes  = 1024 * 1024
+	maxSearchBytes    = 4 * 1024
 )
 
 // helper for markdown
@@ -35,6 +43,12 @@ func mdToHTML(raw string) string {
 }
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	// initialize SQLite
 	databasePath := os.Getenv("DATABASE_PATH")
 	if databasePath == "" {
@@ -44,34 +58,35 @@ func main() {
 	defer db.DB.Close()
 
 	// Authentication is public; all note and administration routes are protected.
-	http.HandleFunc("/api/auth/register", registerHandler)
-	http.HandleFunc("/api/auth/login", loginHandler)
-	http.HandleFunc("/api/auth/config", authConfigHandler)
-	http.HandleFunc("/api/auth/me", protect(meHandler, false))
-	http.HandleFunc("/api/auth/logout", protect(logoutHandler, true))
-	http.HandleFunc("/api/draft", protect(getDraftHandler, false))
-	http.HandleFunc("/api/draft/update", protect(updateDraftHandler, true))
-	http.HandleFunc("/api/draft/finalize", protect(finalizeDraftHandler, true))
-	http.HandleFunc("/api/notes/create", protect(createNoteHandler, true))
-	http.HandleFunc("/api/notes/list", protect(listNotesHandler, false))
-	http.HandleFunc("/api/notes/search", protect(searchNotesHandler, false))
-	http.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
-	http.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
-	http.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
-	http.HandleFunc("/api/notes/delete-all", protect(deleteAllNotesHandler, true))
-	http.HandleFunc("/api/notes/trash", protect(trashNotesHandler, false))
-	http.HandleFunc("/api/notes/restore", protect(restoreNotesHandler, true))
-	http.HandleFunc("/api/notes/empty-trash", protect(emptyTrashHandler, true))
-	http.HandleFunc("/api/admin/overview", protect(requireAdmin(adminOverviewHandler), false))
-	http.HandleFunc("/api/admin/signups", protect(requireAdmin(adminSignupsHandler), true))
-	http.HandleFunc("/api/admin/users/status", protect(requireAdmin(adminUserStatusHandler), true))
-	http.HandleFunc("/api/admin/users/revoke", protect(requireAdmin(adminRevokeSessionsHandler), true))
-	http.HandleFunc("/api/admin/users/delete", protect(requireAdmin(adminDeleteUserHandler), true))
-	http.HandleFunc("/api/health", healthCheck)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/auth/register", registerHandler)
+	mux.HandleFunc("/api/auth/login", loginHandler)
+	mux.HandleFunc("/api/auth/config", authConfigHandler)
+	mux.HandleFunc("/api/auth/me", protect(meHandler, false))
+	mux.HandleFunc("/api/auth/logout", protect(logoutHandler, true))
+	mux.HandleFunc("/api/draft", protect(getDraftHandler, false))
+	mux.HandleFunc("/api/draft/update", protect(updateDraftHandler, true))
+	mux.HandleFunc("/api/draft/finalize", protect(finalizeDraftHandler, true))
+	mux.HandleFunc("/api/notes/create", protect(createNoteHandler, true))
+	mux.HandleFunc("/api/notes/list", protect(listNotesHandler, false))
+	mux.HandleFunc("/api/notes/search", protect(searchNotesHandler, false))
+	mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
+	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
+	mux.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
+	mux.HandleFunc("/api/notes/delete-all", protect(deleteAllNotesHandler, true))
+	mux.HandleFunc("/api/notes/trash", protect(trashNotesHandler, false))
+	mux.HandleFunc("/api/notes/restore", protect(restoreNotesHandler, true))
+	mux.HandleFunc("/api/notes/empty-trash", protect(emptyTrashHandler, true))
+	mux.HandleFunc("/api/admin/overview", protect(requireAdmin(adminOverviewHandler), false))
+	mux.HandleFunc("/api/admin/signups", protect(requireAdmin(adminSignupsHandler), true))
+	mux.HandleFunc("/api/admin/users/status", protect(requireAdmin(adminUserStatusHandler), true))
+	mux.HandleFunc("/api/admin/users/revoke", protect(requireAdmin(adminRevokeSessionsHandler), true))
+	mux.HandleFunc("/api/admin/users/delete", protect(requireAdmin(adminDeleteUserHandler), true))
+	mux.HandleFunc("/api/health", healthCheck)
 
 	// serve frontend
 	fileServer := http.FileServer(http.Dir("./public"))
-	http.Handle("/", fileServer)
+	mux.Handle("/", fileServer)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -84,7 +99,7 @@ func main() {
 	address := net.JoinHostPort(host, port)
 	server := &http.Server{
 		Addr:              address,
-		Handler:           securityHeaders(http.DefaultServeMux),
+		Handler:           securityHeaders(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -93,7 +108,7 @@ func main() {
 	}
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Fatalf("could not listen on %s: %v", address, err)
+		return fmt.Errorf("could not listen on %s: %w", address, err)
 	}
 	fmt.Printf("gnotes started at http://%s\n", address)
 
@@ -108,7 +123,7 @@ func main() {
 	defer stop()
 	select {
 	case err := <-serverErrors:
-		log.Fatal(err)
+		return err
 	case <-shutdownSignal.Done():
 		log.Println("gnotes shutting down")
 	}
@@ -116,8 +131,9 @@ func main() {
 	shutdownContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(shutdownContext); err != nil {
-		log.Printf("graceful shutdown failed: %v", err)
+		return fmt.Errorf("graceful shutdown failed: %w", err)
 	}
+	return nil
 }
 
 func decodeJSONBody(w http.ResponseWriter, r *http.Request, destination any) error {
@@ -125,7 +141,7 @@ func decodeJSONBody(w http.ResponseWriter, r *http.Request, destination any) err
 	if err != nil || mediaType != "application/json" {
 		return errors.New("content type must be application/json")
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
@@ -151,8 +167,8 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid input", 400)
 		return
 	}
-	if strings.TrimSpace(n.Title) == "" && strings.TrimSpace(n.Content) == "" {
-		http.Error(w, "A title or content is required", http.StatusBadRequest)
+	if err := validateNoteText(n.Title, n.Content); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -166,7 +182,11 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get ID of note we just created
-	id, _ := result.LastInsertId()
+	id, err := result.LastInsertId()
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
 	n.ID = int(id)
 
 	// respond with creted note (including its new ID)
@@ -176,6 +196,10 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func listNotesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	// quey db
 	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned FROM notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
 	if err != nil {
@@ -192,10 +216,15 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned)
 		if err != nil {
 			log.Println("Scan error:", err)
-			continue
+			http.Error(w, "Could not load notes", http.StatusInternalServerError)
+			return
 		}
 		n.HTMLContent = template.HTML(mdToHTML(n.Content)) // convert it to HTML
 		allNotes = append(allNotes, n)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Could not load notes", http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(allNotes)
@@ -208,6 +237,10 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	queryText := r.URL.Query().Get("q")
+	if len(queryText) > maxSearchBytes {
+		http.Error(w, "Search text is too long", http.StatusBadRequest)
+		return
+	}
 	scope := r.URL.Query().Get("scope")
 	if scope == "" {
 		scope = "all"
@@ -280,7 +313,8 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		var n models.Note
 		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned); err != nil {
 			log.Println("Search scan error:", err)
-			continue
+			http.Error(w, "Search failed", http.StatusInternalServerError)
+			return
 		}
 		n.HTMLContent = template.HTML(mdToHTML(n.Content))
 		matches = append(matches, n)
@@ -307,9 +341,8 @@ func pinNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		http.Error(w, "ID is required", http.StatusBadRequest)
+	id, ok := noteIDFromRequest(w, r)
+	if !ok {
 		return
 	}
 
@@ -340,9 +373,8 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		http.Error(w, "ID is required", http.StatusBadRequest)
+	id, ok := noteIDFromRequest(w, r)
+	if !ok {
 		return
 	}
 
@@ -351,8 +383,8 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-	if strings.TrimSpace(n.Title) == "" && strings.TrimSpace(n.Content) == "" {
-		http.Error(w, "A title or content is required", http.StatusBadRequest)
+	if err := validateNoteText(n.Title, n.Content); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -386,9 +418,8 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Use DELETE or POST", http.StatusMethodNotAllowed)
 		return
 	}
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		http.Error(w, "ID is required", http.StatusBadRequest)
+	id, ok := noteIDFromRequest(w, r)
+	if !ok {
 		return
 	}
 	result, err := db.DB.Exec(
@@ -449,7 +480,8 @@ func trashNotesHandler(w http.ResponseWriter, r *http.Request) {
 		var n models.Note
 		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.DeletedAt); err != nil {
 			log.Println("Trash scan error:", err)
-			continue
+			http.Error(w, "Could not load trash", http.StatusInternalServerError)
+			return
 		}
 		trash = append(trash, n)
 	}
@@ -468,15 +500,20 @@ func restoreNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.URL.Query().Get("id")
-	if id == "" {
+	idValue := r.URL.Query().Get("id")
+	if idValue == "" {
 		http.Error(w, "ID is required", http.StatusBadRequest)
 		return
 	}
 
 	query := "UPDATE notes SET deleted_at = NULL WHERE user_id = ? AND deleted_at IS NOT NULL"
 	args := []any{userIDFromRequest(r)}
-	if id != "all" {
+	if idValue != "all" {
+		id, err := strconv.Atoi(idValue)
+		if err != nil || id < 1 {
+			http.Error(w, "Valid note ID required", http.StatusBadRequest)
+			return
+		}
 		query += " AND id = ?"
 		args = append(args, id)
 	}
@@ -491,12 +528,38 @@ func restoreNotesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Restore failed", http.StatusInternalServerError)
 		return
 	}
-	if rowsAffected == 0 && id != "all" {
+	if rowsAffected == 0 && idValue != "all" {
 		http.Error(w, "Note not found", http.StatusNotFound)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func validateNoteText(title, content string) error {
+	if strings.TrimSpace(title) == "" && strings.TrimSpace(content) == "" {
+		return errors.New("a title or content is required")
+	}
+	return validateNoteSize(title, content)
+}
+
+func validateNoteSize(title, content string) error {
+	if len(title) > maxNoteTitleBytes {
+		return errors.New("note title is too long")
+	}
+	if len(content) > maxNoteBodyBytes {
+		return errors.New("note content is too long")
+	}
+	return nil
+}
+
+func noteIDFromRequest(w http.ResponseWriter, r *http.Request) (int, bool) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		http.Error(w, "Valid note ID required", http.StatusBadRequest)
+		return 0, false
+	}
+	return id, true
 }
 
 func emptyTrashHandler(w http.ResponseWriter, r *http.Request) {

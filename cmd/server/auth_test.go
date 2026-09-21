@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gnotes/internal/db"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestLegacySchemaMigration(t *testing.T) {
@@ -46,8 +47,8 @@ func TestLegacySchemaMigration(t *testing.T) {
 	if err := db.DB.QueryRow("SELECT value FROM settings WHERE key = 'signups_enabled'").Scan(&signups); err != nil {
 		t.Fatal(err)
 	}
-	if signups != "true" {
-		t.Fatalf("signups setting = %q, want true", signups)
+	if signups != "false" {
+		t.Fatalf("signups setting = %q, want false", signups)
 	}
 }
 
@@ -84,6 +85,48 @@ func TestRemoteFirstAdminRequiresSetupToken(t *testing.T) {
 	}
 }
 
+func TestSignupsCloseAfterBootstrapByDefault(t *testing.T) {
+	db.InitDB(filepath.Join(t.TempDir(), "closed-signups.db"))
+	t.Cleanup(func() { db.DB.Close() })
+
+	rick := registerTestUser(t, "rick", "correct horse battery staple")
+	if rick.role != "admin" {
+		t.Fatalf("first account role = %q, want admin", rick.role)
+	}
+	var passwordHash []byte
+	if err := db.DB.QueryRow("SELECT password_hash FROM users WHERE username = 'rick'").Scan(&passwordHash); err != nil {
+		t.Fatal(err)
+	}
+	if cost, err := bcrypt.Cost(passwordHash); err != nil || cost != passwordHashCost {
+		t.Fatalf("password hash cost = %d, %v; want %d", cost, err, passwordHashCost)
+	}
+
+	configRequest := httptest.NewRequest(http.MethodGet, "/api/auth/config", nil)
+	configResponse := httptest.NewRecorder()
+	authConfigHandler(configResponse, configRequest)
+	if configResponse.Code != http.StatusOK {
+		t.Fatalf("auth config status = %d", configResponse.Code)
+	}
+	var config struct {
+		SignupsEnabled bool `json:"signups_enabled"`
+	}
+	if err := json.Unmarshal(configResponse.Body.Bytes(), &config); err != nil {
+		t.Fatal(err)
+	}
+	if config.SignupsEnabled {
+		t.Fatal("signups remained open after administrator bootstrap")
+	}
+
+	body, _ := json.Marshal(credentials{Username: "alice", Password: "another long test password"})
+	request := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	registerHandler(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("closed registration status = %d, want 403", response.Code)
+	}
+}
+
 func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 	db.InitDB(filepath.Join(t.TempDir(), "gnotes-test.db"))
 	t.Cleanup(func() { db.DB.Close() })
@@ -102,12 +145,19 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 	if rick.role != "admin" {
 		t.Fatalf("first rick account role = %q, want admin", rick.role)
 	}
+	response := authenticatedRequest(
+		t, protect(requireAdmin(adminSignupsHandler), true), http.MethodPut,
+		"/api/admin/signups", `{"enabled":true}`, rick, true,
+	)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("enable signups status = %d, want 204: %s", response.Code, response.Body.String())
+	}
 	alice := registerTestUser(t, "alice", "another long test password")
 	if alice.role != "user" {
 		t.Fatalf("alice role = %q, want user", alice.role)
 	}
 
-	response := authenticatedRequest(
+	response = authenticatedRequest(
 		t, protect(updateDraftHandler, true), http.MethodPut,
 		"/api/draft/update", `{"title":"Newest draft","content":"survives refresh","version":2}`, rick, true,
 	)

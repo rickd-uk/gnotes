@@ -10,8 +10,15 @@ ExecStart=/opt/gnotes/bin/backup-gnotes
 UMask=0077
 
 NoNewPrivileges=true
+CapabilityBoundingSet=
+RestrictNamespaces=true
 PrivateTmp=true
+PrivateDevices=true
+ProtectProc=invisible
+ProcSubset=pid
 ProtectSystem=strict
 ProtectHome=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
 ReadOnlyPaths=/var/lib/gnotes
 ReadWritePaths=/var/backups/gnotes

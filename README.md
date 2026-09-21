@@ -2,6 +2,8 @@
 
 A compact, multi-user Markdown notes application written in Go with SQLite and a vanilla browser interface.
 
+See [SECURITY.md](SECURITY.md) for the production checklist, threat boundaries, incident response, and restore procedure.
+
 ## Current features
 
 - Per-user accounts, sessions, CSRF protection, and note isolation
@@ -114,6 +116,8 @@ sudo systemctl status gnotes.service
 ```
 
 The service runs as the unprivileged `gnotes` user with a read-only system view and write access only to `/var/lib/gnotes`.
+
+Before starting the units, confirm the server provides `sqlite3` and `gzip`, which are used by the backup job.
 
 ### 6. Configure Nginx and HTTPS
 

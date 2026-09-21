@@ -44,6 +44,10 @@ func updateDraftHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid draft", http.StatusBadRequest)
 		return
 	}
+	if err := validateNoteSize(draft.Title, draft.Content); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	result, err := db.DB.Exec(`
 		INSERT INTO drafts (user_id, title, content, version, updated_at)
 		VALUES (?, ?, ?, ?, ?)
@@ -102,6 +106,10 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "A newer draft exists", http.StatusConflict)
 		return
 	}
+	if err := validateNoteSize(draft.Title, draft.Content); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if strings.TrimSpace(draft.Title) == "" && strings.TrimSpace(draft.Content) == "" {
 		if _, err := tx.Exec("DELETE FROM drafts WHERE user_id = ?", userID); err != nil {
 			http.Error(w, "Could not clear draft", http.StatusInternalServerError)
@@ -124,6 +132,11 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not create note", http.StatusInternalServerError)
 		return
 	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		http.Error(w, "Could not create note", http.StatusInternalServerError)
+		return
+	}
 	if _, err := tx.Exec("DELETE FROM drafts WHERE user_id = ?", userID); err != nil {
 		http.Error(w, "Could not clear draft", http.StatusInternalServerError)
 		return
@@ -133,7 +146,6 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, _ := result.LastInsertId()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]any{

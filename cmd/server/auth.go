@@ -28,6 +28,10 @@ const (
 	sessionCookieName = "gnotes_session"
 	sessionLifetime   = 7 * 24 * time.Hour
 	maxAuthBodyBytes  = 16 * 1024
+	passwordHashCost  = 12
+	maxAuthAttempts   = 10_000
+	maxUserSessions   = 20
+	maxPasswordWork   = 4
 )
 
 type authContextKey struct{}
@@ -46,7 +50,8 @@ type credentials struct {
 }
 
 var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$`)
-var dummyPasswordHash, _ = bcrypt.GenerateFromPassword([]byte("dummy password used only for timing"), bcrypt.DefaultCost)
+var dummyPasswordHash, _ = bcrypt.GenerateFromPassword([]byte("dummy password used only for timing"), passwordHashCost)
+var passwordWork = make(chan struct{}, maxPasswordWork)
 
 type authAttempt struct {
 	count   int
@@ -78,7 +83,7 @@ func authConfigHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{
 		"setup_required":       userCount == 0,
 		"setup_token_required": userCount == 0 && setupTokenRequired(r),
-		"signups_enabled":      signupsEnabled == "true",
+		"signups_enabled":      userCount == 0 || signupsEnabled == "true",
 	})
 }
 
@@ -92,7 +97,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !allowAuthAttempt(r, "register", creds.Username, 10, time.Hour) {
+	if !allowAuthAttempt(r, "register", "", 10, time.Hour) {
 		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
 		return
 	}
@@ -105,13 +110,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var signupsEnabled string
-	if err := db.DB.QueryRow("SELECT value FROM settings WHERE key = 'signups_enabled'").Scan(&signupsEnabled); err != nil || signupsEnabled != "true" {
-		http.Error(w, "New account registration is currently closed", http.StatusForbidden)
-		return
-	}
-
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
+	passwordHash, err := hashPassword(creds.Password)
 	if err != nil {
 		http.Error(w, "Could not create account", http.StatusInternalServerError)
 		return
@@ -128,6 +127,17 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if err := tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount); err != nil {
 		http.Error(w, "Could not create account", http.StatusInternalServerError)
 		return
+	}
+	if userCount > 0 {
+		var signupsEnabled string
+		if err := tx.QueryRow("SELECT value FROM settings WHERE key = 'signups_enabled'").Scan(&signupsEnabled); err != nil {
+			http.Error(w, "Could not create account", http.StatusInternalServerError)
+			return
+		}
+		if signupsEnabled != "true" {
+			http.Error(w, "New account registration is currently closed", http.StatusForbidden)
+			return
+		}
 	}
 	if userCount == 0 && !strings.EqualFold(creds.Username, "rick") {
 		http.Error(w, "The first account must use the administrator username rick", http.StatusBadRequest)
@@ -184,7 +194,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !allowAuthAttempt(r, "login", creds.Username, 10, 15*time.Minute) {
+	if !allowAuthAttempt(r, "login-ip", "", 20, 15*time.Minute) ||
+		!allowAuthAttempt(r, "login-user", creds.Username, 10, 15*time.Minute) {
 		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
 		return
 	}
@@ -198,11 +209,17 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		"SELECT id, username, password_hash, role, active FROM users WHERE username = ?",
 		creds.Username,
 	).Scan(&userID, &username, &passwordHash, &role, &active)
-	if err != nil || bcrypt.CompareHashAndPassword(passwordHash, []byte(creds.Password)) != nil {
-		// Keep the response generic so account existence is not disclosed.
-		if errors.Is(err, sql.ErrNoRows) {
-			bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(creds.Password))
-		}
+	if errors.Is(err, sql.ErrNoRows) {
+		// Do equivalent password work so account existence is not disclosed by timing.
+		passwordMatches(dummyPasswordHash, creds.Password)
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Could not sign in", http.StatusInternalServerError)
+		return
+	}
+	if !passwordMatches(passwordHash, creds.Password) {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
@@ -211,8 +228,26 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clearAuthAttempts(r, "login", creds.Username)
+	if cost, err := bcrypt.Cost(passwordHash); err == nil && cost < passwordHashCost {
+		if upgradedHash, err := hashPassword(creds.Password); err == nil {
+			db.DB.Exec("UPDATE users SET password_hash = ? WHERE id = ?", upgradedHash, userID)
+		}
+	}
+	clearAuthAttempts(r, "login-ip", "")
+	clearAuthAttempts(r, "login-user", creds.Username)
 	finishAuthentication(w, r, userID, username, role)
+}
+
+func hashPassword(password string) ([]byte, error) {
+	passwordWork <- struct{}{}
+	defer func() { <-passwordWork }()
+	return bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
+}
+
+func passwordMatches(hash []byte, password string) bool {
+	passwordWork <- struct{}{}
+	defer func() { <-passwordWork }()
+	return bcrypt.CompareHashAndPassword(hash, []byte(password)) == nil
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -270,6 +305,19 @@ func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, us
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
 		return
 	}
+	if _, err := db.DB.Exec(`
+		DELETE FROM sessions
+		 WHERE user_id = ?
+		   AND token_hash NOT IN (
+		       SELECT token_hash FROM sessions
+		        WHERE user_id = ?
+		        ORDER BY created_at DESC
+		        LIMIT ?
+		   )`, userID, userID, maxUserSessions); err != nil {
+		db.DB.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(sessionToken))
+		http.Error(w, "Could not start session", http.StatusInternalServerError)
+		return
+	}
 
 	db.DB.Exec("DELETE FROM sessions WHERE expires_at <= ?", now)
 	setSessionCookie(w, r, sessionToken, expiresAt)
@@ -308,6 +356,7 @@ func protect(handler http.HandlerFunc, requireCSRF bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, err := authenticateRequest(r)
 		if err != nil {
+			clearSessionCookie(w, r)
 			http.Error(w, "Authentication required", http.StatusUnauthorized)
 			return
 		}
@@ -359,11 +408,8 @@ func validCSRFToken(provided, expected string) bool {
 }
 
 func authAttemptKey(r *http.Request, action, username string) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if action == "register" {
+	host := clientIP(r)
+	if action == "register" || action == "login-ip" {
 		return action + ":" + host
 	}
 	return action + ":" + host + ":" + strings.ToLower(username)
@@ -374,11 +420,14 @@ func allowAuthAttempt(r *http.Request, action, username string, limit int, windo
 	key := authAttemptKey(r, action, username)
 	authAttempts.Lock()
 	defer authAttempts.Unlock()
-	if len(authAttempts.entries) > 10_000 {
+	if len(authAttempts.entries) >= maxAuthAttempts {
 		for entryKey, entry := range authAttempts.entries {
-			if entry.resetAt.Before(now) {
+			if !entry.resetAt.After(now) {
 				delete(authAttempts.entries, entryKey)
 			}
+		}
+		if _, exists := authAttempts.entries[key]; !exists && len(authAttempts.entries) >= maxAuthAttempts {
+			return false
 		}
 	}
 	attempt := authAttempts.entries[key]
@@ -388,6 +437,24 @@ func allowAuthAttempt(r *http.Request, action, username string, limit int, windo
 	attempt.count++
 	authAttempts.entries[key] = attempt
 	return attempt.count <= limit
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	remoteIP := net.ParseIP(host)
+	if remoteIP != nil && remoteIP.IsLoopback() {
+		forwarded := strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]
+		if forwardedIP := net.ParseIP(strings.TrimSpace(forwarded)); forwardedIP != nil {
+			return forwardedIP.String()
+		}
+	}
+	if remoteIP != nil {
+		return remoteIP.String()
+	}
+	return host
 }
 
 func clearAuthAttempts(r *http.Request, action, username string) {
@@ -463,6 +530,8 @@ func securityHeaders(next http.Handler) http.Handler {
 			w.Header().Set("Cache-Control", "no-store")
 		}
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
