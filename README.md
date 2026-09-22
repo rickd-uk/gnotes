@@ -4,6 +4,7 @@ A compact, multi-user Markdown notes application written in Go with SQLite and a
 
 See [SECURITY.md](SECURITY.md) for the production checklist, threat boundaries, incident response, and restore procedure.
 See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command updates, health checks, and rollback procedure.
+See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritized future work.
 
 ## Current features
 
@@ -16,7 +17,7 @@ See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command upd
 - Calendar jumps and monthly/weekly archive overviews for large collections
 - Server-backed per-user draft autosave and refresh recovery
 - Responsive layouts, three note-density modes, and per-user interface-state restoration
-- Markdown rendering, writing guide, and a compact formatter with optional code-block languages
+- Markdown rendering, syntax-highlighted code, writing guide, automatic code pairing, and a compact formatting toolbar
 - User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion
 
 ## Local development
@@ -196,15 +197,4 @@ The updater downloads the requested versioned release, verifies its SHA-256 chec
 
 ## Security and production roadmap
 
-The following work is intentionally recorded for future releases:
-
-1. Client-side/end-to-end encryption for note titles, contents, and drafts, with a recovery-key design.
-2. Password reset, verified email or invitation-based registration, and administrator MFA.
-3. Shared rate limiting suitable for multiple application instances; the current persistent limiter is designed for one SQLite-backed instance.
-4. Move inline CSS and JavaScript into static files so the Content Security Policy can remove `unsafe-inline`.
-5. Audit logging, service metrics, disk-space alerts, and backup-failure alerts.
-6. User data export and a complete self-service account deletion workflow.
-7. PostgreSQL migration before horizontal or multi-region scaling.
-8. An independently trusted client if protection from an actively compromised web server becomes a requirement.
-
-SQLite remains appropriate for a modest, single-instance deployment. Do not run multiple writable gnotes instances against independent copies of the same SQLite database.
+The prioritized plan is maintained in [ROADMAP.md](ROADMAP.md). The immediate milestone is safe, tested database restoration, followed by encrypted off-server backups and operational monitoring. Encryption, offline access, account recovery, and horizontal scaling require explicit design decisions documented there before implementation.
