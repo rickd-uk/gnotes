@@ -23,6 +23,8 @@
         --edit-ink: #2d6078;
         --note-title-font: Georgia, "Times New Roman", serif;
         --note-body-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --note-title-scale: 1;
+        --note-body-scale: 1;
       }
 
       body[data-note-font="writer"] {
@@ -210,6 +212,53 @@
       .font-choices button[data-font="writer"] { font-family: Georgia, "Times New Roman", serif; }
       .font-choices button[data-font="clean"] { font-family: Arial, sans-serif; }
 
+      .note-size-controls {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 9px;
+      }
+
+      .note-size-control label {
+        display: flex;
+        justify-content: space-between;
+        gap: 3px;
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .note-size-control input {
+        width: 100%;
+        margin: 2px 0 0;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+
+      .note-text-preview {
+        display: grid;
+        gap: 2px;
+        margin-top: 7px;
+        padding: 7px 9px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.28);
+      }
+
+      .note-text-preview strong {
+        font-family: var(--note-title-font);
+        font-size: calc(1.2rem * var(--note-title-scale));
+        font-weight: 400;
+        line-height: 1.25;
+      }
+
+      .note-text-preview span {
+        font-family: var(--note-body-font);
+        font-size: calc(0.95rem * var(--note-body-scale));
+        line-height: 1.4;
+      }
+
       .menu-opacity-control {
         display: grid;
         gap: 3px;
@@ -277,7 +326,7 @@
       #title {
         padding: 0 0 6px;
         font-family: var(--note-title-font);
-        font-size: clamp(1.1rem, 3vw, 1.4rem);
+        font-size: clamp(calc(1.1rem * var(--note-title-scale)), calc(3vw * var(--note-title-scale)), calc(1.4rem * var(--note-title-scale)));
         letter-spacing: -0.035em;
       }
 
@@ -290,7 +339,7 @@
         resize: none;
         font: inherit;
         font-family: var(--note-body-font);
-        font-size: 1.05rem;
+        font-size: calc(1.05rem * var(--note-body-scale));
         line-height: 1.7;
       }
 
@@ -816,6 +865,7 @@
       }
 
       .search-toggle {
+        position: relative;
         display: grid;
         width: 44px;
         height: 44px;
@@ -831,6 +881,23 @@
       .search-toggle:hover,
       .search-toggle.is-active {
         color: var(--ink);
+      }
+
+      .search-toggle.has-filter {
+        border-radius: 8px;
+        background: rgba(49, 91, 76, 0.13);
+        color: var(--accent);
+      }
+
+      .search-toggle.has-filter::after {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        content: "";
       }
 
       .calendar-jump {
@@ -1343,7 +1410,7 @@
         max-width: 640px;
         margin: 2px auto 8px;
         font-family: var(--note-title-font);
-        font-size: clamp(1rem, 2.3vw, 1.2rem);
+        font-size: clamp(calc(1rem * var(--note-title-scale)), calc(2.3vw * var(--note-title-scale)), calc(1.2rem * var(--note-title-scale)));
         font-weight: 400;
         letter-spacing: -0.025em;
         line-height: 1.25;
@@ -1551,7 +1618,7 @@
       .edit-title {
         padding: 0 2px 8px;
         font-family: var(--note-title-font);
-        font-size: 1.15rem;
+        font-size: calc(1.15rem * var(--note-title-scale));
       }
 
       .edit-content {
@@ -1563,7 +1630,7 @@
         resize: none;
         font: inherit;
         font-family: var(--note-body-font);
-        font-size: 0.94rem;
+        font-size: calc(0.94rem * var(--note-body-scale));
         line-height: 1.55;
       }
 
@@ -1611,7 +1678,7 @@
         max-width: 680px;
         margin: 0 auto;
         font-family: var(--note-body-font);
-        font-size: 0.95rem;
+        font-size: calc(0.95rem * var(--note-body-scale));
         line-height: 1.65;
         text-align: left;
       }
@@ -1736,13 +1803,13 @@
 
       #notes-list.density-compact .note-card h2 {
         margin: 2px auto 4px;
-        font-size: 0.95rem;
+        font-size: calc(0.95rem * var(--note-title-scale));
       }
 
       #notes-list.density-compact .note-content {
         max-height: 3.3em;
         overflow: hidden;
-        font-size: 0.88rem;
+        font-size: calc(0.88rem * var(--note-body-scale));
         mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
       }
 
@@ -1786,7 +1853,7 @@
         margin: 0;
         overflow: hidden;
         font-family: inherit;
-        font-size: 0.92rem;
+        font-size: calc(0.92rem * var(--note-title-scale));
         font-weight: 550;
         line-height: 1.35;
         text-align: center;
@@ -3052,12 +3119,26 @@
               </div>
             </section>
           </div>
-          <div class="font-control" role="group" aria-label="Note font">
+          <div class="font-control" role="group" aria-label="Note appearance">
             <span class="font-control-label">Note font</span>
             <div class="font-choices" id="font-choices">
               <button type="button" data-font="writer" aria-pressed="false" title="Serif titles and text">Writer</button>
               <button type="button" data-font="balanced" aria-pressed="true" title="Serif titles and clean text">Balanced</button>
               <button type="button" data-font="clean" aria-pressed="false" title="Clean titles and text">Clean</button>
+            </div>
+            <div class="note-size-controls">
+              <div class="note-size-control">
+                <label for="note-title-size">Title size <output id="note-title-size-value" for="note-title-size">100%</output></label>
+                <input type="range" id="note-title-size" min="90" max="125" step="5" value="100" />
+              </div>
+              <div class="note-size-control">
+                <label for="note-body-size">Text size <output id="note-body-size-value" for="note-body-size">100%</output></label>
+                <input type="range" id="note-body-size" min="90" max="125" step="5" value="100" />
+              </div>
+            </div>
+            <div class="note-text-preview" aria-label="Note text preview">
+              <strong>A note title</strong>
+              <span>A quiet place to write.</span>
             </div>
           </div>
             </div>
@@ -3383,6 +3464,8 @@
       const densityModes = ["full", "compact", "titles"];
       let densityIndex = 0;
       let fontMode = "balanced";
+      let titleSize = 100;
+      let bodySize = 100;
       const noteTools = ["pin", "edit", "hide", "delete"];
       let visibleTools = new Set(noteTools);
       let menuOpacity = 88;
@@ -3407,7 +3490,15 @@
         return currentUser ? `gnotes-ui:${currentUser.username.toLowerCase()}` : "";
       }
 
+      function updateSearchToggleState() {
+        const toggle = document.getElementById("search-toggle");
+        toggle.classList.toggle("has-filter", searchActive);
+        toggle.setAttribute("aria-label", searchActive ? "Notes filtered; open search" : "Find notes or jump to a date");
+        toggle.title = searchActive ? "Notes filtered · open search" : "Find or jump to date";
+      }
+
       function saveUIState() {
+        updateSearchToggleState();
         const key = uiStateStorageKey();
         if (!key) return;
         const notesList = document.getElementById("notes-list");
@@ -3424,6 +3515,8 @@
           menuOpacity,
           densityIndex,
           fontMode,
+          titleSize,
+          bodySize,
           adminUserFilter,
           adminUserSort,
           searchActive,
@@ -3510,6 +3603,21 @@
         });
       }
 
+      function applyNoteSizes(title, body) {
+        const clampSize = (value) => {
+          const number = Number(value);
+          return Number.isFinite(number) ? Math.max(90, Math.min(125, Math.round(number / 5) * 5)) : 100;
+        };
+        titleSize = clampSize(title);
+        bodySize = clampSize(body);
+        document.body.style.setProperty("--note-title-scale", String(titleSize / 100));
+        document.body.style.setProperty("--note-body-scale", String(bodySize / 100));
+        document.getElementById("note-title-size").value = String(titleSize);
+        document.getElementById("note-body-size").value = String(bodySize);
+        document.getElementById("note-title-size-value").value = `${titleSize}%`;
+        document.getElementById("note-body-size-value").value = `${bodySize}%`;
+      }
+
       function selectedSearchScope() {
         return document.querySelector("#search-scope-options [aria-pressed='true']")?.dataset.scope || "all";
       }
@@ -3538,6 +3646,7 @@
         }
 
         searchActive = Boolean(state.searchActive && String(state.activeSearchURL || "").startsWith("/api/notes/search-page?"));
+        updateSearchToggleState();
         activeSearchURL = searchActive ? state.activeSearchURL : "";
         calendarActive = Boolean(searchActive && state.calendarActive);
         selectedCalendarDate = typeof state.selectedCalendarDate === "string" ? state.selectedCalendarDate : "";
@@ -3559,6 +3668,7 @@
         applyMenuOpacity(state.menuOpacity);
         applyDensityMode(Number(state.densityIndex));
         applyFontMode(state.fontMode);
+        applyNoteSizes(state.titleSize, state.bodySize);
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
           ? state.adminUserFilter
           : "all";
@@ -4027,7 +4137,7 @@
             ? `Search results · ${searchSummary}`
             : "Recent notes";
         document.getElementById("calendar-clear").hidden = !calendarActive;
-        document.getElementById("search-toggle").classList.toggle("is-active", calendarActive);
+        updateSearchToggleState();
 
         updateHiddenNotesControl();
 
@@ -5578,6 +5688,16 @@
 
       document.getElementById("menu-opacity").addEventListener("input", (event) => {
         applyMenuOpacity(event.target.value);
+        saveUIState();
+      });
+
+      document.getElementById("note-title-size").addEventListener("input", (event) => {
+        applyNoteSizes(event.target.value, bodySize);
+        saveUIState();
+      });
+
+      document.getElementById("note-body-size").addEventListener("input", (event) => {
+        applyNoteSizes(titleSize, event.target.value);
         saveUIState();
       });
 
