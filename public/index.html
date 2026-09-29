@@ -199,9 +199,9 @@
       }
 
       #title {
-        padding: 0 0 10px;
+        padding: 0 0 6px;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(1.35rem, 4vw, 1.85rem);
+        font-size: clamp(1.1rem, 3vw, 1.4rem);
         letter-spacing: -0.035em;
       }
 
@@ -576,7 +576,21 @@
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        margin-bottom: 10px;
+        margin-bottom: 0;
+      }
+
+      #controls-toggle .tools-slash {
+        display: none;
+      }
+
+      #controls-toggle[aria-pressed="true"] .tools-slash {
+        display: block;
+      }
+
+      #controls-toggle .tools-state {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 0.72rem;
       }
 
       .notes-toggle,
@@ -722,6 +736,7 @@
 
       .calendar-clear {
         min-height: 0;
+        margin-bottom: 8px;
         padding: 4px 9px;
         border-radius: 999px;
       }
@@ -2431,9 +2446,10 @@
           <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide note controls" title="Hide note controls">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="6" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="18" cy="12" r="1" />
-              <path d="m4 4 16 16" />
+              <path class="tools-slash" d="m4 4 16 16" />
             </svg>
             <span>Tools</span>
+            <span class="tools-state" id="controls-state" aria-hidden="true">Visible</span>
           </button>
           <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -2624,7 +2640,7 @@
 
       <section id="notes-section" aria-labelledby="notes-heading">
         <div class="notes-toolbar">
-          <h2 class="section-label" id="notes-heading">Recent notes</h2>
+          <h2 class="visually-hidden" id="notes-heading">Recent notes</h2>
           <button class="calendar-clear" id="calendar-clear" type="button" hidden>Recent</button>
         </div>
         <div id="notes-list"></div>
@@ -2786,6 +2802,16 @@
         toggle.title = visible ? "Hide notes" : "Show notes";
       }
 
+      function setControlsHidden(hidden) {
+        document.getElementById("notes-list").classList.toggle("controls-hidden", hidden);
+        const toggle = document.getElementById("controls-toggle");
+        toggle.setAttribute("aria-pressed", String(hidden));
+        const action = hidden ? "Show" : "Hide";
+        toggle.setAttribute("aria-label", `${action} note controls`);
+        toggle.title = `${action} note controls`;
+        document.getElementById("controls-state").textContent = hidden ? "Hidden" : "Visible";
+      }
+
       function applyDensityMode(index) {
         densityIndex = Number.isInteger(index) && index >= 0 && index < densityModes.length ? index : 0;
         const notesList = document.getElementById("notes-list");
@@ -2834,9 +2860,7 @@
         document.getElementById("admin-panel").hidden = !(state.adminOpen && currentUser.role === "admin");
         document.getElementById("archive-panel").hidden = !state.archiveOpen;
         setNotesVisibility(state.notesVisible !== false);
-        const controlsHidden = Boolean(state.controlsHidden);
-        document.getElementById("notes-list").classList.toggle("controls-hidden", controlsHidden);
-        document.getElementById("controls-toggle").setAttribute("aria-pressed", String(controlsHidden));
+        setControlsHidden(Boolean(state.controlsHidden));
         applyDensityMode(Number(state.densityIndex));
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
           ? state.adminUserFilter
@@ -4757,16 +4781,8 @@
 
       document.getElementById("controls-toggle").addEventListener("click", () => {
         const notesList = document.getElementById("notes-list");
-        const toggle = document.getElementById("controls-toggle");
         const shouldHide = !notesList.classList.contains("controls-hidden");
-
-        notesList.classList.toggle("controls-hidden", shouldHide);
-        toggle.setAttribute("aria-pressed", String(shouldHide));
-        toggle.setAttribute(
-          "aria-label",
-          shouldHide ? "Show note controls" : "Hide note controls",
-        );
-        toggle.title = shouldHide ? "Show note controls" : "Hide note controls";
+        setControlsHidden(shouldHide);
         saveUIState();
       });
 
