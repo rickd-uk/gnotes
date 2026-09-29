@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	loginFailureWindow = 15 * time.Minute
-	maxLoginCooldown   = 15 * time.Minute
+	loginFailureWindow = 5 * time.Minute
+	maxLoginCooldown   = 60 * time.Minute
 	maxLimiterRows     = 50_000
 )
 
@@ -160,6 +160,10 @@ func loginCooldown(username string) (time.Duration, error) {
 }
 
 func recordLoginFailure(username string) (time.Duration, error) {
+	lockout, err := loadLoginLockout()
+	if err != nil {
+		return 0, err
+	}
 	now := time.Now().UTC()
 	usernameHash := hashUsername(username)
 	tx, err := db.DB.Begin()
@@ -198,15 +202,8 @@ func recordLoginFailure(username string) (time.Duration, error) {
 	failures++
 
 	cooldown := time.Duration(0)
-	if failures >= 5 {
-		shift := failures - 5
-		if shift > 5 {
-			shift = 5
-		}
-		cooldown = 30 * time.Second * time.Duration(1<<shift)
-		if cooldown > maxLoginCooldown {
-			cooldown = maxLoginCooldown
-		}
+	if failures >= 3 {
+		cooldown = lockout
 	}
 	blockedUntil := now.Add(cooldown)
 	if _, err := tx.Exec(`
@@ -224,6 +221,18 @@ func recordLoginFailure(username string) (time.Duration, error) {
 		return 0, err
 	}
 	return cooldown, tx.Commit()
+}
+
+func loadLoginLockout() (time.Duration, error) {
+	var raw string
+	if err := db.DB.QueryRow("SELECT value FROM settings WHERE key = 'login_lockout_minutes'").Scan(&raw); err != nil {
+		return 0, err
+	}
+	minutes, err := strconv.Atoi(raw)
+	if err != nil || minutes < 5 || minutes > 60 {
+		return 0, errors.New("invalid login lockout setting")
+	}
+	return time.Duration(minutes) * time.Minute, nil
 }
 
 func clearLoginCooldown(username string) error {

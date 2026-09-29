@@ -141,6 +141,11 @@ func adminOverviewHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not load registration policy", http.StatusInternalServerError)
 		return
 	}
+	lockout, err := loadLoginLockout()
+	if err != nil {
+		http.Error(w, "Could not load login policy", http.StatusInternalServerError)
+		return
+	}
 	stats, err := loadSecurityStats(time.Now())
 	if err != nil {
 		http.Error(w, "Could not load security statistics", http.StatusInternalServerError)
@@ -155,12 +160,32 @@ func adminOverviewHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"signups_enabled":     signupsEnabled == "true",
-		"users":               users,
-		"registration_policy": policy,
-		"security_today":      stats,
-		"invitations":         invitations,
+		"signups_enabled":       signupsEnabled == "true",
+		"users":                 users,
+		"registration_policy":   policy,
+		"login_lockout_minutes": int(lockout / time.Minute),
+		"security_today":        stats,
+		"invitations":           invitations,
 	})
+}
+
+func adminLoginPolicyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Use PUT", http.StatusMethodNotAllowed)
+		return
+	}
+	var input struct {
+		LockoutMinutes int `json:"lockout_minutes"`
+	}
+	if err := decodeJSONBody(w, r, &input); err != nil || input.LockoutMinutes < 5 || input.LockoutMinutes > 60 {
+		http.Error(w, "Choose a lockout from 5 to 60 minutes", http.StatusBadRequest)
+		return
+	}
+	if _, err := db.DB.Exec("UPDATE settings SET value = ? WHERE key = 'login_lockout_minutes'", strconv.Itoa(input.LockoutMinutes)); err != nil {
+		http.Error(w, "Could not save login policy", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func adminRegistrationPolicyHandler(w http.ResponseWriter, r *http.Request) {

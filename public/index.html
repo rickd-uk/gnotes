@@ -1974,6 +1974,25 @@
         padding: 9px 0;
       }
 
+      .optional-email summary {
+        width: fit-content;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.82rem;
+      }
+
+      .optional-email input {
+        display: block;
+        width: 100%;
+        margin-top: 8px;
+      }
+
+      .optional-email p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
       .primary-action {
         padding: 8px 13px;
         border: 0;
@@ -2369,8 +2388,30 @@
         color: var(--danger);
       }
 
-      .security-stats,
-      .invitation-create {
+      .login-policy {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        color: var(--muted);
+        font-size: 0.74rem;
+      }
+
+      .login-policy select {
+        min-height: 32px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      #login-policy-status {
+        color: var(--accent);
+      }
+
+      .security-stats {
         display: flex;
         flex-wrap: wrap;
         gap: 8px 14px;
@@ -2449,6 +2490,35 @@
         margin-bottom: 12px;
       }
 
+      .invitation-create {
+        display: grid;
+        grid-template-columns: minmax(82px, 110px) minmax(0, 1fr);
+        align-items: end;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .invitation-create input[type="number"] {
+        min-height: 40px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+      }
+
+      .invitation-create button {
+        width: min(100%, 170px);
+        min-height: 40px;
+        padding: 8px 12px;
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+        font-size: 0.77rem;
+        font-weight: 700;
+      }
+
+      .invitation-create button:hover { background: var(--accent-hover); }
+
       .invite-result {
         margin: 0;
         overflow-wrap: anywhere;
@@ -2456,14 +2526,43 @@
         font-size: 0.78rem;
       }
 
+      .invite-result:not(:empty) {
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border: 1px solid #b9cec4;
+        border-radius: 6px;
+        background: #e4efe9;
+      }
+
       .admin-invitation {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 7px 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 0;
         border-top: 1px solid var(--line);
         color: var(--muted);
         font-size: 0.74rem;
+      }
+
+      .admin-invitation button {
+        min-height: 34px;
+        padding: 6px 12px;
+        border: 1px solid #d5a7a0;
+        border-radius: 6px;
+        background: #f5e1de;
+        color: #8c332a;
+        cursor: pointer;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      .admin-invitation button:hover { background: #edcfca; }
+
+      .invitation-create button:focus-visible,
+      .admin-invitation button:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+        outline-offset: 2px;
       }
 
       .admin-user {
@@ -3028,6 +3127,11 @@
           <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="72" placeholder="Password" aria-label="Password" required />
           <input id="setup-token" name="setup-token" type="password" autocomplete="off" placeholder="Administrator setup token" aria-label="Administrator setup token" hidden />
           <input id="invite-code" name="invite-code" type="text" autocomplete="off" maxlength="80" placeholder="Invitation code" aria-label="Invitation code" hidden />
+          <details class="optional-email" id="optional-email" hidden>
+            <summary>Add email (optional)</summary>
+            <input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="Email address" aria-label="Email address" />
+            <p>Email is not used to sign in. Password recovery by email is not available yet.</p>
+          </details>
           <p class="auth-help" id="auth-help" hidden>Use 12–72 characters. Usernames are not case-sensitive.</p>
           <button class="primary-action" id="auth-submit" type="submit">Sign in</button>
           <p class="auth-status" id="auth-status" aria-live="polite"></p>
@@ -3350,6 +3454,7 @@
       </div>
       <p class="profile-role" id="profile-role"></p>
       <dl class="profile-details">
+        <div><dt>Email</dt><dd id="profile-email"></dd></div>
         <div><dt>Joined</dt><dd id="profile-joined"></dd></div>
         <div><dt>Last sign-in</dt><dd id="profile-last-signin"></dd></div>
         <div><dt>Active notes</dt><dd id="profile-active-notes"></dd></div>
@@ -3394,6 +3499,17 @@
           <label class="policy-check"><input id="invite-required" type="checkbox" /><span>Require an invitation</span></label>
         </div>
         <p class="policy-save-status" id="policy-save-status" role="status" aria-live="polite"></p>
+        <div class="login-policy">
+          <label for="login-lockout-minutes">After 3 failed sign-ins in 5 minutes, pause that account for</label>
+          <select id="login-lockout-minutes" aria-label="Sign-in timeout">
+            <option value="5">5 minutes</option>
+            <option value="10">10 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">60 minutes</option>
+          </select>
+          <span id="login-policy-status" role="status" aria-live="polite"></span>
+        </div>
         <details class="admin-invitations-section">
           <summary>Invitations</summary>
           <div class="invitation-create">
@@ -3692,6 +3808,9 @@
         document.getElementById("register-tab").setAttribute("aria-selected", String(registering));
         document.getElementById("auth-submit").textContent = registering ? "Create account" : "Sign in";
         document.getElementById("auth-help").hidden = !registering;
+        const optionalEmail = document.getElementById("optional-email");
+        optionalEmail.hidden = !registering;
+        if (!registering) optionalEmail.open = false;
         document.getElementById("auth-password").autocomplete = registering ? "new-password" : "current-password";
         const inviteCode = document.getElementById("invite-code");
         inviteCode.hidden = !registering || !inviteRequired;
@@ -3808,6 +3927,7 @@
         document.getElementById("signups-state").textContent = data.signups_enabled ? "Open" : "Closed";
         setAdminStatus(`Signups ${data.signups_enabled ? "enabled" : "disabled"}.`);
         document.getElementById("signup-daily-limit").value = data.registration_policy.daily_limit;
+        document.getElementById("login-lockout-minutes").value = String(data.login_lockout_minutes);
         document.getElementById("signup-ip-limit").value = data.registration_policy.ip_daily_limit;
         document.getElementById("invite-required").checked = data.registration_policy.invite_required;
         const security = data.security_today;
@@ -6203,6 +6323,7 @@
               password: document.getElementById("auth-password").value,
               setup_token: document.getElementById("setup-token").value,
               invite_code: document.getElementById("invite-code").value,
+              email: authMode === "register" ? document.getElementById("auth-email").value.trim() : "",
             }),
           });
           if (!response.ok) {
@@ -6211,6 +6332,7 @@
           }
           document.getElementById("auth-password").value = "";
           document.getElementById("invite-code").value = "";
+          document.getElementById("auth-email").value = "";
           await enterApp(await response.json());
         } catch {
           status.textContent = "Could not reach the server.";
@@ -6243,20 +6365,21 @@
         document.getElementById("profile-panel").hidden = false;
         document.getElementById("profile-heading").textContent = currentUser.username;
         document.getElementById("profile-role").textContent = `${currentUser.role === "admin" ? "Admin" : "User"} · Signed in`;
-        for (const id of ["profile-joined", "profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
+        for (const id of ["profile-email", "profile-joined", "profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
           document.getElementById(id).textContent = "Loading…";
         }
         try {
           const response = await apiFetch("/api/auth/me");
           if (!response.ok) throw new Error("Profile unavailable");
           const profile = await response.json();
+          document.getElementById("profile-email").textContent = profile.email || "Not provided";
           document.getElementById("profile-joined").textContent = formatAdminTime(profile.created_at);
           document.getElementById("profile-last-signin").textContent = formatAdminTime(profile.last_login_at);
           document.getElementById("profile-active-notes").textContent = String(profile.active_note_count ?? 0);
           document.getElementById("profile-recycled-notes").textContent = String(profile.recycled_note_count ?? 0);
         } catch {
           document.getElementById("profile-joined").textContent = "Could not load profile";
-          for (const id of ["profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
+          for (const id of ["profile-email", "profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
             document.getElementById(id).textContent = "—";
           }
         }
@@ -6322,6 +6445,20 @@
         input.addEventListener("change", () => scheduleRegistrationPolicySave(0));
       }
       document.getElementById("invite-required").addEventListener("change", () => scheduleRegistrationPolicySave(0));
+      document.getElementById("login-lockout-minutes").addEventListener("change", async (event) => {
+        const status = document.getElementById("login-policy-status");
+        status.textContent = "Saving…";
+        try {
+          const response = await apiFetch("/api/admin/login-policy", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lockout_minutes: Number(event.target.value) }),
+          });
+          status.textContent = response.ok ? "Saved." : "Could not save.";
+        } catch {
+          status.textContent = "Could not save.";
+        }
+      });
       document.getElementById("create-invitation").addEventListener("click", createInvitation);
 
       setDefaultSearchDates();

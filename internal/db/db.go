@@ -48,6 +48,7 @@ func InitDB(filepath string) {
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    email TEXT,
     password_hash BLOB NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
     active INTEGER NOT NULL DEFAULT 1,
@@ -129,6 +130,7 @@ func InitDB(filepath string) {
   INSERT OR IGNORE INTO settings (key, value) VALUES ('signup_daily_limit', '20');
   INSERT OR IGNORE INTO settings (key, value) VALUES ('signup_ip_daily_limit', '3');
   INSERT OR IGNORE INTO settings (key, value) VALUES ('invite_required', 'true');
+  INSERT OR IGNORE INTO settings (key, value) VALUES ('login_lockout_minutes', '5');
 `
 
 	_, err = DB.Exec(setupSQL)
@@ -144,6 +146,7 @@ func InitDB(filepath string) {
 	ensureTableColumn("users", "role", "TEXT NOT NULL DEFAULT 'user'")
 	ensureTableColumn("users", "active", "INTEGER NOT NULL DEFAULT 1")
 	ensureTableColumn("users", "last_login_at", "DATETIME")
+	ensureTableColumn("users", "email", "TEXT")
 	ensureRenderedContentCacheVersion()
 	ensureNotesFTS()
 

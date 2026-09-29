@@ -85,6 +85,52 @@ func TestRemoteFirstAdminRequiresSetupToken(t *testing.T) {
 	}
 }
 
+func TestOptionalRegistrationEmailAppearsOnlyOnOwnProfile(t *testing.T) {
+	db.InitDB(filepath.Join(t.TempDir(), "email.db"))
+	t.Cleanup(func() { db.DB.Close() })
+	requestBody, _ := json.Marshal(credentials{
+		Username: "rick", Password: "correct horse battery staple", Email: "  rick@example.com  ",
+	})
+	request := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewReader(requestBody))
+	request.RemoteAddr = "127.0.0.1:12345"
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	registerHandler(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("register status = %d: %s", response.Code, response.Body.String())
+	}
+	var stored string
+	if err := db.DB.QueryRow("SELECT email FROM users WHERE username = 'rick'").Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored != "rick@example.com" {
+		t.Fatalf("stored email = %q", stored)
+	}
+	profileRequest := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	profileRequest.AddCookie(response.Result().Cookies()[0])
+	profileResponse := httptest.NewRecorder()
+	protect(meHandler, false)(profileResponse, profileRequest)
+	if profileResponse.Code != http.StatusOK || !strings.Contains(profileResponse.Body.String(), `"email":"rick@example.com"`) {
+		t.Fatalf("profile response = %d: %s", profileResponse.Code, profileResponse.Body.String())
+	}
+}
+
+func TestInvalidOptionalRegistrationEmailIsRejected(t *testing.T) {
+	db.InitDB(filepath.Join(t.TempDir(), "invalid-email.db"))
+	t.Cleanup(func() { db.DB.Close() })
+	requestBody, _ := json.Marshal(credentials{
+		Username: "rick", Password: "correct horse battery staple", Email: "Rick <rick@example.com>",
+	})
+	request := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewReader(requestBody))
+	request.RemoteAddr = "127.0.0.1:12345"
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	registerHandler(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid email status = %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestSignupsCloseAfterBootstrapByDefault(t *testing.T) {
 	db.InitDB(filepath.Join(t.TempDir(), "closed-signups.db"))
 	t.Cleanup(func() { db.DB.Close() })

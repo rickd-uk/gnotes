@@ -100,6 +100,7 @@ func run() error {
 	mux.HandleFunc("/api/admin/overview", protect(requireAdmin(adminOverviewHandler), false))
 	mux.HandleFunc("/api/admin/signups", protect(requireAdmin(adminSignupsHandler), true))
 	mux.HandleFunc("/api/admin/registration-policy", protect(requireAdmin(adminRegistrationPolicyHandler), true))
+	mux.HandleFunc("/api/admin/login-policy", protect(requireAdmin(adminLoginPolicyHandler), true))
 	mux.HandleFunc("/api/admin/invitations/create", protect(requireAdmin(adminCreateInvitationHandler), true))
 	mux.HandleFunc("/api/admin/invitations/revoke", protect(requireAdmin(adminRevokeInvitationHandler), true))
 	mux.HandleFunc("/api/admin/users/status", protect(requireAdmin(adminUserStatusHandler), true))

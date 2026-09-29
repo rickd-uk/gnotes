@@ -10,10 +10,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"math"
 	"mime"
 	"net"
 	"net/http"
+	"net/mail"
 	"os"
 	"regexp"
 	"strings"
@@ -46,6 +49,7 @@ type credentials struct {
 	Password   string `json:"password"`
 	SetupToken string `json:"setup_token,omitempty"`
 	InviteCode string `json:"invite_code,omitempty"`
+	Email      string `json:"email,omitempty"`
 }
 
 var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$`)
@@ -102,7 +106,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if !allowed {
 		setRetryAfter(w, retryAfter)
 		recordBlockedEvent("blocked_signup")
-		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
+		http.Error(w, "Too many signup attempts. Please try again later", http.StatusTooManyRequests)
 		return
 	}
 	if !usernamePattern.MatchString(creds.Username) {
@@ -112,6 +116,14 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if passwordLength := len([]byte(creds.Password)); passwordLength < 12 || passwordLength > 72 {
 		http.Error(w, "Password must be 12-72 bytes", http.StatusBadRequest)
 		return
+	}
+	creds.Email = strings.TrimSpace(creds.Email)
+	if creds.Email != "" {
+		address, err := mail.ParseAddress(creds.Email)
+		if len(creds.Email) > 254 || err != nil || address.Address != creds.Email || strings.ContainsAny(creds.Email, "\r\n") {
+			http.Error(w, "Enter a valid email address or leave it blank", http.StatusBadRequest)
+			return
+		}
 	}
 
 	now := time.Now().UTC()
@@ -169,8 +181,9 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		role = "admin"
 	}
 	result, err := tx.Exec(
-		"INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)",
+		"INSERT INTO users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
 		creds.Username,
+		nullableEmail(creds.Email),
 		passwordHash,
 		role,
 		now,
@@ -262,7 +275,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if !allowed {
 		setRetryAfter(w, retryAfter)
 		recordBlockedEvent("blocked_login")
-		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
+		http.Error(w, loginWaitMessage(retryAfter), http.StatusTooManyRequests)
 		return
 	}
 	if retryAfter, err := loginCooldown(creds.Username); err != nil {
@@ -271,7 +284,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	} else if retryAfter > 0 {
 		setRetryAfter(w, retryAfter)
 		recordBlockedEvent("blocked_login")
-		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
+		http.Error(w, loginWaitMessage(retryAfter), http.StatusTooManyRequests)
 		return
 	}
 
@@ -315,6 +328,17 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	finishAuthentication(w, r, userID, username, role)
 }
 
+func loginWaitMessage(wait time.Duration) string {
+	minutes := int(math.Ceil(wait.Minutes()))
+	if minutes < 1 {
+		return "Too many attempts. Try again in less than a minute."
+	}
+	if minutes == 1 {
+		return "Too many attempts. Try again in 1 minute."
+	}
+	return fmt.Sprintf("Too many attempts. Try again in %d minutes.", minutes)
+}
+
 func writeLoginFailure(w http.ResponseWriter, username string) {
 	cooldown, err := recordLoginFailure(username)
 	if err != nil {
@@ -324,7 +348,7 @@ func writeLoginFailure(w http.ResponseWriter, username string) {
 	if cooldown > 0 {
 		setRetryAfter(w, cooldown)
 		recordBlockedEvent("blocked_login")
-		http.Error(w, "Too many attempts. Please try again later", http.StatusTooManyRequests)
+		http.Error(w, loginWaitMessage(cooldown), http.StatusTooManyRequests)
 		return
 	}
 	http.Error(w, "Invalid username or password", http.StatusUnauthorized)
@@ -362,13 +386,14 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 	session := sessionFromContext(r)
 	var joinedAt string
 	var lastLogin sql.NullString
+	var email sql.NullString
 	var activeNotes, recycledNotes int
 	err := db.DB.QueryRow(`
-		SELECT users.created_at, users.last_login_at,
+		SELECT users.created_at, users.last_login_at, users.email,
 			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NULL),
 			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NOT NULL)
 		FROM users WHERE users.id = ?`, session.UserID,
-	).Scan(&joinedAt, &lastLogin, &activeNotes, &recycledNotes)
+	).Scan(&joinedAt, &lastLogin, &email, &activeNotes, &recycledNotes)
 	if err != nil {
 		http.Error(w, "Could not load profile", http.StatusInternalServerError)
 		return
@@ -380,6 +405,7 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 		"role":                session.Role,
 		"csrf_token":          session.CSRFToken,
 		"created_at":          joinedAt,
+		"email":               email.String,
 		"active_note_count":   activeNotes,
 		"recycled_note_count": recycledNotes,
 	}
@@ -387,6 +413,13 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 		profile["last_login_at"] = lastLogin.String
 	}
 	json.NewEncoder(w).Encode(profile)
+}
+
+func nullableEmail(email string) any {
+	if email == "" {
+		return nil
+	}
+	return email
 }
 
 func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, username, role string) {

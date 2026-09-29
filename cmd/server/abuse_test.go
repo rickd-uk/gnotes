@@ -49,16 +49,16 @@ func TestLoginCooldownEscalatesAndClears(t *testing.T) {
 	db.InitDB(filepath.Join(t.TempDir(), "cooldown.db"))
 	t.Cleanup(func() { db.DB.Close() })
 
-	for failure := 1; failure <= 5; failure++ {
+	for failure := 1; failure <= 3; failure++ {
 		cooldown, err := recordLoginFailure("Alice")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if failure < 5 && cooldown != 0 {
+		if failure < 3 && cooldown != 0 {
 			t.Fatalf("failure %d produced early cooldown %s", failure, cooldown)
 		}
-		if failure == 5 && cooldown < 29*time.Second {
-			t.Fatalf("fifth failure cooldown = %s", cooldown)
+		if failure == 3 && cooldown < 5*time.Minute-time.Second {
+			t.Fatalf("third failure cooldown = %s", cooldown)
 		}
 	}
 	if remaining, err := loginCooldown("alice"); err != nil || remaining <= 0 {
@@ -69,6 +69,18 @@ func TestLoginCooldownEscalatesAndClears(t *testing.T) {
 	}
 	if remaining, err := loginCooldown("alice"); err != nil || remaining != 0 {
 		t.Fatalf("cleared cooldown = %s, %v", remaining, err)
+	}
+	if _, err := db.DB.Exec("UPDATE settings SET value = '10' WHERE key = 'login_lockout_minutes'"); err != nil {
+		t.Fatal(err)
+	}
+	for failure := 1; failure <= 3; failure++ {
+		cooldown, err := recordLoginFailure("alice")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if failure == 3 && cooldown < 10*time.Minute-time.Second {
+			t.Fatalf("configured lockout = %s", cooldown)
+		}
 	}
 }
 
