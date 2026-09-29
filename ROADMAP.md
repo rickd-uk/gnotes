@@ -59,10 +59,10 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 
 ## Product backlog
 
+- **High priority: export notes.** Support exporting one, selected, or all notes in multiple formats, including readable Markdown and plain text plus a versioned, machine-readable gnotes format that can be imported later without losing note titles, content, dates, or other supported metadata. Provide a matching import path and define duplicate handling before release.
 - Add durable note archiving for one note, selected notes, or all active notes. Archived notes should leave the main notes view but remain accessible in an Archived view, with individual and bulk restore. This is distinct from temporary Hide and from the recycle bin. Confirm before archiving all notes.
 - Opt-in encrypted offline reading and editing with explicit synchronization state.
 - Interactive task-checkbox toggling from rendered notes.
-- Import and export in Markdown and a machine-readable archive format.
 - Carefully scoped formatting improvements that keep the writing interface uncluttered.
 
 Security requirements and operating procedures remain authoritative in [SECURITY.md](SECURITY.md) and [OPERATIONS.md](OPERATIONS.md).
