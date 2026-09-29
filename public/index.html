@@ -716,6 +716,26 @@
         color: var(--ink);
       }
 
+      .notes-hidden-notice {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 9px;
+        margin: 0 0 12px;
+        padding: 10px 13px;
+        border: 1px solid #b9cec4;
+        border-radius: 8px;
+        background: #e4efe9;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.84rem;
+        font-weight: 650;
+        text-align: left;
+      }
+
+      .notes-hidden-notice .icon { width: 19px; height: 19px; flex-shrink: 0; }
+      .notes-hidden-notice:hover { background: #d8e9df; }
+
       .toolbar-button[hidden] {
         display: none;
       }
@@ -3218,6 +3238,10 @@
         </div>
       </form>
 
+      <button class="notes-hidden-notice" id="notes-hidden-notice" type="button" hidden>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+        Notes are hidden. Show notes
+      </button>
       <section id="notes-section" aria-labelledby="notes-heading">
         <div class="notes-toolbar">
           <h2 class="visually-hidden" id="notes-heading">Recent notes</h2>
@@ -3422,6 +3446,7 @@
         const notesList = document.getElementById("notes-list");
         const toggle = document.getElementById("notes-toggle");
         notesList.hidden = !visible;
+        document.getElementById("notes-hidden-notice").hidden = visible;
         toggle.setAttribute("aria-expanded", String(visible));
         toggle.setAttribute("aria-label", visible ? "Hide notes" : "Show notes");
         toggle.title = visible ? "Hide notes" : "Show notes";
@@ -4586,6 +4611,8 @@
           draftVersion = 0;
           setDraftStatus("");
           if (createdNote) setActiveNoteCount(activeNoteCount + 1);
+          setNotesVisibility(true);
+          saveUIState();
           await loadNotes();
         } finally {
           titleInput.disabled = false;
@@ -5511,6 +5538,11 @@
         const notesList = document.getElementById("notes-list");
         const shouldHide = !notesList.hidden;
         setNotesVisibility(!shouldHide);
+        saveUIState();
+      });
+
+      document.getElementById("notes-hidden-notice").addEventListener("click", () => {
+        setNotesVisibility(true);
         saveUIState();
       });
 
