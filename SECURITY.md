@@ -15,7 +15,7 @@ This document defines the deployment baseline for gnotes. No internet-facing ser
 - Markdown is rendered without raw active HTML, and browser security headers restrict scripts, framing, object embedding, referrers, and sensitive browser features.
 - SQLite uses one in-process connection, a five-second busy timeout, WAL journaling, full synchronous writes, and restrictive file permissions.
 - The systemd unit runs without root privileges or Linux capabilities and receives write access only to the database directory.
-- The Kagoya updater makes a validated online SQLite backup before each release. Scheduled daily backups on that host remain to be configured.
+- The Kagoya updater makes a validated online SQLite backup before each release. A user timer creates validated daily backups on that host.
 
 Default application limits are 20 login requests per IP and 500 globally per 15 minutes, plus 10 registration requests per IP and 100 globally per hour. Five failed passwords for one username begin an escalating cooldown from 30 seconds up to 15 minutes. Successful registrations default to 20 globally and 3 per IP per UTC day; the administrator can lower these values and require a single-use invitation.
 

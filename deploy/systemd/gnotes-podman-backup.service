@@ -1,0 +1,8 @@
+[Unit]
+Description=Create and verify a gnotes Podman database backup
+
+[Service]
+Type=oneshot
+ExecStart=%h/apps/gnotes/bin/backup-gnotes-podman
+UMask=0077
+

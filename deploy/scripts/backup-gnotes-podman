@@ -1,0 +1,42 @@
+#!/bin/sh
+set -eu
+
+umask 077
+
+app_directory="${GNOTES_APP_DIRECTORY:-$HOME/apps/gnotes}"
+database_path="${DATABASE_PATH:-$app_directory/data/gnotes.db}"
+backup_directory="${BACKUP_DIRECTORY:-$app_directory/backups}"
+restorer="${GNOTES_RESTORER:-$app_directory/bin/restore-gnotes-podman}"
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+
+fail() { echo "backup-gnotes-podman: $*" >&2; exit 1; }
+
+[ -f "$database_path" ] && [ ! -L "$database_path" ] || fail "database must be a regular file"
+[ -x "$restorer" ] || fail "restore verifier is missing: $restorer"
+mkdir -p "$backup_directory"
+[ -d "$backup_directory" ] && [ ! -L "$backup_directory" ] || fail "backup directory must not be a symlink"
+
+temporary_database="$(mktemp "$backup_directory/.gnotes-daily-${timestamp}.XXXXXX.db")"
+temporary_archive="$(mktemp "$backup_directory/.gnotes-daily-${timestamp}.XXXXXX.db.gz")"
+cleanup() { rm -f "$temporary_database" "$temporary_archive"; }
+trap cleanup EXIT
+trap 'exit 130' HUP INT TERM
+
+python3 - "$database_path" "$temporary_database" <<'PY'
+import sqlite3
+import sys
+
+source = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True, timeout=10)
+backup = sqlite3.connect(sys.argv[2])
+source.backup(backup)
+backup.close()
+source.close()
+PY
+
+gzip -9 -c "$temporary_database" > "$temporary_archive"
+"$restorer" --verify "$temporary_archive"
+
+final_archive="$backup_directory/gnotes-daily-${timestamp}.db.gz"
+ln "$temporary_archive" "$final_archive" || fail "backup already exists: $final_archive"
+find "$backup_directory" -maxdepth 1 -type f -name 'gnotes-daily-*.db.gz' -mtime +30 -delete
+echo "Created $final_archive"

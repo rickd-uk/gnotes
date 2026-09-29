@@ -59,6 +59,23 @@ The command can run when the service is already down. A healthy current database
 
 Rehearse restores with an isolated database and service. `deploy/tests/restore-gnotes-podman-test.sh` covers verification, replacement, and rollback; `deploy/tests/restore-gnotes-rehearsal.sh` exercises the real server on a temporary database and port.
 
+## Daily backups
+
+Kagoya runs `gnotes-podman-backup.timer` as a user timer at 03:15 server time, with up to 30 minutes of random delay. The job makes an online SQLite snapshot, compresses it, checks integrity and schema with the restore verifier, and then publishes `gnotes-daily-YYYYMMDDTHHMMSSZ.db.gz` in `~/apps/gnotes/backups`. It removes daily archives older than roughly 30 days; release and pre-restore backups are kept separately.
+
+To install or refresh the timer from this checkout:
+
+```bash
+scp -F ~/.ssh/config deploy/scripts/backup-gnotes-podman KAG:~/apps/gnotes/bin/
+scp -F ~/.ssh/config deploy/systemd/gnotes-podman-backup.service deploy/systemd/gnotes-podman-backup.timer KAG:~/.config/systemd/user/
+ssh KAG 'systemctl --user daemon-reload && systemctl --user enable --now gnotes-podman-backup.timer && systemctl --user start gnotes-podman-backup.service'
+ssh KAG 'systemctl --user show -P Result gnotes-podman-backup.service && systemctl --user list-timers gnotes-podman-backup.timer --no-pager'
+```
+
+Check the newest archive with `restore-gnotes-podman --verify`. A successful timer only proves a local recovery point; copy it to encrypted storage outside Kagoya once the storage destination and credentials are chosen.
+
+The timer was enabled on Kagoya on 2026-09-29. Its first manual run passed the restore verifier and produced a private `0600` archive; the next scheduled run was shown for 2026-09-30 at 03:18 JST.
+
 ## Routine checks and rollback
 
 ```bash
@@ -74,4 +91,4 @@ The update command retains the previous image. To roll back the application imag
 ssh KAG 'podman tag localhost/gnotes:rollback-VERSION localhost/gnotes:latest && systemctl --user restart gnotes.service'
 ```
 
-Application rollback does not reverse database migrations. Use the validated pre-update backup only when a database rollback is required. Backup files contain plaintext private notes; keep them restricted and replicate them to encrypted off-server storage. The Kagoya host currently has no scheduled gnotes backup timer, so add one before relying on automated daily recovery points.
+Application rollback does not reverse database migrations. Use the validated pre-update backup only when a database rollback is required. Backup files contain plaintext private notes; keep them restricted and replicate them to encrypted off-server storage.

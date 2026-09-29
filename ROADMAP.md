@@ -31,10 +31,11 @@ Definition of done: restoring or rehearsing a backup requires one command, a cor
 
 After recovery tooling:
 
-1. Schedule validated daily backups on Kagoya, then replicate them to encrypted storage outside the application server using Restic or an equivalent audited tool.
-2. Alert when backups are stale or fail, disk space is low, TLS approaches expiry, the service repeatedly restarts, or public health checks fail.
-3. Add privacy-conscious audit records for administrator actions and authentication security events, with a documented retention period.
-4. Periodically test restoration instead of treating backup creation alone as proof of recoverability.
+1. [x] Schedule validated daily backups on Kagoya.
+2. Replicate them to encrypted storage outside the application server using Restic or an equivalent audited tool.
+3. Alert when backups are stale or fail, disk space is low, TLS approaches expiry, the service repeatedly restarts, or public health checks fail.
+4. Add privacy-conscious audit records for administrator actions and authentication security events, with a documented retention period.
+5. Periodically test restoration instead of treating backup creation alone as proof of recoverability.
 
 The notification provider and off-server storage destination require an explicit deployment choice before implementation.
 
