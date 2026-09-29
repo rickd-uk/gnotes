@@ -36,15 +36,7 @@ Default application limits are 20 login requests per IP and 500 globally per 15 
 
 ## Restore rehearsal
 
-Never overwrite the production database while gnotes is running. Restore into a separate staging path first:
-
-```bash
-gzip -dc /var/backups/gnotes/gnotes-YYYYMMDDTHHMMSSZ.db.gz > /tmp/gnotes-restore-test.db
-sqlite3 /tmp/gnotes-restore-test.db 'PRAGMA integrity_check;'
-DATABASE_PATH=/tmp/gnotes-restore-test.db HOST=127.0.0.1 PORT=8081 ./gnotes
-```
-
-Sign in on the temporary instance and inspect several notes, drafts, recycle-bin entries, and administrator settings. Stop it and remove the temporary database after the rehearsal. A real restore should stop `gnotes.service`, preserve the damaged database for investigation, install the validated replacement with owner `gnotes:gnotes` and mode `0600`, then start the service and inspect its logs.
+Use `restore-gnotes --verify BACKUP.db.gz` to validate a backup without touching the service. Rehearse a real restore on a disposable host or isolated instance with separate database and service paths, following [OPERATIONS.md](OPERATIONS.md). Sign in and inspect notes, drafts, recycle-bin entries, and administrator settings. The restore command preserves the previous database and rolls it back if the restored service fails its health check. It does not prove that every note is present, so browser inspection remains necessary.
 
 ## Incident response
 

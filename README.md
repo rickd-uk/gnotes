@@ -113,6 +113,7 @@ sudo find /opt/gnotes/public -type f -exec chmod 0644 {} \;
 sudo install -o root -g root -m 0755 deploy/scripts/backup-gnotes /opt/gnotes/bin/backup-gnotes
 sudo install -o root -g root -m 0755 deploy/scripts/update-gnotes /opt/gnotes/bin/update-gnotes
 sudo install -o root -g root -m 0755 deploy/scripts/check-gnotes /opt/gnotes/bin/check-gnotes
+sudo install -o root -g root -m 0755 deploy/scripts/restore-gnotes /opt/gnotes/bin/restore-gnotes
 ```
 
 The service uses `/opt/gnotes` as its working directory, so the `public` directory must be installed there with the binary.
@@ -175,7 +176,7 @@ journalctl -u gnotes.service -n 100 --no-pager
 
 ### 7. Backups
 
-The included timer makes an online SQLite backup each day, verifies it, compresses it, and retains 30 days locally.
+The included timer makes an online SQLite backup each day, verifies it, compresses it, and retains 30 days locally. Verify an archive or restore it with the commands in [OPERATIONS.md](OPERATIONS.md).
 
 ```bash
 sudo systemctl start gnotes-backup.service
@@ -197,4 +198,4 @@ The updater downloads the requested versioned release, verifies its SHA-256 chec
 
 ## Security and production roadmap
 
-The prioritized plan is maintained in [ROADMAP.md](ROADMAP.md). The immediate milestone is safe, tested database restoration, followed by encrypted off-server backups and operational monitoring. Encryption, offline access, account recovery, and horizontal scaling require explicit design decisions documented there before implementation.
+The prioritized plan is maintained in [ROADMAP.md](ROADMAP.md). Database restore tooling and an isolated real-server rehearsal are implemented locally; production deployment verification remains before release. Encrypted off-server backups and operational monitoring follow. Encryption, offline access, account recovery, and horizontal scaling require explicit design decisions documented there before implementation.

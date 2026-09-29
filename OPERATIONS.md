@@ -47,6 +47,25 @@ ssh -t hz-sin 'sudo /opt/gnotes/bin/check-gnotes https://gnotes.rickd.dev/api/he
 
 Finally, sign in through a browser and inspect several notes.
 
+## Database restore
+
+Choose the archive to restore and verify it first. Verification unpacks into a private temporary directory, checks gzip integrity, runs SQLite `integrity_check`, and checks required tables and columns. It does not touch the running service.
+
+```bash
+ssh -t hz-sin 'sudo /opt/gnotes/bin/restore-gnotes --verify /var/backups/gnotes/gnotes-YYYYMMDDTHHMMSSZ.db.gz'
+```
+
+When a restore is required, run:
+
+```bash
+ssh -t hz-sin 'sudo /opt/gnotes/bin/restore-gnotes --restore /var/backups/gnotes/gnotes-YYYYMMDDTHHMMSSZ.db.gz'
+ssh -t hz-sin 'sudo /opt/gnotes/bin/check-gnotes https://gnotes.rickd.dev/api/health'
+```
+
+The restore command stops `gnotes.service`, saves the current database in `/var/lib/gnotes/gnotes-before-restore-*.db`, installs the validated backup with `gnotes:gnotes` ownership and mode `0600`, and checks local health. It can run when the current service is down. A healthy current database is saved as a consistent SQLite backup; a damaged one is saved with its WAL file for investigation. If the replacement fails to start or pass health checks, the command attempts to restore the saved database and restart the service. Keep the saved copy until the restored notes and settings have been checked in the browser. Restore is a point-in-time replacement: changes after the selected backup are absent from the restored database.
+
+For a rehearsal, copy a backup to a disposable host or isolated database directory and run `--verify` there before testing `--restore` with `DATABASE_PATH`, `GNOTES_SERVICE`, and `GNOTES_HEALTH_URL` set to the isolated instance. Never point a rehearsal at the production database or service. The repository also includes `deploy/tests/restore-gnotes-rehearsal.sh`, which builds the real server, runs it against a temporary database and port, restores an earlier backup, and checks the recovered note and health endpoint.
+
 ## Routine commands
 
 ```bash

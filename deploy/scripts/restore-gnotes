@@ -1,0 +1,155 @@
+#!/bin/sh
+set -eu
+
+umask 077
+
+database_path="${DATABASE_PATH:-/var/lib/gnotes/gnotes.db}"
+service_name="${GNOTES_SERVICE:-gnotes.service}"
+health_url="${GNOTES_HEALTH_URL:-http://127.0.0.1:8081/api/health}"
+
+usage() {
+    cat <<'EOF'
+Usage: restore-gnotes --verify BACKUP.db.gz
+       sudo restore-gnotes --restore BACKUP.db.gz
+
+--verify checks a backup without changing the application or database.
+--restore stops gnotes, saves the current database, installs the checked backup,
+and rolls back if the service does not become healthy.
+
+Optional overrides: DATABASE_PATH, GNOTES_SERVICE, GNOTES_HEALTH_URL,
+GNOTES_DATABASE_USER (default: gnotes), GNOTES_DATABASE_GROUP (default: gnotes).
+EOF
+}
+
+fail() {
+    echo "restore-gnotes: $*" >&2
+    exit 1
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    --verify|--restore) mode="$1" ;;
+    *) usage >&2; exit 2 ;;
+esac
+[ "$#" -eq 2 ] || { usage >&2; exit 2; }
+archive="$2"
+[ -f "$archive" ] && [ ! -L "$archive" ] || fail "backup must be a regular file"
+
+for command_name in cut curl grep gzip id mktemp mv rm sqlite3; do
+    command -v "$command_name" >/dev/null 2>&1 || fail "required command is missing: $command_name"
+done
+
+if [ "$mode" = --restore ]; then
+    [ "$(id -u)" -eq 0 ] || fail "run --restore with sudo"
+    for command_name in cp date dirname install sleep systemctl; do
+        command -v "$command_name" >/dev/null 2>&1 || fail "required command is missing: $command_name"
+    done
+    [ -f "$database_path" ] && [ ! -L "$database_path" ] || fail "current database must be a regular file"
+fi
+
+staging_directory="$(mktemp -d /tmp/gnotes-restore.XXXXXX)"
+candidate="$staging_directory/candidate.db"
+service_stopped=false
+replacement_installed=false
+saved_database=""
+staged_database=""
+
+healthy() {
+    attempt=1
+    while [ "$attempt" -le 20 ]; do
+        if curl -fsS --max-time 5 "$health_url" >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
+rollback() {
+    echo "Restoring the previous database..." >&2
+    systemctl stop "$service_name" >/dev/null 2>&1 || true
+    rm -f "$database_path" "$database_path-wal" "$database_path-shm"
+    restored_files=false
+    if install -o "${GNOTES_DATABASE_USER:-gnotes}" -g "${GNOTES_DATABASE_GROUP:-gnotes}" -m 0600 "$saved_database" "$database_path"; then
+        restored_files=true
+        if [ -f "$saved_database-wal" ]; then
+            install -o "${GNOTES_DATABASE_USER:-gnotes}" -g "${GNOTES_DATABASE_GROUP:-gnotes}" -m 0600 "$saved_database-wal" "$database_path-wal" || restored_files=false
+        fi
+    fi
+    if [ "$restored_files" = true ] && systemctl start "$service_name" && healthy; then
+        echo "Previous database restored and healthy. Saved copy: $saved_database" >&2
+    else
+        echo "Rollback health check failed. Saved copy remains at $saved_database; inspect the service logs." >&2
+    fi
+}
+
+finish() {
+    status="$?"
+    trap - EXIT HUP INT TERM
+    if [ "$service_stopped" = true ] && [ "$status" -ne 0 ]; then
+        if [ "$replacement_installed" = true ]; then
+            rollback
+        else
+            systemctl start "$service_name" || true
+            if [ -n "$saved_database" ]; then
+                rm -f "$saved_database" "$saved_database-wal"
+            fi
+        fi
+    fi
+    if [ -n "$staged_database" ]; then
+        rm -f "$staged_database"
+    fi
+    rm -rf "$staging_directory"
+    exit "$status"
+}
+trap finish EXIT
+trap 'exit 130' HUP INT TERM
+
+gzip -t "$archive" || fail "gzip archive is invalid"
+gzip -dc "$archive" > "$candidate" || fail "could not unpack backup"
+[ "$(sqlite3 -readonly -batch -noheader -cmd '.mode list' "$candidate" 'PRAGMA integrity_check;')" = ok ] || fail "SQLite integrity check failed"
+
+required_tables='users notes sessions drafts settings rate_limits login_cooldowns signup_events invitations security_daily'
+for table in $required_tables; do
+    [ "$(sqlite3 -readonly -batch -noheader -cmd '.mode list' "$candidate" "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='$table';")" = 1 ] || fail "missing database table: $table"
+done
+for required in 'users:username' 'users:password_hash' 'notes:user_id' 'notes:content' 'sessions:token_hash' 'drafts:user_id'; do
+    table="${required%%:*}"
+    column="${required#*:}"
+    sqlite3 -readonly -batch -noheader -cmd '.mode list' "$candidate" "PRAGMA table_info($table);" | cut -d '|' -f 2 | grep -Fxq "$column" || fail "missing database column: $required"
+done
+echo "Backup integrity and schema verified: $archive"
+
+if [ "$mode" = --verify ]; then
+    exit 0
+fi
+
+database_directory="$(dirname -- "$database_path")"
+staged_database="$(mktemp "$database_directory/.gnotes-restore.XXXXXX")"
+saved_database="$(mktemp "$database_directory/gnotes-before-restore-$(date -u +%Y%m%dT%H%M%SZ).XXXXXX.db")"
+rm -f "$staged_database" "$saved_database"
+
+install -o "${GNOTES_DATABASE_USER:-gnotes}" -g "${GNOTES_DATABASE_GROUP:-gnotes}" -m 0600 "$candidate" "$staged_database"
+service_stopped=true
+systemctl stop "$service_name"
+
+# SQLite's online backup includes committed WAL transactions. If the current
+# database is damaged, preserve its raw database and WAL files for investigation.
+if ! sqlite3 -batch "$database_path" ".backup '$saved_database'" || \
+    [ "$(sqlite3 -readonly -batch -noheader -cmd '.mode list' "$saved_database" 'PRAGMA integrity_check;' 2>/dev/null)" != ok ]; then
+    cp "$database_path" "$saved_database" || fail "could not preserve current database"
+    if [ -f "$database_path-wal" ]; then
+        cp "$database_path-wal" "$saved_database-wal" || fail "could not preserve current WAL"
+    fi
+fi
+chmod 0600 "$saved_database"
+
+replacement_installed=true
+rm -f "$database_path-wal" "$database_path-shm"
+mv -f "$staged_database" "$database_path"
+if ! systemctl start "$service_name" || ! healthy; then
+    fail "restored database failed health check; rollback attempted"
+fi
+service_stopped=false
+echo "Database restored and healthy. Previous database saved at $saved_database"

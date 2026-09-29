@@ -4,7 +4,7 @@ Last reviewed: 2026-09-29
 
 ## Current production milestone
 
-`v0.6.8` is deployed at `https://gnotes.rickd.dev` on a single Ubuntu server behind Nginx and TLS. The application runs under systemd with SQLite in WAL mode, daily validated local backups, checksum-verified releases, health checks, and automatic application rollback during failed updates.
+`v0.6.1` is currently deployed at `https://gnotes.rickd.dev`, while local `main` has advanced through `v0.6.15`. The application runs on a single Ubuntu server behind Nginx and TLS, with SQLite in WAL mode, daily validated local backups, checksum-verified releases, health checks, and automatic application rollback during failed updates.
 
 The current release includes:
 
@@ -16,14 +16,14 @@ The current release includes:
 
 ## Next release: recovery tooling
 
-The recommended scope for `v0.7.0` is a safe, tested restore workflow.
+The recommended scope for `v0.7.0` is a safe, tested restore workflow. The command, local integration tests, and an isolated full application rehearsal are implemented; deployment verification remains.
 
-1. Add `/opt/gnotes/bin/restore-gnotes` with a verification-only mode that never modifies production.
-2. Validate gzip archives and run SQLite integrity and schema checks before accepting a backup.
-3. For a real restore, stop gnotes, preserve the current database, install the validated replacement atomically with correct ownership and permissions, restart the service, and verify health.
-4. Automatically restore the preserved database if the replacement cannot start cleanly.
-5. Add shell tests for valid, corrupt, incomplete, and failed-health restore scenarios.
-6. Document and perform a complete restore rehearsal using a temporary database and port.
+1. [x] Add `/opt/gnotes/bin/restore-gnotes` with a verification-only mode that never modifies production.
+2. [x] Validate gzip archives and run SQLite integrity and schema checks before accepting a backup.
+3. [x] For a real restore, stop gnotes, preserve the current database, install the validated replacement atomically with correct ownership and permissions, restart the service, and verify health.
+4. [x] Automatically restore the preserved database if the replacement cannot start cleanly.
+5. [x] Add shell tests for valid, corrupt, incomplete, and failed-health restore scenarios.
+6. [x] Document and perform a complete restore rehearsal using a temporary database and port.
 
 Definition of done: restoring or rehearsing a backup requires one command, a corrupt backup cannot replace production, and failure leaves either the original database or a verified restored database available.
 

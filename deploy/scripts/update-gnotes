@@ -152,6 +152,7 @@ tar -xzf "$temporary_directory/$asset" -C "$package_directory"
 [ -f "$package_directory/public/index.html" ] || fail "release does not contain public/index.html"
 [ -x "$package_directory/bin/update-gnotes" ] || fail "release does not contain update-gnotes"
 [ -x "$package_directory/bin/check-gnotes" ] || fail "release does not contain check-gnotes"
+[ -x "$package_directory/bin/restore-gnotes" ] || fail "release does not contain restore-gnotes"
 [ "$(cat "$package_directory/VERSION")" = "$version" ] || fail "release version does not match requested version"
 
 echo "Creating and validating a database backup..."
@@ -204,6 +205,7 @@ fi
 deployment_started=false
 install -o root -g root -m 0755 "$package_directory/bin/update-gnotes" "$app_directory/bin/update-gnotes"
 install -o root -g root -m 0755 "$package_directory/bin/check-gnotes" "$app_directory/bin/check-gnotes"
+install -o root -g root -m 0755 "$package_directory/bin/restore-gnotes" "$app_directory/bin/restore-gnotes"
 
 echo "gnotes $version is installed and healthy."
 echo "Rollback files remain in $app_directory with the .rollback suffix."

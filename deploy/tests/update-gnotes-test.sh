@@ -26,7 +26,8 @@ chmod 0755 "$fixture_directory/package/gnotes"
 printf 'new-assets\n' > "$fixture_directory/package/public/index.html"
 cp "$updater" "$fixture_directory/package/bin/update-gnotes"
 cp "$project_directory/deploy/scripts/check-gnotes" "$fixture_directory/package/bin/check-gnotes"
-chmod 0755 "$fixture_directory/package/bin/update-gnotes" "$fixture_directory/package/bin/check-gnotes"
+cp "$project_directory/deploy/scripts/restore-gnotes" "$fixture_directory/package/bin/restore-gnotes"
+chmod 0755 "$fixture_directory/package/bin/update-gnotes" "$fixture_directory/package/bin/check-gnotes" "$fixture_directory/package/bin/restore-gnotes"
 printf 'v1.2.3\n' > "$fixture_directory/package/VERSION"
 tar -C "$fixture_directory/package" -czf "$fixture_directory/$asset" .
 (cd "$fixture_directory" && sha256sum "$asset" > SHA256SUMS)
