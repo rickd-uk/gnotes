@@ -130,13 +130,13 @@
         right: 0;
         display: none;
         width: min(220px, calc(100vw - 32px));
-        max-height: min(350px, 55dvh);
+        max-height: calc(100dvh - 88px);
         overflow-y: auto;
         padding: 6px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: rgb(244 241 234 / var(--controls-opacity, 0.88));
-        backdrop-filter: blur(3px);
+        backdrop-filter: blur(var(--controls-blur, 3px));
         box-shadow: 0 16px 38px rgba(51, 45, 35, 0.18);
       }
 
@@ -982,7 +982,7 @@
       }
 
       .search-query-row {
-        grid-template-columns: minmax(0, 1fr) 180px auto;
+        grid-template-columns: minmax(0, 1fr) 180px;
       }
 
       .search-scope-options {
@@ -1139,12 +1139,6 @@
         font-size: 0.74rem;
         font-weight: 700;
         white-space: nowrap;
-      }
-
-      .search-query-row button[type="submit"] {
-        border-color: var(--accent);
-        background: var(--accent);
-        color: #fff;
       }
 
       .search-status {
@@ -2592,6 +2586,14 @@
       @media (min-width: 561px) {
         .site-header { padding: 12px 20px 13px; }
         .site-header h1 { font-size: clamp(2rem, 4.8vw, 2.5rem); }
+        .view-menu { width: min(280px, calc(100vw - 32px)); }
+        .tool-visibility {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          padding-left: 5px;
+        }
+        .tool-visibility .tool-choice { gap: 5px; padding: 3px 5px; font-size: 0.74rem; }
+        .tool-choice .tool-state { font-size: 0.64rem; }
         .view-toggle, .search-toggle, .trash-toggle { width: 48px; height: 48px; }
         .account-control > summary { min-height: 48px; }
         .header-actions .icon { width: 27px; height: 27px; }
@@ -2859,7 +2861,7 @@
         }
 
         .search-query-row {
-          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-columns: minmax(0, 1fr);
         }
 
         .search-filters {
@@ -3017,7 +3019,7 @@
           </div>
           <div class="menu-opacity-control">
             <label for="menu-opacity">Menu opacity <span id="menu-opacity-value">88%</span></label>
-            <input type="range" id="menu-opacity" min="70" max="100" value="88" aria-label="Menu opacity" />
+            <input type="range" id="menu-opacity" min="40" max="100" value="88" aria-label="Menu opacity" />
           </div>
           <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -3158,7 +3160,6 @@
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="2.5" width="18" height="19" rx="2"/><path d="M7 8h10M7 12h10M7 16h7"/></svg><span>Text</span>
               </button>
             </div>
-            <button type="submit">Search</button>
           </div>
           <div class="search-options-row">
             <button class="search-more-toggle" id="search-more-toggle" type="button" aria-controls="search-more-panel" aria-expanded="false">Dates and options</button>
@@ -3480,8 +3481,10 @@
 
       function applyMenuOpacity(value) {
         const parsed = Number(value);
-        menuOpacity = Number.isFinite(parsed) ? Math.max(70, Math.min(100, Math.round(parsed))) : 88;
-        document.getElementById("view-menu").style.setProperty("--controls-opacity", String(menuOpacity / 100));
+        menuOpacity = Number.isFinite(parsed) ? Math.max(40, Math.min(100, Math.round(parsed))) : 88;
+        const menu = document.getElementById("view-menu");
+        menu.style.setProperty("--controls-opacity", String(menuOpacity / 100));
+        menu.style.setProperty("--controls-blur", menuOpacity <= 55 ? "7px" : menuOpacity <= 70 ? "5px" : "3px");
         document.getElementById("menu-opacity").value = String(menuOpacity);
         document.getElementById("menu-opacity-value").textContent = `${menuOpacity}%`;
       }
@@ -4224,13 +4227,24 @@
         });
       }
 
-      async function runTextSearch(closeWhenDone = false) {
+      function expandVisibleSearchSections() {
+        const sections = document.querySelectorAll("#notes-list .date-group.is-collapsed");
+        sections.forEach((section) => {
+          section.classList.remove("is-collapsed");
+          section.querySelector(".date-section-toggle")?.setAttribute("aria-expanded", "true");
+        });
+        if (sections.length) updateDateSectionsControl();
+      }
+
+      async function runTextSearch() {
         if (notesLoading) {
           clearTimeout(liveSearchTimer);
-          liveSearchTimer = setTimeout(() => runTextSearch(closeWhenDone), 100);
+          liveSearchTimer = setTimeout(runTextSearch, 100);
           return false;
         }
         searchActive = true;
+        setNotesVisibility(true);
+        expandVisibleSearchSections();
         calendarActive = false;
         selectedCalendarDate = "";
         selectedArchiveLabel = "";
@@ -4242,7 +4256,6 @@
         const loaded = await loadNotes();
         if (loaded) {
           document.getElementById("search-status").textContent = "";
-          if (closeWhenDone) closeSearchPanel();
         }
         return loaded;
       }
@@ -4269,7 +4282,7 @@
           liveSearchTimer = setTimeout(runLiveSearch, 100);
           return;
         }
-        await runTextSearch(false);
+        await runTextSearch();
       }
 
       function scheduleLiveSearch() {
@@ -4277,6 +4290,8 @@
         const query = document.getElementById("search-query").value.trim();
         if (query) {
           searchActive = true;
+          setNotesVisibility(true);
+          expandVisibleSearchSections();
           calendarActive = false;
           selectedCalendarDate = "";
           selectedArchiveLabel = "";
@@ -5615,6 +5630,7 @@
           closeTrashPanel();
           closeHiddenNotesPanel();
           document.getElementById("search-query").focus();
+          if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
         }
         saveUIState();
       });
@@ -5630,7 +5646,7 @@
       document.getElementById("search-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         clearTimeout(liveSearchTimer);
-        await runTextSearch(true);
+        await runLiveSearch();
       });
 
       document.getElementById("search-query").addEventListener("input", () => {
@@ -6002,6 +6018,7 @@
             .getElementById("search-toggle")
             .setAttribute("aria-expanded", "true");
           document.getElementById("search-query").focus();
+          if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
           saveUIState();
         }
       });
