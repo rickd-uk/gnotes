@@ -16,7 +16,7 @@ The current release includes:
 
 ## Next release: recovery tooling
 
-The recovery milestone is a safe, tested restore workflow. The systemd and Podman commands, integration tests, and an isolated full application rehearsal are implemented; production verification remains.
+The recovery milestone is a safe, tested restore workflow. The systemd and Podman commands, integration tests, and an isolated full application rehearsal are implemented. The Podman command and a pre-update backup were verified on Kagoya after the `v0.7.2` deployment.
 
 1. [x] Add verification-only restore commands for systemd and the Kagoya Podman deployment.
 2. [x] Validate gzip archives and run SQLite integrity and schema checks before accepting a backup.
