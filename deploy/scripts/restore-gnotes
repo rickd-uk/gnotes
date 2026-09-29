@@ -33,7 +33,9 @@ case "${1:-}" in
 esac
 [ "$#" -eq 2 ] || { usage >&2; exit 2; }
 archive="$2"
-[ -f "$archive" ] && [ ! -L "$archive" ] || fail "backup must be a regular file"
+if [ ! -f "$archive" ] || [ -L "$archive" ]; then
+    fail "backup must be a regular file"
+fi
 
 for command_name in cut curl grep gzip id mktemp mv rm sqlite3; do
     command -v "$command_name" >/dev/null 2>&1 || fail "required command is missing: $command_name"
@@ -44,7 +46,9 @@ if [ "$mode" = --restore ]; then
     for command_name in cp date dirname install sleep systemctl; do
         command -v "$command_name" >/dev/null 2>&1 || fail "required command is missing: $command_name"
     done
-    [ -f "$database_path" ] && [ ! -L "$database_path" ] || fail "current database must be a regular file"
+    if [ ! -f "$database_path" ] || [ -L "$database_path" ]; then
+        fail "current database must be a regular file"
+    fi
 fi
 
 staging_directory="$(mktemp -d /tmp/gnotes-restore.XXXXXX)"
