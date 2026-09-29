@@ -7,8 +7,8 @@ This is the short runbook for the production installation.
 | Item | Value |
 |---|---|
 | SSH host | `hz-sin` |
-| Public URL | `https://gnotes.futureisnear.dev` |
-| Health URL | `https://gnotes.futureisnear.dev/api/health` |
+| Public URL | `https://gnotes.rickd.dev` |
+| Health URL | `https://gnotes.rickd.dev/api/health` |
 | systemd service | `gnotes.service` |
 | Application | `/opt/gnotes` |
 | Private listener | `127.0.0.1:8081` |
@@ -42,7 +42,7 @@ The updater verifies the checksum, runs the database backup service, preserves t
 Run the complete operational check afterward:
 
 ```bash
-ssh -t hz-sin 'sudo /opt/gnotes/bin/check-gnotes https://gnotes.futureisnear.dev/api/health'
+ssh -t hz-sin 'sudo /opt/gnotes/bin/check-gnotes https://gnotes.rickd.dev/api/health'
 ```
 
 Finally, sign in through a browser and inspect several notes.

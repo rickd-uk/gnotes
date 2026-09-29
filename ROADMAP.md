@@ -4,7 +4,7 @@ Last reviewed: 2026-09-22
 
 ## Current production milestone
 
-`v0.6.0` is deployed at `https://gnotes.futureisnear.dev` on a single Ubuntu server behind Nginx and TLS. The application runs under systemd with SQLite in WAL mode, daily validated local backups, checksum-verified releases, health checks, and automatic application rollback during failed updates.
+`v0.6.0` is deployed at `https://gnotes.rickd.dev` on a single Ubuntu server behind Nginx and TLS. The application runs under systemd with SQLite in WAL mode, daily validated local backups, checksum-verified releases, health checks, and automatic application rollback during failed updates.
 
 The current release includes:
 
