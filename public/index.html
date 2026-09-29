@@ -21,6 +21,17 @@
         --edit-button: #d4e3ea;
         --edit-button-hover: #a9ccdc;
         --edit-ink: #2d6078;
+        --note-title-font: Georgia, "Times New Roman", serif;
+        --note-body-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body[data-note-font="writer"] {
+        --note-title-font: Georgia, "Times New Roman", serif;
+        --note-body-font: Georgia, "Times New Roman", serif;
+      }
+
+      body[data-note-font="clean"] {
+        --note-title-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
       * {
@@ -133,6 +144,12 @@
         flex-direction: column;
       }
 
+      .view-backdrop,
+      .view-menu-header,
+      .view-burger-icon {
+        display: none;
+      }
+
       .view-menu > button,
       .view-menu > .hidden-notes-control > button {
         display: flex;
@@ -155,6 +172,43 @@
         width: 20px;
         height: 20px;
       }
+
+      .font-control {
+        padding: 8px 10px 6px;
+        border-top: 1px solid var(--line);
+      }
+
+      .font-control-label {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      .font-choices { display: flex; gap: 4px; }
+
+      .font-choices button {
+        flex: 1;
+        min-width: 0;
+        min-height: 38px;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 0.68rem;
+      }
+
+      .font-choices button[aria-pressed="true"] {
+        border-color: var(--accent);
+        background: #dce8e2;
+        color: var(--accent);
+      }
+
+      .font-choices button[data-font="writer"] { font-family: Georgia, "Times New Roman", serif; }
+      .font-choices button[data-font="clean"] { font-family: Arial, sans-serif; }
 
       .account-control > summary .icon {
         width: 18px;
@@ -200,7 +254,7 @@
 
       #title {
         padding: 0 0 6px;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--note-title-font);
         font-size: clamp(1.1rem, 3vw, 1.4rem);
         letter-spacing: -0.035em;
       }
@@ -213,6 +267,7 @@
         overflow-y: hidden;
         resize: none;
         font: inherit;
+        font-family: var(--note-body-font);
         font-size: 1.05rem;
         line-height: 1.7;
       }
@@ -564,6 +619,7 @@
       .notes-toggle:focus-visible,
       .toolbar-button:focus-visible,
       .view-toggle:focus-visible,
+      .view-menu-close:focus-visible,
       .search-toggle:focus-visible,
       .trash-toggle:focus-visible,
       .account-control > summary:focus-visible {
@@ -718,6 +774,15 @@
         border-bottom: 1px solid var(--line);
       }
 
+      .calendar-date-control { display: flex; align-items: center; gap: 5px; }
+      .calendar-date-control input { min-width: 0; }
+      .calendar-jump .calendar-pick {
+        width: 38px;
+        min-width: 38px;
+        padding: 6px;
+      }
+      .calendar-pick .icon { width: 20px; height: 20px; }
+
       .calendar-jump button,
       .calendar-clear {
         min-height: 38px;
@@ -848,29 +913,103 @@
       }
 
       .search-query-row {
-        grid-template-columns: minmax(0, 1fr) 170px auto;
+        grid-template-columns: minmax(0, 1fr) 180px auto;
       }
 
+      .search-scope-options {
+        display: flex;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .search-query-row .scope-choice {
+        display: flex;
+        min-width: 0;
+        min-height: 38px;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 3px;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.68rem;
+        font-weight: 600;
+      }
+
+      .scope-choice + .scope-choice { border-left: 1px solid var(--line); }
+
+      .search-query-row .scope-choice[aria-pressed="true"] {
+        background: #dce8e2;
+        color: var(--accent);
+      }
+
+      .scope-choice .icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+      .search-query-control {
+        position: relative;
+        min-width: 0;
+      }
+
+      .search-query-control #search-query { padding-right: 40px; }
+
+      #search-query::-webkit-search-cancel-button { display: none; }
+
+      .search-query-control .search-clear {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 38px;
+        height: 38px;
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 1.2rem;
+      }
+
+      .search-query-control .search-clear[hidden] { display: none; }
+
       .search-filters {
-        grid-template-columns: 1fr 1fr auto auto;
+        grid-template-columns: 1fr 1fr auto;
         align-items: end;
         margin-top: 10px;
       }
 
-      .search-more {
+      .search-options-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
         margin-top: 7px;
       }
 
-      .search-more > summary {
-        width: fit-content;
+      .search-more-toggle {
+        min-height: 36px;
+        padding: 0;
+        border: 0;
+        background: transparent;
         color: var(--muted);
         cursor: pointer;
         font-size: 0.75rem;
       }
 
-      .search-more[open] > summary {
-        margin-bottom: 10px;
+      .search-more-toggle::before {
+        content: "▸";
+        margin-right: 5px;
       }
+
+      .search-more-toggle[aria-expanded="true"]::before { content: "▾"; }
+
+      .search-more-panel { margin-top: 10px; }
+
+      .search-more-panel[hidden] { display: none; }
 
       .search-panel label {
         color: var(--muted);
@@ -896,11 +1035,15 @@
         font-size: 0.85rem;
       }
 
-      .case-toggle {
+      .search-panel .case-toggle {
         display: flex;
-        min-height: 38px;
+        min-height: 36px;
         align-items: center;
         gap: 7px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: none;
         white-space: nowrap;
       }
 
@@ -949,7 +1092,7 @@
       mark.search-highlight {
         padding: 0 0.08em;
         border-radius: 2px;
-        background: #f2dfa0;
+        background: #ffe680;
         color: inherit;
         box-shadow: 0 0 0 1px rgba(152, 113, 21, 0.1);
       }
@@ -1134,7 +1277,7 @@
       .note-card h2 {
         max-width: 640px;
         margin: 2px auto 8px;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--note-title-font);
         font-size: clamp(1rem, 2.3vw, 1.2rem);
         font-weight: 400;
         letter-spacing: -0.025em;
@@ -1304,7 +1447,7 @@
 
       .edit-title {
         padding: 0 2px 8px;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--note-title-font);
         font-size: 1.15rem;
       }
 
@@ -1316,6 +1459,7 @@
         overflow-y: hidden;
         resize: none;
         font: inherit;
+        font-family: var(--note-body-font);
         font-size: 0.94rem;
         line-height: 1.55;
       }
@@ -1363,6 +1507,7 @@
       .note-content {
         max-width: 680px;
         margin: 0 auto;
+        font-family: var(--note-body-font);
         font-size: 0.95rem;
         line-height: 1.65;
         text-align: left;
@@ -1693,10 +1838,6 @@
         box-shadow: 0 16px 38px rgba(51, 45, 35, 0.18);
       }
 
-      .account-menu-username {
-        display: none;
-      }
-
       .account-menu button {
         width: 100%;
         min-height: 38px;
@@ -1710,6 +1851,14 @@
 
       .account-menu button:hover {
         background: #e9e4da;
+      }
+
+      .account-menu .account-menu-username {
+        overflow: hidden;
+        color: var(--accent);
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .account-menu-section + .account-menu-section {
@@ -1741,17 +1890,17 @@
       }
 
       .account-menu .account-signout {
-        border: 1px solid #c6c1b6;
-        background: #f4f1ea;
-        color: #58534a;
+        border: 1px solid #dcb9b4;
+        background: #f7ebe8;
+        color: var(--danger);
         font-weight: 700;
         text-align: center;
       }
 
       .account-menu .account-signout:hover {
-        border-color: #aaa397;
-        background: #e9e5dc;
-        color: var(--ink);
+        border-color: var(--danger);
+        background: #f0dcd8;
+        color: #762c25;
       }
 
       .admin-panel {
@@ -1759,7 +1908,7 @@
         z-index: 60;
         inset: 70px max(16px, calc((100vw - 860px) / 2)) auto;
         max-height: calc(100vh - 90px);
-        padding: 22px;
+        padding: 16px;
         overflow: auto;
         border: 1px solid var(--line);
         background: #f8f6f0;
@@ -1776,6 +1925,78 @@
         border: 1px solid var(--line);
         background: #f8f6f0;
         box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
+      }
+
+      .info-panel {
+        position: fixed;
+        z-index: 60;
+        inset: 70px max(16px, calc((100vw - 480px) / 2)) auto;
+        max-height: calc(100dvh - 90px);
+        padding: 20px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8f6f0;
+        box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
+      }
+
+      .info-panel[hidden] { display: none; }
+
+      .info-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .info-panel-header h2 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.25rem;
+        font-weight: 500;
+      }
+
+      .profile-role {
+        margin: 2px 0 16px;
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+
+      .profile-details {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin: 0;
+      }
+
+      .profile-details dt {
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .profile-details dd {
+        margin: 2px 0 0;
+        font-size: 0.85rem;
+      }
+
+      .help-topics {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .help-topics h3 {
+        margin: 0;
+        font-size: 0.85rem;
+      }
+
+      .help-topics p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 0.8rem;
       }
 
       .archive-panel[hidden] { display: none; }
@@ -1881,8 +2102,8 @@
       }
 
       .admin-section {
-        margin-top: 18px;
-        padding: 16px;
+        margin-top: 12px;
+        padding: 12px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.22);
@@ -1933,7 +2154,26 @@
 
       .admin-signups {
         display: grid;
-        gap: 14px;
+        gap: 8px;
+      }
+
+      .admin-status {
+        margin: 12px 0 0;
+        padding: 10px 12px;
+        border: 1px solid #b9cec4;
+        border-radius: 6px;
+        background: #e4efe9;
+        color: var(--accent);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .admin-status:empty { display: none; }
+
+      .admin-status.is-error {
+        border-color: #e3c6c1;
+        background: #f7ebe8;
+        color: var(--danger);
       }
 
       .security-stats,
@@ -1955,7 +2195,7 @@
       .policy-fields {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
+        gap: 8px;
       }
 
       .policy-fields label:not(.policy-check),
@@ -2041,9 +2281,8 @@
       }
 
       .admin-user {
-        justify-content: space-between;
-        gap: 18px;
-        padding: 14px 0;
+        display: block;
+        padding: 0;
         border-bottom: 1px solid var(--line);
       }
 
@@ -2053,8 +2292,37 @@
 
       .admin-user-main {
         min-width: 0;
-        flex: 1;
       }
+
+      .admin-user-summary {
+        display: flex;
+        min-height: 48px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 4px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .admin-user-summary::-webkit-details-marker { display: none; }
+
+      .admin-user-summary::after {
+        content: "⌄";
+        color: var(--muted);
+        font-size: 1rem;
+      }
+
+      .admin-user[open] .admin-user-summary::after { transform: rotate(180deg); }
+
+      .admin-user-summary-meta {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 0.72rem;
+        white-space: nowrap;
+      }
+
+      .admin-user-expanded { padding: 0 4px 12px; }
 
       .admin-user-name {
         display: flex;
@@ -2080,7 +2348,7 @@
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 5px 16px;
-        margin: 8px 0 0;
+        margin: 4px 0 10px;
       }
 
       .admin-user-details div {
@@ -2172,7 +2440,27 @@
         box-shadow: 0 1px 3px rgba(51, 45, 35, 0.12);
       }
 
+      .admin-users-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .admin-user-sort {
+        min-height: 34px;
+        padding: 4px 7px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 0.72rem;
+      }
+
       @media (max-width: 560px) {
+        body.controls-drawer-open {
+          overflow: hidden;
+        }
+
         .shell {
           width: min(100% - 32px, 880px);
           padding-top: 0;
@@ -2262,7 +2550,21 @@
         .site-header {
           gap: 4px;
           margin: 0 -16px;
-          padding: 6px 10px;
+          padding: 6px 10px 6px 56px;
+        }
+
+        .view-control {
+          position: absolute;
+          top: 6px;
+          left: 8px;
+        }
+
+        .view-slider-icon {
+          display: none;
+        }
+
+        .view-burger-icon {
+          display: block;
         }
 
         .header-actions {
@@ -2276,9 +2578,64 @@
 
         .view-menu {
           position: fixed;
-          top: 60px;
+          z-index: 45;
+          top: 0;
           right: auto;
-          left: 16px;
+          bottom: 0;
+          left: 0;
+          display: flex;
+          width: min(300px, calc(100vw - 48px));
+          max-height: none;
+          flex-direction: column;
+          padding: 12px 10px calc(12px + env(safe-area-inset-bottom));
+          border-radius: 0 12px 12px 0;
+          transform: translateX(-105%);
+          visibility: hidden;
+          pointer-events: none;
+          transition: transform 180ms ease, visibility 180ms ease;
+        }
+
+        .view-control.is-open .view-menu {
+          transform: translateX(0);
+          visibility: visible;
+          pointer-events: auto;
+        }
+
+        .view-control.is-open .view-backdrop {
+          position: fixed;
+          z-index: 44;
+          inset: 0;
+          display: block;
+          width: 100vw;
+          height: 100dvh;
+          padding: 0;
+          border: 0;
+          background: rgba(36, 35, 31, 0.28);
+        }
+
+        .view-menu-header {
+          display: flex;
+          min-height: 48px;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 8px 8px 12px;
+          border-bottom: 1px solid var(--line);
+          color: var(--ink);
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1rem;
+        }
+
+        .view-menu-close {
+          display: grid;
+          width: 40px;
+          height: 40px;
+          place-items: center;
+          border: 0;
+          border-radius: 8px;
+          background: transparent;
+          color: var(--ink);
+          cursor: pointer;
+          font-size: 1.4rem;
         }
 
         .account-control > summary .icon {
@@ -2290,9 +2647,11 @@
         }
 
         .view-menu .hidden-notes-panel {
-          position: fixed;
-          top: 60px;
-          right: 16px;
+          position: static;
+          width: 100%;
+          max-height: 40dvh;
+          overflow-y: auto;
+          box-shadow: none;
         }
 
         .notes-toolbar {
@@ -2359,20 +2718,18 @@
           overflow-y: auto;
         }
 
-        .search-query-row,
+        .search-query-row {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+
         .search-filters {
           grid-template-columns: 1fr 1fr;
         }
 
-        .search-query-row input {
+        .search-query-control {
           grid-column: 1 / -1;
         }
 
-        .search-query-row select {
-          grid-column: 1;
-        }
-
-        .search-filters .case-toggle,
         .search-filters .search-actions {
           grid-column: 1 / -1;
         }
@@ -2381,13 +2738,13 @@
           padding: 25px;
         }
 
-        .admin-user {
-          align-items: flex-start;
+        .admin-section-header {
           flex-direction: column;
         }
 
-        .admin-section-header {
-          flex-direction: column;
+        .admin-signups .admin-section-header {
+          flex-direction: row;
+          align-items: center;
         }
 
         .admin-users-header {
@@ -2396,8 +2753,14 @@
 
         .policy-fields,
         .admin-user-details {
-          grid-template-columns: 1fr;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
+
+        .policy-check { grid-column: 1 / -1; }
+
+        .admin-users-controls { flex-wrap: wrap; }
+
+        .admin-user-summary-meta { display: none; }
 
         .admin-user-actions {
           justify-content: flex-start;
@@ -2414,12 +2777,22 @@
           padding: 16px;
         }
 
+        .info-panel {
+          inset: 58px 12px auto;
+          max-height: calc(100dvh - 70px);
+          padding: 16px;
+        }
+
         .archive-groups {
           grid-template-columns: 1fr;
         }
       }
 
       @media (prefers-reduced-motion: reduce) {
+        .view-menu {
+          transition: none;
+        }
+
         .startup-status {
           animation: none;
         }
@@ -2466,15 +2839,23 @@
         <h1>gnotes</h1>
         <div class="header-actions">
           <div class="view-control" id="view-control">
-            <button class="view-toggle" id="view-toggle" type="button" aria-controls="view-menu" aria-expanded="false" aria-label="Display options" title="Display options">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <button class="view-toggle" id="view-toggle" type="button" aria-controls="view-menu" aria-expanded="false" aria-label="Open controls menu" title="Open controls menu">
+              <svg class="icon view-slider-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h16M4 12h16M4 17h16" />
                 <circle cx="9" cy="7" r="2" fill="currentColor" stroke="none" />
                 <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" />
                 <circle cx="10" cy="17" r="2" fill="currentColor" stroke="none" />
               </svg>
+              <svg class="icon view-burger-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
+            <button class="view-backdrop" id="view-backdrop" type="button" tabindex="-1" aria-label="Close controls menu"></button>
             <div class="view-menu" id="view-menu">
+          <div class="view-menu-header">
+            <strong>Controls</strong>
+            <button class="view-menu-close" id="view-menu-close" type="button" aria-label="Close controls menu">×</button>
+          </div>
           <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide note controls" title="Hide note controls">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="6" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="18" cy="12" r="1" />
@@ -2514,6 +2895,14 @@
               </div>
             </section>
           </div>
+          <div class="font-control" role="group" aria-label="Note font">
+            <span class="font-control-label">Note font</span>
+            <div class="font-choices" id="font-choices">
+              <button type="button" data-font="writer" aria-pressed="false" title="Serif titles and text">Writer</button>
+              <button type="button" data-font="balanced" aria-pressed="true" title="Serif titles and clean text">Balanced</button>
+              <button type="button" data-font="clean" aria-pressed="false" title="Clean titles and text">Clean</button>
+            </div>
+          </div>
             </div>
           </div>
 
@@ -2552,9 +2941,10 @@
               <span class="account-name-text" id="account-name">Account</span>
             </summary>
             <div class="account-menu">
-              <span class="account-menu-username" id="account-menu-username"></span>
+              <button class="account-menu-username" id="account-menu-username" type="button" title="Your profile"></button>
               <div class="account-menu-section">
                 <span class="account-menu-label">Help</span>
+                <button id="help-open" type="button">Help</button>
                 <details class="markdown-help" id="markdown-help">
                   <summary>Markdown guide</summary>
                   <div class="markdown-guide">
@@ -2598,30 +2988,49 @@
       <section class="search-panel" id="search-panel" aria-label="Find notes" hidden>
         <form id="search-form">
           <div class="search-query-row">
-            <input type="search" id="search-query" placeholder="Search title or content…" aria-label="Search text" />
-            <select id="search-scope" aria-label="Search within">
-              <option value="all">Title and content</option>
-              <option value="title">Title only</option>
-              <option value="content">Content only</option>
-            </select>
+            <div class="search-query-control">
+              <input type="search" id="search-query" placeholder="Search title or content…" aria-label="Search text" />
+              <button class="search-clear" id="search-clear" type="button" aria-label="Clear search" title="Clear search" hidden>×</button>
+            </div>
+            <div class="search-scope-options" id="search-scope-options" role="group" aria-label="Search within">
+              <button class="scope-choice" type="button" data-scope="all" aria-pressed="true" title="Search title and content" aria-label="Search title and content">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="2.5" width="18" height="19" rx="2"/><path d="M7 8h10" stroke-width="2.8"/><path d="M7 13h10M7 17h7"/></svg><span>All</span>
+              </button>
+              <button class="scope-choice" type="button" data-scope="title" aria-pressed="false" title="Search titles only" aria-label="Search titles only">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="2.5" width="18" height="19" rx="2"/><path d="M7 8h10" stroke-width="2.8"/></svg><span>Title</span>
+              </button>
+              <button class="scope-choice" type="button" data-scope="content" aria-pressed="false" title="Search content only" aria-label="Search content only">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="2.5" width="18" height="19" rx="2"/><path d="M7 8h10M7 12h10M7 16h7"/></svg><span>Text</span>
+              </button>
+            </div>
             <button type="submit">Search</button>
           </div>
-          <details class="search-more">
-            <summary>Dates and options</summary>
+          <div class="search-options-row">
+            <button class="search-more-toggle" id="search-more-toggle" type="button" aria-controls="search-more-panel" aria-expanded="false">Dates and options</button>
+            <label class="case-toggle"><input type="checkbox" id="search-match-case" /> Match case</label>
+          </div>
+          <div class="search-more-panel" id="search-more-panel" hidden>
             <div class="calendar-jump">
-              <label for="calendar-date">Jump to date <input type="date" id="calendar-date" /></label>
-              <button type="button" id="calendar-open">Open date</button>
+              <div class="calendar-date-field">
+                <label for="calendar-date">Jump to date</label>
+                <div class="calendar-date-control">
+                  <input type="date" id="calendar-date" />
+                  <button class="calendar-pick" type="button" id="calendar-pick" aria-label="Choose date" title="Choose date">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>
+                  </button>
+                </div>
+              </div>
+              <button type="button" id="calendar-open">View date</button>
             </div>
             <div class="search-filters">
               <label>From <input type="date" id="search-from" value="2025-01-01" /></label>
               <label>To <input type="date" id="search-to" /></label>
-              <label class="case-toggle"><input type="checkbox" id="search-match-case" /> Match case</label>
               <div class="search-actions">
                 <button type="button" id="search-all">All notes</button>
                 <button type="button" id="archive-open">Overview</button>
               </div>
             </div>
-          </details>
+          </div>
           <p class="search-status" id="search-status" aria-live="polite"></p>
         </form>
       </section>
@@ -2702,11 +3111,39 @@
       </div>
     </section>
 
+    <section class="info-panel" id="profile-panel" role="dialog" aria-labelledby="profile-heading" hidden>
+      <div class="info-panel-header">
+        <h2 id="profile-heading">Profile</h2>
+        <button class="admin-close" id="profile-close" type="button" aria-label="Close profile">×</button>
+      </div>
+      <p class="profile-role" id="profile-role"></p>
+      <dl class="profile-details">
+        <div><dt>Joined</dt><dd id="profile-joined"></dd></div>
+        <div><dt>Last sign-in</dt><dd id="profile-last-signin"></dd></div>
+        <div><dt>Active notes</dt><dd id="profile-active-notes"></dd></div>
+        <div><dt>Recycled notes</dt><dd id="profile-recycled-notes"></dd></div>
+      </dl>
+    </section>
+
+    <section class="info-panel" id="help-panel" role="dialog" aria-labelledby="help-heading" hidden>
+      <div class="info-panel-header">
+        <h2 id="help-heading">Help</h2>
+        <button class="admin-close" id="help-close" type="button" aria-label="Close Help">×</button>
+      </div>
+      <div class="help-topics">
+        <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
+        <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
+        <div><h3>Edit a note</h3><p>Use the pencil on a note. Press it again to save and close the editor.</p></div>
+        <div><h3>Change the view</h3><p>Open Controls for note tools, density, hidden notes, and date sections. The Markdown guide is in your account menu.</p></div>
+      </div>
+    </section>
+
     <section class="admin-panel" id="admin-panel" aria-labelledby="admin-heading" hidden>
       <div class="admin-header">
         <h2 id="admin-heading">Administration</h2>
         <button class="admin-close" id="admin-close" type="button" aria-label="Close administration">×</button>
       </div>
+      <p class="admin-status" id="admin-status" role="status" aria-live="polite"></p>
       <section class="admin-section admin-signups" aria-labelledby="registration-security-heading">
         <div class="admin-section-header">
           <div>
@@ -2735,16 +3172,25 @@
           <div id="admin-invitations"></div>
         </details>
       </section>
-      <p class="auth-status" id="admin-status" aria-live="polite"></p>
       <section class="admin-section admin-users-section" aria-labelledby="admin-users-heading">
         <div class="admin-section-header admin-users-header">
           <div>
             <h3 id="admin-users-heading">Registered users</h3>
             <p id="admin-users-summary"></p>
           </div>
-          <div class="admin-user-filters" role="group" aria-label="Filter registered users">
-            <button type="button" data-user-filter="all" aria-pressed="true">All</button>
-            <button type="button" data-user-filter="signed-in" aria-pressed="false">Signed in</button>
+          <div class="admin-users-controls">
+            <select class="admin-user-sort" id="admin-user-sort" aria-label="Sort registered users">
+              <option value="joined-newest">Newest joined</option>
+              <option value="joined-oldest">Oldest joined</option>
+              <option value="last-signin">Recent sign-in</option>
+              <option value="name-az">Name A–Z</option>
+              <option value="name-za">Name Z–A</option>
+              <option value="notes-most">Most notes</option>
+            </select>
+            <div class="admin-user-filters" role="group" aria-label="Filter registered users">
+              <button type="button" data-user-filter="all" aria-pressed="true">All</button>
+              <button type="button" data-user-filter="signed-in" aria-pressed="false">Signed in</button>
+            </div>
           </div>
         </div>
         <div id="admin-users"></div>
@@ -2776,6 +3222,7 @@
       let noteObserver;
       const densityModes = ["full", "compact", "titles"];
       let densityIndex = 0;
+      let fontMode = "balanced";
       let searchActive = false;
       let activeSearchURL = "";
       let calendarActive = false;
@@ -2787,6 +3234,7 @@
       let highlightMatchCase = false;
       let adminUsers = [];
       let adminUserFilter = "all";
+      let adminUserSort = "joined-newest";
       let editingNoteId = null;
       let editSaveTimer;
       let editSaveChain = Promise.resolve();
@@ -2811,7 +3259,9 @@
           notesVisible: !notesList.hidden,
           controlsHidden: notesList.classList.contains("controls-hidden"),
           densityIndex,
+          fontMode,
           adminUserFilter,
+          adminUserSort,
           searchActive,
           activeSearchURL,
           calendarActive,
@@ -2819,7 +3269,7 @@
           selectedArchiveLabel,
           search: {
             query: document.getElementById("search-query").value,
-            scope: document.getElementById("search-scope").value,
+            scope: selectedSearchScope(),
             from: document.getElementById("search-from").value,
             to: document.getElementById("search-to").value,
             matchCase: document.getElementById("search-match-case").checked,
@@ -2861,6 +3311,25 @@
         toggle.setAttribute("aria-label", `Note density: ${modeLabel}`);
       }
 
+      function applyFontMode(mode) {
+        fontMode = ["writer", "balanced", "clean"].includes(mode) ? mode : "balanced";
+        document.body.dataset.noteFont = fontMode;
+        document.querySelectorAll("#font-choices button").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.font === fontMode));
+        });
+      }
+
+      function selectedSearchScope() {
+        return document.querySelector("#search-scope-options [aria-pressed='true']")?.dataset.scope || "all";
+      }
+
+      function setSearchScope(scope) {
+        const selected = ["all", "title", "content"].includes(scope) ? scope : "all";
+        document.querySelectorAll("#search-scope-options button").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.scope === selected));
+        });
+      }
+
       function loadUIState() {
         const key = uiStateStorageKey();
         if (!key) return {};
@@ -2868,9 +3337,8 @@
         try { state = JSON.parse(localStorage.getItem(key) || "{}"); } catch { state = {}; }
         const search = state.search || {};
         document.getElementById("search-query").value = typeof search.query === "string" ? search.query : "";
-        if (["all", "title", "content"].includes(search.scope)) {
-          document.getElementById("search-scope").value = search.scope;
-        }
+        syncSearchClear();
+        setSearchScope(search.scope);
         if (/^\d{4}-\d{2}-\d{2}$/.test(search.from || "")) document.getElementById("search-from").value = search.from;
         if (/^\d{4}-\d{2}-\d{2}$/.test(search.to || "")) document.getElementById("search-to").value = search.to;
         document.getElementById("search-match-case").checked = Boolean(search.matchCase);
@@ -2898,9 +3366,14 @@
         setNotesVisibility(state.notesVisible !== false);
         setControlsHidden(Boolean(state.controlsHidden));
         applyDensityMode(Number(state.densityIndex));
+        applyFontMode(state.fontMode);
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
           ? state.adminUserFilter
           : "all";
+        adminUserSort = ["joined-newest", "joined-oldest", "last-signin", "name-az", "name-za", "notes-most"].includes(state.adminUserSort)
+          ? state.adminUserSort
+          : "joined-newest";
+        document.getElementById("admin-user-sort").value = adminUserSort;
         return state;
       }
 
@@ -2985,6 +3458,8 @@
         document.getElementById("app-shell").hidden = true;
         document.getElementById("admin-panel").hidden = true;
         document.getElementById("archive-panel").hidden = true;
+        document.getElementById("profile-panel").hidden = true;
+        document.getElementById("help-panel").hidden = true;
         document.getElementById("auth-screen").hidden = false;
         document.getElementById("auth-status").textContent = message;
         loadAuthConfig().then(() => {
@@ -3029,7 +3504,7 @@
       async function loadAdmin() {
         const response = await apiFetch("/api/admin/overview");
         if (!response.ok) {
-          document.getElementById("admin-status").textContent = "Could not load administration.";
+          setAdminStatus("Could not load administration.", true);
           return;
         }
         const data = await response.json();
@@ -3061,6 +3536,12 @@
         renderAdminUsers();
       }
 
+      function setAdminStatus(message, isError = false) {
+        const status = document.getElementById("admin-status");
+        status.textContent = message;
+        status.classList.toggle("is-error", isError);
+      }
+
       function formatAdminTime(value) {
         if (!value) return "Never";
         const date = new Date(value);
@@ -3068,16 +3549,35 @@
         return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
       }
 
+      function formatAdminDate(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleDateString([], { dateStyle: "medium" });
+      }
+
       function renderAdminUsers() {
         const signedInCount = adminUsers.filter((user) => (user.sessions || []).length > 0).length;
         document.getElementById("admin-users-summary").textContent =
           `${adminUsers.length} registered · ${signedInCount} signed in`;
+        document.getElementById("admin-user-sort").value = adminUserSort;
         document.querySelectorAll("[data-user-filter]").forEach((button) => {
           button.setAttribute("aria-pressed", String(button.dataset.userFilter === adminUserFilter));
         });
+        const expandedUsers = new Set([...document.querySelectorAll("#admin-users .admin-user[open]")]
+          .map((row) => Number(row.dataset.userId)));
         const visibleUsers = adminUsers.filter((user) =>
           adminUserFilter === "all" || (user.sessions || []).length > 0,
         );
+        const time = (value) => value ? new Date(value).getTime() || 0 : 0;
+        visibleUsers.sort((left, right) => {
+          switch (adminUserSort) {
+            case "joined-oldest": return time(left.created_at) - time(right.created_at) || left.id - right.id;
+            case "last-signin": return time(right.last_login_at) - time(left.last_login_at) || right.id - left.id;
+            case "name-az": return left.username.localeCompare(right.username);
+            case "name-za": return right.username.localeCompare(left.username);
+            case "notes-most": return right.note_count - left.note_count || left.username.localeCompare(right.username);
+            default: return time(right.created_at) - time(left.created_at) || right.id - left.id;
+          }
+        });
         document.getElementById("admin-users").innerHTML = visibleUsers.length
           ? visibleUsers.map((user) => {
               const protectedUser = user.role === "admin";
@@ -3091,14 +3591,18 @@
                     <ul>${sessions.map((session) => `<li>Started ${escapeHTML(formatAdminTime(session.created_at))} · expires ${escapeHTML(formatAdminTime(session.expires_at))}</li>`).join("")}</ul>
                   </details>`
                 : "";
-              return `<article class="admin-user ${user.active ? "" : "is-disabled"}">
-                <div class="admin-user-main">
+              return `<details class="admin-user ${user.active ? "" : "is-disabled"}" data-user-id="${user.id}" ${expandedUsers.has(user.id) ? "open" : ""}>
+                <summary class="admin-user-summary">
                   <div class="admin-user-name">
                     <strong>${escapeHTML(user.username)}</strong>
                     ${protectedUser ? '<span class="admin-user-badge">Admin</span>' : ""}
                     ${sessions.length ? '<span class="admin-user-badge is-signed-in">Signed in</span>' : ""}
                     ${user.active ? "" : '<span class="admin-user-badge">Disabled</span>'}
                   </div>
+                  <span class="admin-user-summary-meta">Joined ${escapeHTML(formatAdminDate(user.created_at))}</span>
+                </summary>
+                <div class="admin-user-expanded">
+                <div class="admin-user-main">
                   <dl class="admin-user-details">
                     <div><dt>Joined</dt><dd>${escapeHTML(formatAdminTime(user.created_at))}</dd></div>
                     <div><dt>Last sign-in</dt><dd>${escapeHTML(formatAdminTime(user.last_login_at))}</dd></div>
@@ -3112,9 +3616,10 @@
                     <button type="button" onclick="revokeUserSessions(${user.id})" ${sessions.length ? "" : "disabled"}>Sign out devices</button>
                     <button class="danger-action" type="button" onclick="deleteUser(${user.id}, '${escapeHTML(user.username)}')">Delete user + notes</button>`}
                 </div>
-              </article>`;
+                </div>
+              </details>`;
             }).join("")
-          : '<p class="admin-user-meta">No signed-in users.</p>';
+          : `<p class="admin-user-meta">${adminUserFilter === "signed-in" ? "No signed-in users." : "No registered users."}</p>`;
       }
 
       async function setUserActive(id, active) {
@@ -3123,25 +3628,25 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ active }),
         });
-        document.getElementById("admin-status").textContent = response.ok
+        setAdminStatus(response.ok
           ? `Account ${active ? "enabled" : "disabled"}.`
-          : (await response.text()).trim() || "Could not update account.";
+          : (await response.text()).trim() || "Could not update account.", !response.ok);
         if (response.ok) await loadAdmin();
       }
 
       async function revokeUserSessions(id) {
         const response = await apiFetch(`/api/admin/users/revoke?id=${id}`, { method: "POST" });
-        document.getElementById("admin-status").textContent = response.ok
+        setAdminStatus(response.ok
           ? "Sessions revoked."
-          : "Could not revoke sessions.";
+          : "Could not revoke sessions.", !response.ok);
       }
 
       async function deleteUser(id, username) {
         if (!confirm(`Permanently delete ${username} and all of their notes?`)) return;
         const response = await apiFetch(`/api/admin/users/delete?id=${id}`, { method: "DELETE" });
-        document.getElementById("admin-status").textContent = response.ok
+        setAdminStatus(response.ok
           ? `${username} and all associated notes were deleted.`
-          : (await response.text()).trim() || "Could not delete user.";
+          : (await response.text()).trim() || "Could not delete user.", !response.ok);
         if (response.ok) await loadAdmin();
       }
 
@@ -3157,9 +3662,9 @@
             invite_required: document.getElementById("invite-required").checked,
           }),
         });
-        document.getElementById("admin-status").textContent = response.ok
+        setAdminStatus(response.ok
           ? "Registration limits saved."
-          : (await response.text()).trim() || "Could not save registration limits.";
+          : (await response.text()).trim() || "Could not save registration limits.", !response.ok);
         if (response.ok) await loadAdmin();
       }
 
@@ -3182,9 +3687,9 @@
 
       async function revokeInvitation(id) {
         const response = await apiFetch(`/api/admin/invitations/revoke?id=${id}`, { method: "DELETE" });
-        document.getElementById("admin-status").textContent = response.ok
+        setAdminStatus(response.ok
           ? "Invitation revoked."
-          : "Could not revoke invitation.";
+          : "Could not revoke invitation.", !response.ok);
         if (response.ok) await loadAdmin();
       }
 
@@ -3377,7 +3882,7 @@
               const dateSectionKey = n.pinned
                 ? "pinned"
                 : `date:${formatLocalDateKey(n.created_at)}`;
-              const sectionCollapsed = collapsedDateSections.has(dateSectionKey);
+              const sectionCollapsed = !searchActive && collapsedDateSections.has(dateSectionKey);
               renderedNotes += `
                 <section class="date-group ${dateSection === "Pinned" ? "pinned-section" : ""} ${sectionCollapsed ? "is-collapsed" : ""}" aria-labelledby="date-section-${dateSectionIndex}">
                   <h3 class="date-section-heading" id="date-section-${dateSectionIndex}">
@@ -3471,7 +3976,7 @@
       function buildSearchURL() {
         const params = new URLSearchParams();
         const query = document.getElementById("search-query").value;
-        const scope = document.getElementById("search-scope").value;
+        const scope = selectedSearchScope();
         const from = document.getElementById("search-from").value;
         const to = document.getElementById("search-to").value;
 
@@ -3486,9 +3991,13 @@
         return new URL(`/api/notes/search-page?${params.toString()}`, location.origin);
       }
 
+      function syncSearchClear() {
+        document.getElementById("search-clear").hidden = !document.getElementById("search-query").value;
+      }
+
       function captureSearchHighlight() {
         highlightQuery = document.getElementById("search-query").value.trim();
-        highlightScope = document.getElementById("search-scope").value;
+        highlightScope = selectedSearchScope();
         highlightMatchCase = document.getElementById("search-match-case").checked;
       }
 
@@ -3552,14 +4061,14 @@
         if (!query) {
           highlightQuery = "";
           if (searchActive && !calendarActive) {
-            searchActive = false;
-            activeSearchURL = "";
-            saveUIState();
-            document.getElementById("search-status").textContent = "";
             if (notesLoading) {
               liveSearchTimer = setTimeout(runLiveSearch, 100);
               return;
             }
+            searchActive = false;
+            activeSearchURL = "";
+            saveUIState();
+            document.getElementById("search-status").textContent = "";
             await loadNotes();
           }
           return;
@@ -3629,7 +4138,7 @@
         fromInput.value = "2025-01-01";
         toInput.defaultValue = localToday;
         toInput.value = localToday;
-        document.getElementById("calendar-date").value = localToday;
+        document.getElementById("calendar-date").value = "";
       }
 
       function observeNoteCards() {
@@ -4881,6 +5390,11 @@
 
       document.getElementById("search-form").addEventListener("input", saveUIState);
       document.getElementById("search-form").addEventListener("change", saveUIState);
+      document.getElementById("search-more-toggle").addEventListener("click", () => {
+        const panel = document.getElementById("search-more-panel");
+        panel.hidden = !panel.hidden;
+        document.getElementById("search-more-toggle").setAttribute("aria-expanded", String(!panel.hidden));
+      });
 
       document.getElementById("search-form").addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -4888,8 +5402,23 @@
         await runTextSearch(true);
       });
 
-      document.getElementById("search-query").addEventListener("input", scheduleLiveSearch);
-      document.getElementById("search-scope").addEventListener("change", () => {
+      document.getElementById("search-query").addEventListener("input", () => {
+        syncSearchClear();
+        scheduleLiveSearch();
+      });
+      document.getElementById("search-clear").addEventListener("click", async () => {
+        clearTimeout(liveSearchTimer);
+        const query = document.getElementById("search-query");
+        query.value = "";
+        syncSearchClear();
+        await runLiveSearch();
+        query.focus();
+      });
+      document.getElementById("search-scope-options").addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-scope]");
+        if (!button) return;
+        setSearchScope(button.dataset.scope);
+        saveUIState();
         if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
       });
       document.getElementById("search-match-case").addEventListener("change", () => {
@@ -4905,6 +5434,8 @@
       async function showRecentNotes() {
         clearTimeout(liveSearchTimer);
         document.getElementById("search-form").reset();
+        setSearchScope("all");
+        syncSearchClear();
         setDefaultSearchDates();
         document.getElementById("search-status").textContent = "";
         searchActive = false;
@@ -4942,7 +5473,17 @@
         }
       }
 
-      document.getElementById("calendar-open").addEventListener("click", openCalendarDate);
+      function showCalendarPicker() {
+        const input = document.getElementById("calendar-date");
+        input.focus();
+        try { if (input.showPicker) input.showPicker(); else input.click(); } catch { input.click(); }
+      }
+
+      document.getElementById("calendar-pick").addEventListener("click", showCalendarPicker);
+      document.getElementById("calendar-open").addEventListener("click", () => {
+        if (!document.getElementById("calendar-date").value) showCalendarPicker();
+        else openCalendarDate();
+      });
       document.getElementById("calendar-date").addEventListener("change", openCalendarDate);
       document.getElementById("calendar-clear").addEventListener("click", showRecentNotes);
       document.getElementById("search-all").addEventListener("click", showRecentNotes);
@@ -5033,22 +5574,51 @@
         if (row) openArchiveRange(row);
       });
 
-      function closeViewMenu() {
-        document.getElementById("view-control").classList.remove("is-open");
-        document.getElementById("view-toggle").setAttribute("aria-expanded", "false");
+      function closeViewMenu(returnFocus = false) {
+        const control = document.getElementById("view-control");
+        const wasOpen = control.classList.contains("is-open");
+        control.classList.remove("is-open");
+        document.body.classList.remove("controls-drawer-open");
+        const menu = document.getElementById("view-menu");
+        menu.removeAttribute("role");
+        menu.removeAttribute("aria-modal");
+        const toggle = document.getElementById("view-toggle");
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.setAttribute("aria-label", "Open controls menu");
+        toggle.title = "Open controls menu";
+        if (returnFocus && wasOpen) toggle.focus();
       }
 
       document.getElementById("view-toggle").addEventListener("click", () => {
         const control = document.getElementById("view-control");
         const shouldOpen = !control.classList.contains("is-open");
-        control.classList.toggle("is-open", shouldOpen);
-        document.getElementById("view-toggle").setAttribute("aria-expanded", String(shouldOpen));
-        if (shouldOpen) {
-          closeSearchPanel();
-          closeTrashPanel();
-          document.getElementById("markdown-help").open = false;
-          document.getElementById("account-control").open = false;
+        if (!shouldOpen) return closeViewMenu();
+        control.classList.add("is-open");
+        const toggle = document.getElementById("view-toggle");
+        toggle.setAttribute("aria-expanded", "true");
+        toggle.setAttribute("aria-label", "Close controls menu");
+        toggle.title = "Close controls menu";
+        closeSearchPanel();
+        closeTrashPanel();
+        document.getElementById("markdown-help").open = false;
+        document.getElementById("account-control").open = false;
+        if (matchMedia("(max-width: 560px)").matches) {
+          document.body.classList.add("controls-drawer-open");
+          const menu = document.getElementById("view-menu");
+          menu.setAttribute("role", "dialog");
+          menu.setAttribute("aria-modal", "true");
+          document.getElementById("view-menu-close").focus();
         }
+      });
+
+      document.getElementById("view-backdrop").addEventListener("click", () => closeViewMenu(true));
+      document.getElementById("view-menu-close").addEventListener("click", () => closeViewMenu(true));
+
+      document.getElementById("font-choices").addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-font]");
+        if (!button) return;
+        applyFontMode(button.dataset.font);
+        saveUIState();
       });
 
       document.getElementById("trash-toggle").addEventListener("click", () => {
@@ -5089,8 +5659,21 @@
         const accountControl = document.getElementById("account-control");
         if (!accountControl.contains(event.target) && accountControl.open) {
           accountControl.open = false;
+          document.getElementById("markdown-help").open = false;
           saveUIState();
         }
+
+        const adminPanel = document.getElementById("admin-panel");
+        if (!adminPanel.hidden && !adminPanel.contains(event.target) &&
+            !document.getElementById("admin-open").contains(event.target)) closeAdminPanel();
+
+        const profilePanel = document.getElementById("profile-panel");
+        if (!profilePanel.hidden && !profilePanel.contains(event.target) &&
+            !document.getElementById("account-menu-username").contains(event.target)) closeProfilePanel();
+
+        const helpPanel = document.getElementById("help-panel");
+        if (!helpPanel.hidden && !helpPanel.contains(event.target) &&
+            !document.getElementById("help-open").contains(event.target)) closeHelpPanel();
 
         const archivePanel = document.getElementById("archive-panel");
         if (
@@ -5147,15 +5730,31 @@
       });
 
       document.addEventListener("keydown", (event) => {
+        if (event.key === "Tab" && document.body.classList.contains("controls-drawer-open")) {
+          const buttons = [...document.querySelectorAll("#view-menu button")]
+            .filter((button) => button.getClientRects().length && !button.disabled);
+          const first = buttons[0];
+          const last = buttons[buttons.length - 1];
+          if (first && (event.shiftKey && document.activeElement === first)) {
+            event.preventDefault();
+            last.focus();
+          } else if (last && !event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
         if (event.key === "Escape") {
           closeFormattingToolbars();
-          closeViewMenu();
+          closeViewMenu(true);
           closeTrashPanel();
           closeSearchPanel();
           closeHiddenNotesPanel();
           closeArchiveOverview();
           closeAdminPanel();
+          closeProfilePanel();
+          closeHelpPanel();
           document.getElementById("account-control").open = false;
+          document.getElementById("markdown-help").open = false;
           saveUIState();
         }
 
@@ -5174,7 +5773,18 @@
       });
 
       document.getElementById("account-control").addEventListener("toggle", (event) => {
-        if (!event.target.open) document.getElementById("markdown-help").open = false;
+        if (event.target.open) {
+          closeViewMenu();
+          closeSearchPanel();
+          closeTrashPanel();
+          closeHiddenNotesPanel();
+          closeArchiveOverview();
+          closeAdminPanel();
+          closeProfilePanel();
+          closeHelpPanel();
+        } else {
+          document.getElementById("markdown-help").open = false;
+        }
         saveUIState();
       });
       document.getElementById("markdown-guide-close").addEventListener("click", () => {
@@ -5224,10 +5834,56 @@
 
       document.getElementById("admin-open").addEventListener("click", async () => {
         document.getElementById("account-control").open = false;
+        closeProfilePanel();
+        closeHelpPanel();
         document.getElementById("admin-panel").hidden = false;
         saveUIState();
         await loadAdmin();
       });
+
+      async function openProfilePanel() {
+        closeAdminPanel();
+        closeHelpPanel();
+        closeArchiveOverview();
+        document.getElementById("account-control").open = false;
+        document.getElementById("profile-panel").hidden = false;
+        document.getElementById("profile-heading").textContent = currentUser.username;
+        document.getElementById("profile-role").textContent = `${currentUser.role === "admin" ? "Admin" : "User"} · Signed in`;
+        for (const id of ["profile-joined", "profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
+          document.getElementById(id).textContent = "Loading…";
+        }
+        try {
+          const response = await apiFetch("/api/auth/me");
+          if (!response.ok) throw new Error("Profile unavailable");
+          const profile = await response.json();
+          document.getElementById("profile-joined").textContent = formatAdminTime(profile.created_at);
+          document.getElementById("profile-last-signin").textContent = formatAdminTime(profile.last_login_at);
+          document.getElementById("profile-active-notes").textContent = String(profile.active_note_count ?? 0);
+          document.getElementById("profile-recycled-notes").textContent = String(profile.recycled_note_count ?? 0);
+        } catch {
+          document.getElementById("profile-joined").textContent = "Could not load profile";
+          for (const id of ["profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
+            document.getElementById(id).textContent = "—";
+          }
+        }
+      }
+
+      function closeProfilePanel() { document.getElementById("profile-panel").hidden = true; }
+
+      function openHelpPanel() {
+        closeAdminPanel();
+        closeProfilePanel();
+        closeArchiveOverview();
+        document.getElementById("account-control").open = false;
+        document.getElementById("help-panel").hidden = false;
+      }
+
+      function closeHelpPanel() { document.getElementById("help-panel").hidden = true; }
+
+      document.getElementById("account-menu-username").addEventListener("click", openProfilePanel);
+      document.getElementById("help-open").addEventListener("click", openHelpPanel);
+      document.getElementById("profile-close").addEventListener("click", closeProfilePanel);
+      document.getElementById("help-close").addEventListener("click", closeHelpPanel);
 
       function closeAdminPanel() {
         const panel = document.getElementById("admin-panel");
@@ -5245,9 +5901,9 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ enabled: event.target.checked }),
         });
-        document.getElementById("admin-status").textContent = response.ok
+        setAdminStatus(response.ok
           ? `Signups ${event.target.checked ? "enabled" : "disabled"}.`
-          : "Could not update signups.";
+          : "Could not update signups.", !response.ok);
         if (!response.ok) event.target.checked = !event.target.checked;
         document.getElementById("signups-state").textContent = event.target.checked ? "Open" : "Closed";
       });
@@ -5256,6 +5912,12 @@
         const button = event.target.closest("[data-user-filter]");
         if (!button) return;
         adminUserFilter = button.dataset.userFilter;
+        renderAdminUsers();
+        saveUIState();
+      });
+
+      document.getElementById("admin-user-sort").addEventListener("change", (event) => {
+        adminUserSort = event.target.value;
         renderAdminUsers();
         saveUIState();
       });

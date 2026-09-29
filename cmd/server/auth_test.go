@@ -287,6 +287,42 @@ func getTestDraft(t *testing.T, login testLogin) string {
 	return response.Body.String()
 }
 
+func TestMeProfileIncludesOwnDatesAndNoteCounts(t *testing.T) {
+	db.InitDB(filepath.Join(t.TempDir(), "profile.db"))
+	t.Cleanup(func() { db.DB.Close() })
+	rick := registerTestUser(t, "rick", "correct horse battery staple")
+	var userID int
+	if err := db.DB.QueryRow("SELECT id FROM users WHERE username = 'rick'").Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if _, err := db.DB.Exec("INSERT INTO notes (user_id, title, content, created_at) VALUES (?, 'active', 'body', ?)", userID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.DB.Exec("INSERT INTO notes (user_id, title, content, created_at, deleted_at) VALUES (?, 'recycled', 'body', ?, ?)", userID, now, now); err != nil {
+		t.Fatal(err)
+	}
+
+	response := authenticatedRequest(t, protect(meHandler, false), http.MethodGet, "/api/auth/me", "", rick, false)
+	if response.Code != http.StatusOK {
+		t.Fatalf("profile status = %d: %s", response.Code, response.Body.String())
+	}
+	var profile struct {
+		Username      string `json:"username"`
+		Role          string `json:"role"`
+		CreatedAt     string `json:"created_at"`
+		LastLoginAt   string `json:"last_login_at"`
+		ActiveNotes   int    `json:"active_note_count"`
+		RecycledNotes int    `json:"recycled_note_count"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &profile); err != nil {
+		t.Fatal(err)
+	}
+	if profile.Username != "rick" || profile.Role != "admin" || profile.CreatedAt == "" || profile.LastLoginAt == "" || profile.ActiveNotes != 1 || profile.RecycledNotes != 1 {
+		t.Fatalf("unexpected profile: %+v", profile)
+	}
+}
+
 func registerTestUser(t *testing.T, username, password string) testLogin {
 	t.Helper()
 	body, _ := json.Marshal(credentials{Username: username, Password: password})

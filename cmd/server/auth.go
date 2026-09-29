@@ -360,13 +360,33 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session := sessionFromContext(r)
+	var joinedAt string
+	var lastLogin sql.NullString
+	var activeNotes, recycledNotes int
+	err := db.DB.QueryRow(`
+		SELECT users.created_at, users.last_login_at,
+			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NULL),
+			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NOT NULL)
+		FROM users WHERE users.id = ?`, session.UserID,
+	).Scan(&joinedAt, &lastLogin, &activeNotes, &recycledNotes)
+	if err != nil {
+		http.Error(w, "Could not load profile", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"username":   session.Username,
-		"role":       session.Role,
-		"csrf_token": session.CSRFToken,
-	})
+	profile := map[string]any{
+		"username":            session.Username,
+		"role":                session.Role,
+		"csrf_token":          session.CSRFToken,
+		"created_at":          joinedAt,
+		"active_note_count":   activeNotes,
+		"recycled_note_count": recycledNotes,
+	}
+	if lastLogin.Valid {
+		profile["last_login_at"] = lastLogin.String
+	}
+	json.NewEncoder(w).Encode(profile)
 }
 
 func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, username, role string) {
