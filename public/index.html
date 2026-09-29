@@ -1196,6 +1196,17 @@
         background: var(--edit-button-hover);
       }
 
+      .note-card.is-editing .edit-btn {
+        width: 40px;
+        height: 40px;
+        background: #e9e4da;
+        color: var(--ink);
+      }
+
+      .note-card.is-editing .note-actions {
+        opacity: 1;
+      }
+
       .pin-btn {
         border: 1px solid var(--line);
         background: transparent;
@@ -1254,10 +1265,29 @@
         background: var(--delete-button-hover);
       }
 
-      .note-action .icon,
-      .editor-action .icon {
+      .note-action .icon {
         width: 16px;
         height: 16px;
+      }
+
+      .edit-btn .edit-close-icon,
+      .note-card.is-editing .edit-btn .edit-pencil-icon {
+        display: none;
+      }
+
+      .note-card.is-editing .edit-btn .edit-close-icon {
+        display: block;
+      }
+
+      .note-card.is-editing .pin-btn,
+      .note-card.is-editing .hide-note-btn,
+      .note-card.is-editing .delete-btn,
+      .note-card.is-editing .note-action-divider {
+        display: none;
+      }
+
+      #notes-list.controls-hidden .note-card.is-editing .note-actions {
+        display: flex;
       }
 
       .note-content[hidden],
@@ -1267,26 +1297,27 @@
       }
 
       .note-editor {
-        margin-top: 14px;
-        padding-right: 8px;
+        width: 100%;
+        margin-top: 8px;
         text-align: left;
       }
 
       .edit-title {
-        padding: 0 10px 10px;
+        padding: 0 2px 8px;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 1.55rem;
+        font-size: 1.35rem;
       }
 
       .edit-content {
         min-height: 96px;
         max-height: 320px;
-        margin-top: 16px;
-        padding: 0 10px 12px;
+        margin-top: 10px;
+        padding: 0 2px 10px;
         overflow-y: hidden;
         resize: none;
         font: inherit;
-        line-height: 1.65;
+        font-size: 0.94rem;
+        line-height: 1.55;
       }
 
       .editor-actions {
@@ -1294,31 +1325,13 @@
         align-items: center;
         justify-content: flex-end;
         gap: 8px;
-        margin-top: 14px;
+        margin-top: 6px;
       }
 
       .edit-hint {
         margin-right: auto;
         color: var(--muted);
         font-size: 0.7rem;
-      }
-
-      .editor-action {
-        display: grid;
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 50%;
-        background: transparent;
-        color: var(--muted);
-        cursor: pointer;
-      }
-
-      .editor-action:hover {
-        background: #e9e4da;
-        color: var(--ink);
       }
 
       .date {
@@ -3397,11 +3410,13 @@
                     <span class="visually-hidden">${n.pinned ? "Unpin" : "Pin"} note</span>
                   </button>
                   <button class="note-action edit-btn" onclick="editNote(${n.id})" aria-label="Edit note" title="Edit note">
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg class="icon edit-pencil-icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="m4 20 4.2-1 10.9-10.9a2.1 2.1 0 0 0-3-3L5.2 16Z" />
                       <path d="m14.8 6.4 2.8 2.8M4 20l1.2-4" />
                     </svg>
-                    <span class="visually-hidden">Edit note</span>
+                    <svg class="icon edit-close-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m6 6 12 12M18 6 6 18" />
+                    </svg>
                   </button>
                   <button class="note-action hide-note-btn" onclick="hideNote(${n.id})" aria-label="Hide note" title="Hide note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -3428,11 +3443,8 @@
                   <input class="edit-title" id="edit-title-${n.id}" aria-label="Edit note title" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" />
                   <textarea class="edit-content" id="edit-content-${n.id}" aria-label="Edit note content" oninput="handleEditInput(event, ${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
                   <div class="editor-actions">
-                    <span class="edit-hint">Autosaves · Ctrl/⌘ + Enter to close</span>
+                    <span class="edit-hint" role="status" aria-live="polite"></span>
                     ${formattingToolbarHTML(`edit-content-${n.id}`, `edit-format-${n.id}`)}
-                    <button class="editor-action" type="button" onclick="updateNote(${n.id})" aria-label="Close editor" title="Save and close editor">
-                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
-                    </button>
                   </div>
                 </div>
             </article>`;
@@ -4616,6 +4628,11 @@
         contentInput.value = note.content;
         view.hidden = true;
         editor.hidden = false;
+        const card = document.getElementById(`note-${id}`);
+        card.classList.add("is-editing");
+        const editButton = card.querySelector(".edit-btn");
+        editButton.setAttribute("aria-label", "Save and close editor");
+        editButton.title = "Save and close editor";
         resizeTextareaToContent(contentInput);
         editingNoteId = id;
         rememberEditingNote(id);
@@ -4631,7 +4648,7 @@
       }
 
       async function editNote(id) {
-        if (editingNoteId === id) return;
+        if (editingNoteId === id) return updateNote(id);
         if (editingNoteId !== null) {
           const saved = await updateNote(editingNoteId);
           if (!saved) return;
@@ -4673,7 +4690,7 @@
             body: JSON.stringify(edit),
           });
           const hint = document.getElementById(`note-editor-${id}`)?.querySelector(".edit-hint");
-          if (hint) hint.textContent = response.ok ? "Saved · Ctrl/⌘ + Enter to close" : "Could not autosave";
+          if (hint) hint.textContent = response.ok ? "Saved" : "Could not autosave";
           if (response.ok && loadedNotes.has(id)) Object.assign(loadedNotes.get(id), edit);
           return response.ok;
         });
