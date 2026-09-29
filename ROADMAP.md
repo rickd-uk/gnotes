@@ -1,10 +1,10 @@
 # gnotes roadmap
 
-Last reviewed: 2026-09-22
+Last reviewed: 2026-09-29
 
 ## Current production milestone
 
-`v0.6.0` is deployed at `https://gnotes.rickd.dev` on a single Ubuntu server behind Nginx and TLS. The application runs under systemd with SQLite in WAL mode, daily validated local backups, checksum-verified releases, health checks, and automatic application rollback during failed updates.
+`v0.6.8` is deployed at `https://gnotes.rickd.dev` on a single Ubuntu server behind Nginx and TLS. The application runs under systemd with SQLite in WAL mode, daily validated local backups, checksum-verified releases, health checks, and automatic application rollback during failed updates.
 
 The current release includes:
 
@@ -59,6 +59,7 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 
 ## Product backlog
 
+- Add durable note archiving for one note, selected notes, or all active notes. Archived notes should leave the main notes view but remain accessible in an Archived view, with individual and bulk restore. This is distinct from temporary Hide and from the recycle bin. Confirm before archiving all notes.
 - Opt-in encrypted offline reading and editing with explicit synchronization state.
 - Interactive task-checkbox toggling from rendered notes.
 - Import and export in Markdown and a machine-readable archive format.

@@ -135,7 +135,8 @@
         padding: 6px;
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: var(--paper);
+        background: rgb(244 241 234 / var(--controls-opacity, 0.88));
+        backdrop-filter: blur(3px);
         box-shadow: 0 16px 38px rgba(51, 45, 35, 0.18);
       }
 
@@ -145,8 +146,7 @@
       }
 
       .view-backdrop,
-      .view-menu-header,
-      .view-burger-icon {
+      .view-menu-header {
         display: none;
       }
 
@@ -209,6 +209,28 @@
 
       .font-choices button[data-font="writer"] { font-family: Georgia, "Times New Roman", serif; }
       .font-choices button[data-font="clean"] { font-family: Arial, sans-serif; }
+
+      .menu-opacity-control {
+        display: grid;
+        gap: 3px;
+        padding: 7px 10px 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .menu-opacity-control label {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      .menu-opacity-control input {
+        width: 100%;
+        margin: 0;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
 
       .account-control > summary .icon {
         width: 18px;
@@ -639,7 +661,8 @@
         display: none;
       }
 
-      #controls-toggle[aria-pressed="true"] .tools-slash {
+      #controls-toggle[aria-pressed="true"] .tools-slash,
+      #controls-toggle[aria-pressed="mixed"] .tools-slash {
         display: block;
       }
 
@@ -648,6 +671,32 @@
         color: var(--muted);
         font-size: 0.72rem;
       }
+
+      .tool-visibility {
+        padding: 2px 5px 8px 16px;
+      }
+
+      .tool-visibility .tool-choice {
+        display: flex;
+        width: 100%;
+        min-height: 38px;
+        align-items: center;
+        gap: 10px;
+        padding: 3px 8px;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 0.78rem;
+        text-align: left;
+      }
+
+      .tool-choice:hover { background: #e9e5dc; }
+      .tool-choice .icon { width: 17px; height: 17px; flex-shrink: 0; }
+      .tool-choice .tool-state { margin-left: auto; color: var(--muted); font-size: 0.69rem; }
+      .tool-choice[aria-pressed="false"] { color: var(--muted); }
+      .tool-choice[aria-pressed="false"] .icon { opacity: 0.55; }
 
       .notes-toggle,
       .toolbar-button {
@@ -1261,6 +1310,8 @@
         transform: translateY(0);
       }
 
+      .note-card.actions-expanded { z-index: 2; opacity: 1; }
+
       .newest-note {
         background: linear-gradient(
           90deg,
@@ -1294,12 +1345,54 @@
       }
 
       .note-actions {
+        position: relative;
         display: flex;
         flex-shrink: 0;
         align-items: center;
-        gap: 7px;
-        opacity: 0.62;
+        gap: 5px;
+        opacity: 0.82;
         transition: opacity 140ms ease;
+      }
+
+      .note-actions-toggle {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        background: #eeeae2;
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .note-actions-toggle[aria-expanded="true"] { background: #dce8e2; color: var(--accent); }
+
+      .note-tools {
+        position: absolute;
+        z-index: 3;
+        top: calc(100% + 4px);
+        right: 0;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        box-shadow: 0 9px 22px rgba(51, 45, 35, 0.16);
+      }
+      .note-actions:not(.is-open) .note-tools { display: none; }
+      .note-card.is-editing .note-actions-toggle { display: none; }
+      .note-card.is-editing .note-tools {
+        position: static;
+        display: flex;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
       }
 
       .note-safe-actions {
@@ -1427,10 +1520,6 @@
       .note-card.is-editing .delete-btn,
       .note-card.is-editing .note-action-divider {
         display: none;
-      }
-
-      #notes-list.controls-hidden .note-card.is-editing .note-actions {
-        display: flex;
       }
 
       .note-content[hidden],
@@ -1606,9 +1695,25 @@
         display: none;
       }
 
-      #notes-list.controls-hidden .note-actions {
+      #notes-list.tool-pin-hidden .pin-btn,
+      #notes-list.tool-edit-hidden .edit-btn,
+      #notes-list.tool-hide-hidden .hide-note-btn,
+      #notes-list.tool-delete-hidden .delete-btn,
+      #notes-list.tool-divider-hidden .note-action-divider {
         display: none;
       }
+
+      #notes-list.tool-safe-hidden .note-safe-actions { display: none; }
+
+      #notes-list .note-card.is-editing .edit-btn,
+      #notes-list.tool-edit-hidden .note-card.is-editing .edit-btn {
+        display: grid;
+      }
+
+      #notes-list .note-card.is-editing .note-safe-actions { display: flex; }
+
+      #notes-list.tool-all-hidden .note-actions { display: none; }
+      #notes-list.tool-all-hidden .note-card.is-editing .note-actions { display: flex; }
 
       #notes-list.density-compact .note-card {
         padding-top: 11px;
@@ -1639,14 +1744,22 @@
 
       #notes-list.density-titles .note-card {
         min-height: 48px;
-        padding: 13px 180px 13px 12px;
+        padding: 13px 54px 13px 12px;
       }
+
+      #notes-list.density-titles .note-card.is-editing { padding-right: 12px; }
 
       #notes-list.density-titles .note-top-row {
         position: absolute;
         top: 50%;
         right: 0;
         transform: translateY(-50%);
+      }
+
+      #notes-list.density-titles .note-card.is-editing .note-top-row {
+        position: static;
+        transform: none;
+        justify-content: flex-end;
       }
 
       #notes-list.density-titles .date-row,
@@ -1667,7 +1780,7 @@
         white-space: nowrap;
       }
 
-      #notes-list.density-titles.controls-hidden .note-card {
+      #notes-list.density-titles.tool-all-hidden .note-card {
         padding-right: 12px;
       }
 
@@ -2456,6 +2569,21 @@
         font-size: 0.72rem;
       }
 
+      @media (min-width: 561px) {
+        .site-header { padding: 12px 20px 13px; }
+        .site-header h1 { font-size: clamp(2rem, 4.8vw, 2.5rem); }
+        .view-toggle, .search-toggle, .trash-toggle { width: 48px; height: 48px; }
+        .account-control > summary { min-height: 48px; }
+        .header-actions .icon { width: 27px; height: 27px; }
+        .view-menu .icon { width: 22px; height: 22px; }
+        .tool-choice .icon { width: 19px; height: 19px; }
+        .note-action { width: 36px; height: 36px; }
+        .note-action .icon { width: 18px; height: 18px; }
+        .note-actions-toggle { width: 36px; height: 36px; font-size: 1.35rem; }
+        .scope-choice .icon { width: 18px; height: 18px; }
+        .calendar-pick .icon { width: 22px; height: 22px; }
+      }
+
       @media (max-width: 560px) {
         body.controls-drawer-open {
           overflow: hidden;
@@ -2559,14 +2687,6 @@
           left: 8px;
         }
 
-        .view-slider-icon {
-          display: none;
-        }
-
-        .view-burger-icon {
-          display: block;
-        }
-
         .header-actions {
           gap: 2px;
           flex-shrink: 0;
@@ -2610,7 +2730,7 @@
           height: 100dvh;
           padding: 0;
           border: 0;
-          background: rgba(36, 35, 31, 0.28);
+          background: rgba(36, 35, 31, 0.12);
         }
 
         .view-menu-header {
@@ -2846,9 +2966,6 @@
                 <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" />
                 <circle cx="10" cy="17" r="2" fill="currentColor" stroke="none" />
               </svg>
-              <svg class="icon view-burger-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
             </button>
             <button class="view-backdrop" id="view-backdrop" type="button" tabindex="-1" aria-label="Close controls menu"></button>
             <div class="view-menu" id="view-menu">
@@ -2856,14 +2973,32 @@
             <strong>Controls</strong>
             <button class="view-menu-close" id="view-menu-close" type="button" aria-label="Close controls menu">×</button>
           </div>
-          <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide note controls" title="Hide note controls">
+          <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide all note tools" title="Hide all note tools">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="6" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="18" cy="12" r="1" />
               <path class="tools-slash" d="m4 4 16 16" />
             </svg>
             <span>Tools</span>
-            <span class="tools-state" id="controls-state" aria-hidden="true">Visible</span>
+            <span class="tools-state" id="controls-state" aria-hidden="true">All shown</span>
           </button>
+          <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Show note tools">
+            <button class="tool-choice" type="button" data-tool="pin" aria-pressed="true" aria-label="Show Pin tool">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" /></svg><span>Pin</span><span class="tool-state" aria-hidden="true">Shown</span>
+            </button>
+            <button class="tool-choice" type="button" data-tool="edit" aria-pressed="true" aria-label="Show Edit tool">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10.9-10.9a2.1 2.1 0 0 0-3-3L5.2 16Z" /><path d="m14.8 6.4 2.8 2.8M4 20l1.2-4" /></svg><span>Edit</span><span class="tool-state" aria-hidden="true">Shown</span>
+            </button>
+            <button class="tool-choice" type="button" data-tool="hide" aria-pressed="true" aria-label="Show Hide tool">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg><span>Hide</span><span class="tool-state" aria-hidden="true">Shown</span>
+            </button>
+            <button class="tool-choice" type="button" data-tool="delete" aria-pressed="true" aria-label="Show Delete tool">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" /></svg><span>Delete</span><span class="tool-state" aria-hidden="true">Shown</span>
+            </button>
+          </div>
+          <div class="menu-opacity-control">
+            <label for="menu-opacity">Menu opacity <span id="menu-opacity-value">88%</span></label>
+            <input type="range" id="menu-opacity" min="70" max="100" value="88" aria-label="Menu opacity" />
+          </div>
           <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 7h14M5 12h14M5 17h14" />
@@ -3223,6 +3358,9 @@
       const densityModes = ["full", "compact", "titles"];
       let densityIndex = 0;
       let fontMode = "balanced";
+      const noteTools = ["pin", "edit", "hide", "delete"];
+      let visibleTools = new Set(noteTools);
+      let menuOpacity = 88;
       let searchActive = false;
       let activeSearchURL = "";
       let calendarActive = false;
@@ -3257,7 +3395,8 @@
           adminOpen: !document.getElementById("admin-panel").hidden,
           archiveOpen: !document.getElementById("archive-panel").hidden,
           notesVisible: !notesList.hidden,
-          controlsHidden: notesList.classList.contains("controls-hidden"),
+          visibleTools: noteTools.filter((tool) => visibleTools.has(tool)),
+          menuOpacity,
           densityIndex,
           fontMode,
           adminUserFilter,
@@ -3288,14 +3427,38 @@
         toggle.title = visible ? "Hide notes" : "Show notes";
       }
 
-      function setControlsHidden(hidden) {
-        document.getElementById("notes-list").classList.toggle("controls-hidden", hidden);
+      function applyVisibleTools(tools) {
+        visibleTools = new Set(Array.isArray(tools) ? tools.filter((tool) => noteTools.includes(tool)) : noteTools);
+        const notesList = document.getElementById("notes-list");
+        noteTools.forEach((tool) => notesList.classList.toggle(`tool-${tool}-hidden`, !visibleTools.has(tool)));
+        const safeShown = ["pin", "edit", "hide"].some((tool) => visibleTools.has(tool));
+        notesList.classList.toggle("tool-safe-hidden", !safeShown);
+        notesList.classList.toggle("tool-divider-hidden", !safeShown || !visibleTools.has("delete"));
+        notesList.classList.toggle("tool-all-hidden", visibleTools.size === 0);
+        if (visibleTools.size === 0) {
+          notesList.querySelectorAll(".note-card.actions-expanded").forEach((card) => setNoteActionsOpen(card, false));
+        }
+        document.querySelectorAll("#tool-visibility .tool-choice").forEach((button) => {
+          const shown = visibleTools.has(button.dataset.tool);
+          button.setAttribute("aria-pressed", String(shown));
+          button.setAttribute("aria-label", `${shown ? "Hide" : "Show"} ${button.dataset.tool} tool`);
+          button.querySelector(".tool-state").textContent = shown ? "Shown" : "Hidden";
+        });
         const toggle = document.getElementById("controls-toggle");
-        toggle.setAttribute("aria-pressed", String(hidden));
-        const action = hidden ? "Show" : "Hide";
-        toggle.setAttribute("aria-label", `${action} note controls`);
-        toggle.title = `${action} note controls`;
-        document.getElementById("controls-state").textContent = hidden ? "Hidden" : "Visible";
+        const allShown = visibleTools.size === noteTools.length;
+        const allHidden = visibleTools.size === 0;
+        toggle.setAttribute("aria-pressed", allHidden ? "true" : allShown ? "false" : "mixed");
+        toggle.setAttribute("aria-label", `${allShown ? "Hide" : "Show"} all note tools`);
+        toggle.title = `${allShown ? "Hide" : "Show"} all note tools`;
+        document.getElementById("controls-state").textContent = allShown ? "All shown" : allHidden ? "All hidden" : "Some hidden";
+      }
+
+      function applyMenuOpacity(value) {
+        const parsed = Number(value);
+        menuOpacity = Number.isFinite(parsed) ? Math.max(70, Math.min(100, Math.round(parsed))) : 88;
+        document.getElementById("view-menu").style.setProperty("--controls-opacity", String(menuOpacity / 100));
+        document.getElementById("menu-opacity").value = String(menuOpacity);
+        document.getElementById("menu-opacity-value").textContent = `${menuOpacity}%`;
       }
 
       function applyDensityMode(index) {
@@ -3364,7 +3527,8 @@
         document.getElementById("admin-panel").hidden = !(state.adminOpen && currentUser.role === "admin");
         document.getElementById("archive-panel").hidden = !state.archiveOpen;
         setNotesVisibility(state.notesVisible !== false);
-        setControlsHidden(Boolean(state.controlsHidden));
+        applyVisibleTools(state.visibleTools);
+        applyMenuOpacity(state.menuOpacity);
         applyDensityMode(Number(state.densityIndex));
         applyFontMode(state.fontMode);
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
@@ -3907,6 +4071,8 @@
                   <time class="date" datetime="${escapeHTML(n.created_at)}">${n.pinned ? `${formatDateSection(n.created_at, now)} · ` : ""}${formatNoteTime(n.created_at)}</time>
                 </div>
                 <div class="note-actions">
+                  <button class="note-actions-toggle" type="button" onclick="toggleNoteActions(${n.id})" aria-controls="note-tools-${n.id}" aria-expanded="false" aria-label="Show tools for this note" title="Show note tools">…</button>
+                  <div class="note-tools" id="note-tools-${n.id}">
                   <div class="note-safe-actions">
                   <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -3938,6 +4104,7 @@
                     </svg>
                     <span class="visually-hidden">Delete note</span>
                   </button>
+                  </div>
                 </div>
               </div>
                 <div class="note-view" id="note-view-${n.id}">
@@ -5156,6 +5323,25 @@
         if (id) openNoteEditor(id, false);
       }
 
+      function setNoteActionsOpen(card, isOpen) {
+        const actions = card.querySelector(".note-actions");
+        if (!actions) return;
+        actions.classList.toggle("is-open", isOpen);
+        card.classList.toggle("actions-expanded", isOpen);
+        const toggle = actions.querySelector(".note-actions-toggle");
+        toggle.setAttribute("aria-expanded", String(isOpen));
+        toggle.setAttribute("aria-label", `${isOpen ? "Hide" : "Show"} tools for this note`);
+        toggle.title = `${isOpen ? "Hide" : "Show"} note tools`;
+      }
+
+      function toggleNoteActions(id) {
+        const card = document.getElementById(`note-${id}`);
+        if (!card) return;
+        const shouldOpen = !card.querySelector(".note-actions").classList.contains("is-open");
+        document.querySelectorAll(".note-card.actions-expanded").forEach((openCard) => setNoteActionsOpen(openCard, false));
+        if (shouldOpen) setNoteActionsOpen(card, true);
+      }
+
       async function editNote(id) {
         if (editingNoteId === id) return updateNote(id);
         if (editingNoteId !== null) {
@@ -5329,9 +5515,22 @@
       });
 
       document.getElementById("controls-toggle").addEventListener("click", () => {
-        const notesList = document.getElementById("notes-list");
-        const shouldHide = !notesList.classList.contains("controls-hidden");
-        setControlsHidden(shouldHide);
+        applyVisibleTools(visibleTools.size === noteTools.length ? [] : noteTools);
+        saveUIState();
+      });
+
+      document.getElementById("tool-visibility").addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-tool]");
+        if (!button) return;
+        const next = new Set(visibleTools);
+        if (next.has(button.dataset.tool)) next.delete(button.dataset.tool);
+        else next.add(button.dataset.tool);
+        applyVisibleTools([...next]);
+        saveUIState();
+      });
+
+      document.getElementById("menu-opacity").addEventListener("input", (event) => {
+        applyMenuOpacity(event.target.value);
         saveUIState();
       });
 
@@ -5636,6 +5835,9 @@
       });
 
       document.addEventListener("click", (event) => {
+        if (!event.target.closest(".note-actions")) {
+          document.querySelectorAll(".note-card.actions-expanded").forEach((card) => setNoteActionsOpen(card, false));
+        }
         const formatControl = event.target.closest(".format-control");
         closeFormattingToolbars(formatControl);
 
