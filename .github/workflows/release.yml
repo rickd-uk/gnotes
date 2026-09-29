@@ -43,9 +43,10 @@ jobs:
           go test ./...
           go test -race ./cmd/server
           go vet ./...
-          shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/update-gnotes deploy/tests/*.sh
+          shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/restore-gnotes-podman deploy/scripts/update-gnotes deploy/scripts/update-gnotes-podman deploy/tests/*.sh
           deploy/tests/update-gnotes-test.sh
           deploy/tests/restore-gnotes-test.sh
+          deploy/tests/restore-gnotes-podman-test.sh
           deploy/tests/restore-gnotes-rehearsal.sh
 
       - name: Build and package
@@ -63,6 +64,8 @@ jobs:
           install -m 0755 deploy/scripts/update-gnotes "$package_dir/bin/update-gnotes"
           install -m 0755 deploy/scripts/check-gnotes "$package_dir/bin/check-gnotes"
           install -m 0755 deploy/scripts/restore-gnotes "$package_dir/bin/restore-gnotes"
+          install -m 0755 deploy/scripts/restore-gnotes-podman "$package_dir/bin/restore-gnotes-podman"
+          install -m 0755 deploy/scripts/update-gnotes-podman "$package_dir/bin/update-gnotes-podman"
           printf '%s\n' "$RELEASE_VERSION" > "$package_dir/VERSION"
           cp LICENSE "$package_dir/LICENSE"
 

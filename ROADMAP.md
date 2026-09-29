@@ -4,7 +4,7 @@ Last reviewed: 2026-09-29
 
 ## Current production milestone
 
-`v0.6.1` is currently deployed at `https://gnotes.rickd.dev`, while local `main` has advanced through `v0.6.15`. The application runs on a single Ubuntu server behind Nginx and TLS, with SQLite in WAL mode, daily validated local backups, checksum-verified releases, health checks, and automatic application rollback during failed updates.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -16,11 +16,11 @@ The current release includes:
 
 ## Next release: recovery tooling
 
-The recommended scope for `v0.7.0` is a safe, tested restore workflow. The command, local integration tests, and an isolated full application rehearsal are implemented; deployment verification remains.
+The recovery milestone is a safe, tested restore workflow. The systemd and Podman commands, integration tests, and an isolated full application rehearsal are implemented; production verification remains.
 
-1. [x] Add `/opt/gnotes/bin/restore-gnotes` with a verification-only mode that never modifies production.
+1. [x] Add verification-only restore commands for systemd and the Kagoya Podman deployment.
 2. [x] Validate gzip archives and run SQLite integrity and schema checks before accepting a backup.
-3. [x] For a real restore, stop gnotes, preserve the current database, install the validated replacement atomically with correct ownership and permissions, restart the service, and verify health.
+3. [x] For a real restore, stop gnotes, preserve the current database, install the validated replacement atomically with correct permissions, restart the service, and verify health.
 4. [x] Automatically restore the preserved database if the replacement cannot start cleanly.
 5. [x] Add shell tests for valid, corrupt, incomplete, and failed-health restore scenarios.
 6. [x] Document and perform a complete restore rehearsal using a temporary database and port.
@@ -31,7 +31,7 @@ Definition of done: restoring or rehearsing a backup requires one command, a cor
 
 After recovery tooling:
 
-1. Replicate backups to encrypted storage outside the application server using Restic or an equivalent audited tool.
+1. Schedule validated daily backups on Kagoya, then replicate them to encrypted storage outside the application server using Restic or an equivalent audited tool.
 2. Alert when backups are stale or fail, disk space is low, TLS approaches expiry, the service repeatedly restarts, or public health checks fail.
 3. Add privacy-conscious audit records for administrator actions and authentication security events, with a documented retention period.
 4. Periodically test restoration instead of treating backup creation alone as proof of recoverability.

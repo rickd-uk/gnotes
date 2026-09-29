@@ -1,0 +1,164 @@
+#!/bin/sh
+set -eu
+
+umask 077
+
+app_directory="${GNOTES_APP_DIRECTORY:-$HOME/apps/gnotes}"
+database_path="${DATABASE_PATH:-$app_directory/data/gnotes.db}"
+service_name="${GNOTES_SERVICE:-gnotes.service}"
+health_url="${GNOTES_HEALTH_URL:-http://127.0.0.1:8081/api/health}"
+
+usage() {
+    echo "Usage: restore-gnotes-podman --verify BACKUP.db[.gz]" >&2
+    echo "       restore-gnotes-podman --restore BACKUP.db[.gz]" >&2
+    exit 2
+}
+fail() { echo "restore-gnotes-podman: $*" >&2; exit 1; }
+
+[ "$#" -eq 2 ] || usage
+case "$1" in
+    --verify|--restore) mode="$1" ;;
+    *) usage ;;
+esac
+archive="$2"
+if [ ! -f "$archive" ] || [ -L "$archive" ]; then
+    fail "backup must be a regular file"
+fi
+for command_name in cp curl date gzip install mktemp mv python3 rm sleep systemctl; do
+    command -v "$command_name" >/dev/null 2>&1 || fail "missing command: $command_name"
+done
+if [ "$mode" = --restore ]; then
+    if [ ! -f "$database_path" ] || [ -L "$database_path" ]; then
+        fail "current database must be a regular file"
+    fi
+fi
+
+temporary_directory="$(mktemp -d /tmp/gnotes-restore.XXXXXX)"
+candidate="$temporary_directory/candidate.db"
+staged_database=""
+saved_database=""
+service_stopped=false
+replacement_installed=false
+
+healthy() {
+    attempt=1
+    while [ "$attempt" -le 20 ]; do
+        if curl -fsS --max-time 5 "$health_url" >/dev/null 2>&1; then return 0; fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+rollback() {
+    echo "Restoring the previous database..." >&2
+    systemctl --user stop "$service_name" >/dev/null 2>&1 || true
+    rm -f "$database_path" "$database_path-wal" "$database_path-shm"
+    restored=false
+    if install -m 0600 "$saved_database" "$database_path"; then
+        restored=true
+        if [ -f "$saved_database-wal" ]; then
+            install -m 0600 "$saved_database-wal" "$database_path-wal" || restored=false
+        fi
+    fi
+    if [ "$restored" = true ] && systemctl --user start "$service_name" && healthy; then
+        echo "Previous database restored and healthy. Saved copy: $saved_database" >&2
+    else
+        echo "Rollback health check failed. Saved copy remains at $saved_database" >&2
+    fi
+}
+finish() {
+    status="$?"
+    trap - EXIT HUP INT TERM
+    if [ "$service_stopped" = true ] && [ "$status" -ne 0 ]; then
+        if [ "$replacement_installed" = true ]; then
+            rollback
+        else
+            systemctl --user start "$service_name" || true
+            if [ -n "$saved_database" ]; then
+                rm -f "$saved_database" "$saved_database-wal"
+            fi
+        fi
+    fi
+    if [ -n "$staged_database" ]; then rm -f "$staged_database"; fi
+    rm -rf "$temporary_directory"
+    exit "$status"
+}
+trap finish EXIT
+trap 'exit 130' HUP INT TERM
+
+case "$archive" in
+    *.gz)
+        gzip -t "$archive" || fail "gzip archive is invalid"
+        gzip -dc "$archive" > "$candidate" || fail "could not unpack backup"
+        ;;
+    *) cp "$archive" "$candidate" ;;
+esac
+
+python3 - "$candidate" <<'PY'
+import sqlite3
+import sys
+
+database = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+if database.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+    raise SystemExit("SQLite integrity check failed")
+required = {
+    "users": {"username", "password_hash"},
+    "notes": {"user_id", "content"},
+    "sessions": {"token_hash"},
+    "drafts": {"user_id"},
+    "settings": set(),
+    "rate_limits": set(),
+    "login_cooldowns": set(),
+    "signup_events": set(),
+    "invitations": set(),
+    "security_daily": set(),
+}
+for table, columns in required.items():
+    found = database.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()
+    if not found:
+        raise SystemExit(f"missing database table: {table}")
+    actual = {row[1] for row in database.execute(f"PRAGMA table_info({table})")}
+    if not columns <= actual:
+        raise SystemExit(f"missing database columns: {table}")
+database.close()
+PY
+echo "Backup integrity and schema verified: $archive"
+[ "$mode" = --restore ] || exit 0
+
+database_directory="${database_path%/*}"
+staged_database="$(mktemp "$database_directory/.gnotes-restore.XXXXXX")"
+saved_database="$(mktemp "$database_directory/gnotes-before-restore-$(date -u +%Y%m%dT%H%M%SZ).XXXXXX.db")"
+rm -f "$staged_database" "$saved_database"
+install -m 0600 "$candidate" "$staged_database"
+service_stopped=true
+systemctl --user stop "$service_name"
+
+if ! python3 - "$database_path" "$saved_database" <<'PY'
+import sqlite3
+import sys
+
+source = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+if source.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+    raise SystemExit("current database failed quick_check")
+saved = sqlite3.connect(sys.argv[2])
+source.backup(saved)
+if saved.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+    raise SystemExit("saved database failed integrity_check")
+saved.close()
+source.close()
+PY
+then
+    cp "$database_path" "$saved_database" || fail "could not preserve current database"
+    if [ -f "$database_path-wal" ]; then
+        cp "$database_path-wal" "$saved_database-wal" || fail "could not preserve current WAL"
+    fi
+fi
+
+replacement_installed=true
+rm -f "$database_path-wal" "$database_path-shm"
+mv -f "$staged_database" "$database_path"
+if ! systemctl --user start "$service_name" || ! healthy; then
+    fail "restored database failed health check; rollback attempted"
+fi
+service_stopped=false
+echo "Database restored and healthy. Previous database saved at $saved_database"

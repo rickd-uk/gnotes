@@ -4,6 +4,7 @@ A compact, multi-user Markdown notes application written in Go with SQLite and a
 
 See [SECURITY.md](SECURITY.md) for the production checklist, threat boundaries, incident response, and restore procedure.
 See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command updates, health checks, and rollback procedure.
+Production runs on a Kagoya VPS as a rootless Podman container; the Ubuntu/systemd instructions below are an alternative installation layout.
 See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritized future work.
 
 ## Current features
@@ -198,4 +199,4 @@ The updater downloads the requested versioned release, verifies its SHA-256 chec
 
 ## Security and production roadmap
 
-The prioritized plan is maintained in [ROADMAP.md](ROADMAP.md). Database restore tooling and an isolated real-server rehearsal are implemented locally; production deployment verification remains before release. Encrypted off-server backups and operational monitoring follow. Encryption, offline access, account recovery, and horizontal scaling require explicit design decisions documented there before implementation.
+The prioritized plan is maintained in [ROADMAP.md](ROADMAP.md). Database restore tooling covers both systemd and the production Podman deployment. Encrypted off-server backups and operational monitoring follow. Encryption, offline access, account recovery, and horizontal scaling require explicit design decisions documented there before implementation.

@@ -15,7 +15,7 @@ This document defines the deployment baseline for gnotes. No internet-facing ser
 - Markdown is rendered without raw active HTML, and browser security headers restrict scripts, framing, object embedding, referrers, and sensitive browser features.
 - SQLite uses one in-process connection, a five-second busy timeout, WAL journaling, full synchronous writes, and restrictive file permissions.
 - The systemd unit runs without root privileges or Linux capabilities and receives write access only to the database directory.
-- Daily backups use SQLite's online backup operation, pass `PRAGMA quick_check`, and are compressed only after validation.
+- The Kagoya updater makes a validated online SQLite backup before each release. Scheduled daily backups on that host remain to be configured.
 
 Default application limits are 20 login requests per IP and 500 globally per 15 minutes, plus 10 registration requests per IP and 100 globally per hour. Five failed passwords for one username begin an escalating cooldown from 30 seconds up to 15 minutes. Successful registrations default to 20 globally and 3 per IP per UTC day; the administrator can lower these values and require a single-use invitation.
 
@@ -30,7 +30,7 @@ Default application limits are 20 login requests per IP and 500 globally per 15 
 - [ ] Keep `/etc/gnotes/gnotes.env` readable only by `root:gnotes` and `/var/lib/gnotes` readable only by `gnotes`.
 - [ ] Run `systemd-analyze verify` against all units on the target Ubuntu release.
 - [ ] Confirm the health endpoint through HTTPS and inspect `journalctl -u gnotes.service`.
-- [ ] Run the backup unit manually and perform a restore rehearsal before accepting real data.
+- [ ] Run the backup job manually and perform a restore rehearsal before accepting real data.
 - [ ] Replicate encrypted backups to a different provider or failure domain and alert when backups stop arriving.
 - [ ] Monitor disk space, HTTP error rate, certificate expiry, service restarts, and health-check failures.
 

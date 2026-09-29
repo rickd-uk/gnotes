@@ -1,0 +1,138 @@
+#!/bin/sh
+set -eu
+
+umask 077
+
+usage() {
+    echo "Usage: update-gnotes-podman VERSION STAGING_DIRECTORY" >&2
+    exit 2
+}
+
+fail() {
+    echo "update-gnotes-podman: $*" >&2
+    exit 1
+}
+
+[ "$#" -eq 2 ] || usage
+version="$1"
+stage="$2"
+case "$version" in
+    v[0-9]*.[0-9]*.[0-9]*) ;;
+    *) fail "invalid version" ;;
+esac
+case "$stage" in
+    /*) ;;
+    *) fail "staging directory must be absolute" ;;
+esac
+
+app_directory="${GNOTES_APP_DIRECTORY:-$HOME/apps/gnotes}"
+database_path="$app_directory/data/gnotes.db"
+backup_directory="$app_directory/backups"
+health_url="${GNOTES_HEALTH_URL:-http://127.0.0.1:8081/api/health}"
+asset="gnotes_${version}_linux_amd64.tar.gz"
+package_directory="$stage/package"
+
+for command_name in cat curl cut date install podman python3 sha256sum sleep systemctl tar; do
+    command -v "$command_name" >/dev/null 2>&1 || fail "missing command: $command_name"
+done
+[ -f "$stage/$asset" ] || fail "release archive is missing"
+[ -f "$stage/SHA256SUMS" ] || fail "SHA256SUMS is missing"
+[ -f "$database_path" ] || fail "database is missing"
+[ -d "$backup_directory" ] || fail "backup directory is missing"
+systemctl --user is-active --quiet gnotes.service || fail "gnotes.service is not active"
+curl -fsS --max-time 10 "$health_url" >/dev/null || fail "current health check failed"
+
+(cd "$stage" && sha256sum -c SHA256SUMS) || fail "release checksum failed"
+install -d "$package_directory"
+tar -xzf "$stage/$asset" -C "$package_directory"
+[ -x "$package_directory/gnotes" ] || fail "release binary is missing"
+[ -f "$package_directory/public/index.html" ] || fail "release browser assets are missing"
+[ -x "$package_directory/bin/restore-gnotes-podman" ] || fail "Podman restore command is missing"
+[ -x "$package_directory/bin/update-gnotes-podman" ] || fail "Podman updater is missing"
+[ "$(cat "$package_directory/VERSION")" = "$version" ] || fail "release version mismatch"
+
+backup_path="$backup_directory/gnotes-pre-${version}-$(date -u +%Y%m%dT%H%M%SZ).db"
+python3 - "$database_path" "$backup_path" <<'PY'
+import os
+import sqlite3
+import sys
+
+source_path, backup_path = sys.argv[1:]
+if os.path.exists(backup_path):
+    raise SystemExit("backup path already exists")
+source = sqlite3.connect(f"file:{source_path}?mode=ro", uri=True)
+if source.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+    raise SystemExit("current database failed quick_check")
+backup = sqlite3.connect(backup_path)
+source.backup(backup)
+if backup.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+    raise SystemExit("new backup failed integrity_check")
+backup.close()
+source.close()
+os.chmod(backup_path, 0o600)
+PY
+echo "Validated database backup: $backup_path"
+
+cat > "$stage/Containerfile" <<'EOF'
+FROM docker.io/library/debian:bookworm-slim
+WORKDIR /app
+COPY package/gnotes /app/gnotes
+COPY package/public /app/public
+EXPOSE 8080
+CMD ["/app/gnotes"]
+EOF
+
+podman build -q -t "localhost/gnotes:$version" -f "$stage/Containerfile" "$stage" >/dev/null
+old_image="$(podman image inspect localhost/gnotes:latest --format '{{.Id}}')"
+new_image="$(podman image inspect "localhost/gnotes:$version" --format '{{.Id}}')"
+podman tag "$old_image" "localhost/gnotes:rollback-$version"
+
+deployment_started=false
+rollback() {
+    echo "Restoring the previous container image..." >&2
+    podman tag "$old_image" localhost/gnotes:latest || true
+    systemctl --user restart gnotes.service || true
+    if curl -fsS --max-time 10 "$health_url" >/dev/null 2>&1; then
+        echo "Previous image is healthy." >&2
+    else
+        echo "Rollback health check failed; inspect gnotes.service logs." >&2
+    fi
+}
+finish() {
+    status="$?"
+    trap - EXIT HUP INT TERM
+    if [ "$deployment_started" = true ]; then
+        rollback
+    fi
+    exit "$status"
+}
+trap finish EXIT
+trap 'exit 130' HUP INT TERM
+
+deployment_started=true
+podman tag "$new_image" localhost/gnotes:latest
+systemctl --user restart gnotes.service
+
+attempt=1
+healthy=false
+while [ "$attempt" -le 30 ]; do
+    running_image="$(podman inspect gnotes --format '{{.Image}}' 2>/dev/null || true)"
+    if [ "$running_image" = "$new_image" ] && curl -fsS --max-time 5 "$health_url" >/dev/null 2>&1; then
+        healthy=true
+        break
+    fi
+    sleep 1
+    attempt=$((attempt + 1))
+done
+[ "$healthy" = true ] || fail "new container did not become healthy"
+
+expected_binary="$(sha256sum "$package_directory/gnotes" | cut -d ' ' -f 1)"
+running_binary="$(podman exec gnotes sha256sum /app/gnotes | cut -d ' ' -f 1)"
+[ "$running_binary" = "$expected_binary" ] || fail "running binary checksum does not match release"
+
+install -d "$app_directory/bin"
+install -m 0755 "$package_directory/bin/restore-gnotes-podman" "$app_directory/bin/restore-gnotes-podman"
+install -m 0755 "$package_directory/bin/update-gnotes-podman" "$app_directory/bin/update-gnotes-podman"
+
+deployment_started=false
+echo "gnotes $version is running and healthy. Backup: $backup_path"
