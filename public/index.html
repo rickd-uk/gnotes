@@ -88,21 +88,78 @@
       .header-actions {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 6px;
       }
 
-      .view-control,
-      .view-menu {
-        display: contents;
+      .view-control {
+        position: relative;
       }
 
       .view-toggle {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+      }
+
+      .view-toggle[aria-expanded="true"] {
+        background: #dcd8ce;
+      }
+
+      .view-menu {
+        position: absolute;
+        z-index: 45;
+        top: calc(100% + 7px);
+        right: 0;
+        display: none;
+        width: min(220px, calc(100vw - 32px));
+        max-height: min(350px, 55dvh);
+        overflow-y: auto;
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        box-shadow: 0 16px 38px rgba(51, 45, 35, 0.18);
+      }
+
+      .view-control.is-open .view-menu {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .view-menu > button,
+      .view-menu > .hidden-notes-control > button {
+        display: flex;
+        width: 100%;
+        min-height: 44px;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 0 12px;
+        color: var(--ink);
+        font-size: 0.85rem;
+        text-align: left;
+      }
+
+      .view-menu > button[hidden] {
         display: none;
       }
 
-      .view-menu-label,
-      .account-control summary .icon {
-        display: none;
+      .view-menu .icon {
+        width: 20px;
+        height: 20px;
+      }
+
+      .account-control > summary .icon {
+        width: 18px;
+        height: 18px;
+        margin-right: 5px;
       }
 
       .section-label {
@@ -115,7 +172,8 @@
       }
 
       .form-container {
-        margin: 26px 0 34px;
+        position: relative;
+        margin: 22px 0 24px;
       }
 
       input,
@@ -151,7 +209,7 @@
         min-height: 80px;
         max-height: 320px;
         margin-top: 14px;
-        padding: 0 0 12px;
+        padding: 0 52px 12px 0;
         overflow-y: hidden;
         resize: none;
         font: inherit;
@@ -160,11 +218,9 @@
       }
 
       .form-actions {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        justify-content: space-between;
-        margin-top: 10px;
+        position: absolute;
+        right: 0;
+        bottom: 1px;
       }
 
       .format-control {
@@ -362,8 +418,28 @@
       }
 
       .shortcut {
-        color: var(--muted);
-        font-size: 0.78rem;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
+
+      .shortcut.is-error {
+        right: 44px;
+        bottom: 4px;
+        width: max-content;
+        max-width: calc(100vw - 100px);
+        height: auto;
+        padding: 3px 7px;
+        overflow: visible;
+        clip: auto;
+        border-radius: 4px;
+        background: #f7ebe8;
+        color: var(--danger);
+        font-size: 0.72rem;
+        white-space: normal;
       }
 
       kbd {
@@ -403,31 +479,71 @@
         position: relative;
       }
 
-      .markdown-help summary {
-        width: fit-content;
-        padding: 4px 0;
-        color: var(--accent);
+      .account-menu .markdown-help summary {
+        display: flex;
+        width: 100%;
+        min-height: 38px;
+        align-items: center;
+        padding: 8px 10px;
+        color: var(--ink);
         cursor: pointer;
-        font-size: 0.82rem;
-        font-weight: 700;
-        list-style-position: inside;
+        font-size: 0.85rem;
+        list-style: none;
+      }
+
+      .account-menu .markdown-help summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .account-menu .markdown-help summary:hover {
+        background: #e9e4da;
       }
 
       .markdown-guide {
         position: fixed;
+        z-index: 50;
         top: 62px;
         left: 50%;
         display: grid;
         width: min(620px, calc(100vw - 32px));
+        max-height: calc(100dvh - 80px);
         transform: translateX(-50%);
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px 32px;
         padding: 22px;
+        overflow-y: auto;
         border: 1px solid var(--line);
         background: var(--paper);
         color: var(--muted);
         font-size: 0.82rem;
         box-shadow: 0 18px 44px rgba(51, 45, 35, 0.16);
+      }
+
+      .markdown-guide-header {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .markdown-guide-header h2 {
+        margin: 0;
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+
+      .account-menu .markdown-guide-close {
+        display: grid;
+        width: 32px;
+        min-height: 32px;
+        padding: 0;
+        place-items: center;
+        color: var(--muted);
+        font-size: 1.25rem;
       }
 
       .markdown-guide p {
@@ -446,7 +562,11 @@
       .note-action:focus-visible,
       .delete-btn:focus-visible,
       .notes-toggle:focus-visible,
-      .toolbar-button:focus-visible {
+      .toolbar-button:focus-visible,
+      .view-toggle:focus-visible,
+      .search-toggle:focus-visible,
+      .trash-toggle:focus-visible,
+      .account-control > summary:focus-visible {
         outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
         outline-offset: 3px;
       }
@@ -506,13 +626,13 @@
       }
 
       .date-section-heading {
-        margin: 12px 0 0;
+        margin: 10px 0 0;
         border-bottom: 1px solid #cbd8d1;
         border-left: 3px solid var(--accent);
         background: rgba(49, 91, 76, 0.055);
         color: var(--accent);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 1.18rem;
+        font-size: 0.94rem;
         font-weight: 600;
         letter-spacing: -0.01em;
       }
@@ -520,11 +640,11 @@
       .date-section-toggle {
         display: flex;
         width: 100%;
-        min-height: 40px;
+        min-height: 36px;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 7px 12px;
+        padding: 5px 10px;
         border: 0;
         background: transparent;
         color: inherit;
@@ -562,8 +682,8 @@
 
       .search-toggle {
         display: grid;
-        width: 34px;
-        height: 34px;
+        width: 44px;
+        height: 44px;
         flex-shrink: 0;
         padding: 0;
         place-items: center;
@@ -623,6 +743,12 @@
         border: 1px solid var(--line);
         background: var(--paper);
         box-shadow: 0 18px 44px rgba(51, 45, 35, 0.18);
+      }
+
+      .view-menu .hidden-notes-panel {
+        position: fixed;
+        top: 72px;
+        right: max(16px, calc((100vw - 880px) / 2));
       }
 
       .hidden-notes-panel[hidden] { display: none; }
@@ -800,8 +926,8 @@
       .trash-toggle {
         position: relative;
         display: grid;
-        width: 38px;
-        height: 38px;
+        width: 44px;
+        height: 44px;
         padding: 0;
         place-items: center;
         border: 0;
@@ -811,8 +937,8 @@
       }
 
       .trash-toggle .icon {
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
       }
 
       .trash-toggle:hover {
@@ -946,7 +1072,7 @@
 
       .note-card {
         position: relative;
-        padding: 22px 0 24px;
+        padding: 16px 0 18px;
         border-bottom: 1px solid var(--line);
         opacity: 0.58;
         transform: translateY(8px);
@@ -976,9 +1102,9 @@
 
       .note-card h2 {
         max-width: 640px;
-        margin: 6px auto 18px;
+        margin: 2px auto 8px;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(1.25rem, 3vw, 1.55rem);
+        font-size: clamp(1rem, 2.3vw, 1.2rem);
         font-weight: 400;
         letter-spacing: -0.025em;
         line-height: 1.25;
@@ -1296,13 +1422,13 @@
       }
 
       #notes-list.density-compact .note-card {
-        padding-top: 14px;
-        padding-bottom: 16px;
+        padding-top: 11px;
+        padding-bottom: 13px;
       }
 
       #notes-list.density-compact .note-card h2 {
-        margin: 3px auto 8px;
-        font-size: 1.16rem;
+        margin: 2px auto 4px;
+        font-size: 0.95rem;
       }
 
       #notes-list.density-compact .note-content {
@@ -1314,7 +1440,7 @@
 
       #notes-list.density-titles .date-section-heading {
         margin-top: 12px;
-        font-size: 0.94rem;
+        font-size: 0.85rem;
       }
 
       #notes-list.density-titles .date-section-toggle {
@@ -1486,23 +1612,28 @@
 
       .account-control {
         position: relative;
+        margin-left: 8px;
         padding-left: 10px;
         border-left: 1px solid #cfc8bc;
       }
 
-      .account-control summary {
+      .account-control > summary {
+        display: flex;
         max-width: 100px;
+        min-height: 44px;
+        align-items: center;
+        padding: 0 6px;
         overflow: hidden;
         color: var(--muted);
         cursor: pointer;
-        font-size: 0.76rem;
+        font-size: 0.85rem;
         font-weight: 700;
         list-style: none;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      .account-control summary::-webkit-details-marker {
+      .account-control > summary::-webkit-details-marker {
         display: none;
       }
 
@@ -2004,7 +2135,7 @@
         }
 
         .form-container {
-          margin: 18px 0 22px;
+          margin: 14px 0 16px;
         }
 
         #content {
@@ -2076,6 +2207,8 @@
 
         .markdown-guide {
           grid-template-columns: 1fr;
+          max-height: min(70dvh, 500px);
+          overflow-y: auto;
         }
 
         .note-actions {
@@ -2097,89 +2230,18 @@
           font-size: clamp(2rem, 9vw, 2.15rem);
         }
 
-        .view-control {
-          position: relative;
-          display: block;
-        }
-
-        .view-toggle {
-          display: grid;
-          width: 44px;
-          height: 44px;
-          padding: 0;
-          place-items: center;
-          border: 0;
-          border-radius: 8px;
-          background: transparent;
-          color: var(--accent);
-          cursor: pointer;
-        }
-
-        .view-toggle[aria-expanded="true"] {
-          background: #dcd8ce;
-        }
-
         .view-menu {
           position: fixed;
-          z-index: 45;
           top: 60px;
+          right: auto;
           left: 16px;
-          display: none;
-          width: min(220px, calc(100vw - 32px));
-          max-height: min(350px, 55dvh);
-          overflow-y: auto;
-          padding: 6px;
-          border: 1px solid var(--line);
-          border-radius: 8px;
-          background: var(--paper);
-          box-shadow: 0 16px 38px rgba(51, 45, 35, 0.18);
         }
 
-        .view-control.is-open .view-menu {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .view-menu > button,
-        .view-menu > .hidden-notes-control > button,
-        .view-menu > .markdown-help > summary {
-          display: flex;
-          width: 100%;
-          min-height: 44px;
-          align-items: center;
-          justify-content: flex-start;
-          gap: 12px;
-          padding: 0 12px;
-          color: var(--ink);
-          font-size: 0.85rem;
-          text-align: left;
-        }
-
-        .view-menu > button[hidden] {
-          display: none;
-        }
-
-        .view-menu .icon {
-          display: block;
-          width: 20px;
-          height: 20px;
-        }
-
-        .view-menu .markdown-help summary {
-          list-style: none;
-        }
-
-        .view-menu .markdown-help summary::-webkit-details-marker {
-          display: none;
-        }
-
-        .view-menu-label,
-        .account-control summary .icon {
+        .account-control > summary .icon {
           display: block;
         }
 
-        .desktop-md-label,
-        .account-control summary .account-name-text {
+        .account-control > summary .account-name-text {
           display: none;
         }
 
@@ -2187,12 +2249,6 @@
           position: fixed;
           top: 60px;
           right: 16px;
-        }
-
-        .view-menu .markdown-guide {
-          top: 60px;
-          max-height: min(70dvh, 500px);
-          overflow-y: auto;
         }
 
         .notes-toolbar {
@@ -2208,19 +2264,22 @@
         .search-toggle .icon,
         .trash-toggle .icon,
         .view-toggle .icon,
-        .account-control summary .icon {
+        .account-control > summary .icon {
           width: 24px;
           height: 24px;
+          margin-right: 0;
         }
 
         .trash-control,
         .account-control {
-          margin-left: 0;
           padding-left: 0;
           border-left: 0;
         }
 
-        .account-control summary {
+        .trash-control { margin-left: 0; }
+        .account-control { margin-left: 8px; }
+
+        .account-control > summary {
           display: flex;
           width: 44px;
           min-height: 44px;
@@ -2369,22 +2428,6 @@
               </svg>
             </button>
             <div class="view-menu" id="view-menu">
-          <details class="markdown-help" id="markdown-help">
-            <summary aria-label="Markdown help" title="Markdown help"><span class="view-menu-label">Markdown help</span><span class="desktop-md-label">MD</span></summary>
-            <div class="markdown-guide">
-              <p><span>Heading</span><code># Heading</code></p>
-              <p><span>Bold</span><code>**bold**</code></p>
-              <p><span>Italic</span><code>*italic*</code></p>
-              <p><span>Bullet list</span><code>- item</code></p>
-              <p><span>Numbered list</span><code>1. item</code></p>
-              <p><span>Link</span><code>[label](https://…)</code></p>
-              <p><span>Inline code</span><code>`code`</code></p>
-              <p><span>Quote</span><code>&gt; quote</code></p>
-              <p><span>Code block</span><code>```go … ```</code></p>
-              <p><span>Callout</span><code>&gt; [!TIP]</code></p>
-            </div>
-          </details>
-
           <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide note controls" title="Hide note controls">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="6" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="18" cy="12" r="1" />
@@ -2462,6 +2505,28 @@
             </summary>
             <div class="account-menu">
               <span class="account-menu-username" id="account-menu-username"></span>
+              <div class="account-menu-section">
+                <span class="account-menu-label">Help</span>
+                <details class="markdown-help" id="markdown-help">
+                  <summary>Markdown guide</summary>
+                  <div class="markdown-guide">
+                    <div class="markdown-guide-header">
+                      <h2>Markdown guide</h2>
+                      <button class="markdown-guide-close" id="markdown-guide-close" type="button" aria-label="Close Markdown guide">×</button>
+                    </div>
+                    <p><span>Heading</span><code># Heading</code></p>
+                    <p><span>Bold</span><code>**bold**</code></p>
+                    <p><span>Italic</span><code>*italic*</code></p>
+                    <p><span>Bullet list</span><code>- item</code></p>
+                    <p><span>Numbered list</span><code>1. item</code></p>
+                    <p><span>Link</span><code>[label](https://…)</code></p>
+                    <p><span>Inline code</span><code>`code`</code></p>
+                    <p><span>Quote</span><code>&gt; quote</code></p>
+                    <p><span>Code block</span><code>```go … ```</code></p>
+                    <p><span>Callout</span><code>&gt; [!TIP]</code></p>
+                  </div>
+                </details>
+              </div>
               <div class="account-menu-section" id="account-notes-section">
                 <span class="account-menu-label">Notes</span>
                 <button id="unpin-all-notes" type="button" hidden>Unpin all notes</button>
@@ -2511,10 +2576,10 @@
 
       <form class="form-container" id="note-form" aria-label="Create a note">
         <input type="text" id="title" placeholder="Note title" aria-label="Note title" />
-        <textarea id="content" rows="3" placeholder="Start writing…" aria-label="Note content"></textarea>
+        <textarea id="content" rows="2" placeholder="Start writing…" aria-label="Note content"></textarea>
 
         <div class="form-actions">
-          <span class="shortcut" id="draft-status" aria-live="polite">Autosaves while you type</span>
+          <span class="shortcut" id="draft-status" role="status" aria-live="polite"></span>
           <div class="format-control" id="new-note-format-control">
             <button class="format-toggle" type="button" aria-controls="new-note-format-toolbar" aria-expanded="false" onclick="toggleFormattingToolbar('new-note-format-control')" title="Formatting" aria-label="Open formatting toolbar">Aa</button>
             <div class="format-toolbar" id="new-note-format-toolbar" role="toolbar" aria-label="Format note content" hidden>
@@ -2688,7 +2753,6 @@
           trashOpen: !document.getElementById("trash-panel").hidden,
           hiddenNotesOpen: !document.getElementById("hidden-notes-panel").hidden,
           accountOpen: document.getElementById("account-control").open,
-          markdownOpen: document.getElementById("markdown-help").open,
           invitationsOpen: document.querySelector(".admin-invitations-section").open,
           adminOpen: !document.getElementById("admin-panel").hidden,
           archiveOpen: !document.getElementById("archive-panel").hidden,
@@ -2766,7 +2830,6 @@
         document.getElementById("hidden-notes-panel").hidden = !state.hiddenNotesOpen;
         document.getElementById("hidden-notes-toggle").setAttribute("aria-expanded", String(Boolean(state.hiddenNotesOpen)));
         document.getElementById("account-control").open = Boolean(state.accountOpen);
-        document.getElementById("markdown-help").open = Boolean(state.markdownOpen);
         document.querySelector(".admin-invitations-section").open = Boolean(state.invitationsOpen);
         document.getElementById("admin-panel").hidden = !(state.adminOpen && currentUser.role === "admin");
         document.getElementById("archive-panel").hidden = !state.archiveOpen;
@@ -3707,10 +3770,16 @@
         return Boolean(draft.title.trim() || draft.content.trim());
       }
 
+      function setDraftStatus(message, isError = false) {
+        const status = document.getElementById("draft-status");
+        status.textContent = message;
+        status.classList.toggle("is-error", isError);
+      }
+
       async function loadDraft() {
         const response = await apiFetch("/api/draft");
         if (!response.ok) {
-          document.getElementById("draft-status").textContent = "Draft unavailable";
+          setDraftStatus("Draft unavailable", true);
           return;
         }
         const draft = await response.json();
@@ -3718,14 +3787,12 @@
         document.getElementById("content").value = draft.content || "";
         draftVersion = Number(draft.version) || 0;
         resizeNewNoteEditor();
-        document.getElementById("draft-status").textContent = draftHasText()
-          ? "Draft restored · click elsewhere to finish"
-          : "Autosaves while you type";
+        setDraftStatus(draftHasText() ? "Draft restored" : "");
       }
 
       function scheduleDraftSave() {
         draftVersion = Math.max(Date.now(), draftVersion + 1);
-        document.getElementById("draft-status").textContent = "Saving draft…";
+        setDraftStatus("Saving draft…");
         clearTimeout(draftSaveTimer);
         draftSaveTimer = setTimeout(queueDraftSave, 300);
       }
@@ -3740,16 +3807,13 @@
             body: JSON.stringify(draft),
           });
           if (!response.ok) {
-            document.getElementById("draft-status").textContent =
-              response.status === 409
-                ? "Newer draft open in another tab"
-                : "Draft save failed";
+            setDraftStatus(response.status === 409
+              ? "Newer draft open in another tab"
+              : "Draft save failed", true);
             return false;
           }
           if (draft.version === draftVersion) {
-            document.getElementById("draft-status").textContent = draftHasText()
-              ? "Draft saved · click elsewhere to finish"
-              : "Autosaves while you type";
+            setDraftStatus(draftHasText() ? "Draft saved" : "");
           }
           return true;
         });
@@ -3773,10 +3837,9 @@
             body: JSON.stringify({ version: draftVersion }),
           });
           if (!response.ok) {
-            document.getElementById("draft-status").textContent =
-              response.status === 409
-                ? "Newer draft open in another tab"
-                : "Could not finish note";
+            setDraftStatus(response.status === 409
+              ? "Newer draft open in another tab"
+              : "Could not finish note", true);
             return;
           }
           const createdNote = response.status === 201;
@@ -3786,7 +3849,7 @@
           contentInput.style.height = "";
           contentInput.style.overflowY = "hidden";
           draftVersion = 0;
-          document.getElementById("draft-status").textContent = "Autosaves while you type";
+          setDraftStatus("");
           if (createdNote) setActiveNoteCount(activeNoteCount + 1);
           await loadNotes();
         } finally {
@@ -4927,6 +4990,7 @@
         if (shouldOpen) {
           closeSearchPanel();
           closeTrashPanel();
+          document.getElementById("markdown-help").open = false;
           document.getElementById("account-control").open = false;
         }
       });
@@ -5053,8 +5117,13 @@
         }
       });
 
-      document.getElementById("account-control").addEventListener("toggle", saveUIState);
-      document.getElementById("markdown-help").addEventListener("toggle", saveUIState);
+      document.getElementById("account-control").addEventListener("toggle", (event) => {
+        if (!event.target.open) document.getElementById("markdown-help").open = false;
+        saveUIState();
+      });
+      document.getElementById("markdown-guide-close").addEventListener("click", () => {
+        document.getElementById("markdown-help").open = false;
+      });
       document.querySelector(".admin-invitations-section").addEventListener("toggle", saveUIState);
 
       document.getElementById("login-tab").addEventListener("click", () => switchAuthMode("login"));
