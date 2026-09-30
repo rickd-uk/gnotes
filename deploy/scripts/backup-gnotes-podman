@@ -11,10 +11,14 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 
 fail() { echo "backup-gnotes-podman: $*" >&2; exit 1; }
 
-[ -f "$database_path" ] && [ ! -L "$database_path" ] || fail "database must be a regular file"
+if [ ! -f "$database_path" ] || [ -L "$database_path" ]; then
+    fail "database must be a regular file"
+fi
 [ -x "$restorer" ] || fail "restore verifier is missing: $restorer"
 mkdir -p "$backup_directory"
-[ -d "$backup_directory" ] && [ ! -L "$backup_directory" ] || fail "backup directory must not be a symlink"
+if [ ! -d "$backup_directory" ] || [ -L "$backup_directory" ]; then
+    fail "backup directory must not be a symlink"
+fi
 
 temporary_database="$(mktemp "$backup_directory/.gnotes-daily-${timestamp}.XXXXXX.db")"
 temporary_archive="$(mktemp "$backup_directory/.gnotes-daily-${timestamp}.XXXXXX.db.gz")"
