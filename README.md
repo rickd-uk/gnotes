@@ -13,6 +13,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
 - Create, autosave, resume editing, pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
+- Archive notes for later reading and restore them without deleting them
 - Cursor-paginated note and recycle-bin loading with indexed full-text search
 - Live title/content search with note and occurrence counts, highlighting, date ranges, scope, and case controls
 - Calendar jumps and monthly/weekly archive overviews for large collections

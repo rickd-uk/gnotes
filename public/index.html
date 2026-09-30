@@ -34,6 +34,22 @@
 
       body[data-note-font="clean"] {
         --note-title-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --note-body-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body[data-note-font="cursive"] {
+        --note-title-font: "Segoe Script", "Bradley Hand", "URW Chancery L", cursive;
+        --note-body-font: "Trebuchet MS", "Segoe UI", sans-serif;
+      }
+
+      body[data-note-font="technical"] {
+        --note-title-font: "Roboto Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        --note-body-font: "Roboto Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      }
+
+      body[data-note-font="playful"] {
+        --note-title-font: "Comic Sans MS", "Trebuchet MS", sans-serif;
+        --note-body-font: "Trebuchet MS", "Segoe UI", sans-serif;
       }
 
       * {
@@ -188,10 +204,13 @@
         font-weight: 700;
       }
 
-      .font-choices { display: flex; gap: 4px; }
+      .font-choices {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+      }
 
       .font-choices button {
-        flex: 1;
         min-width: 0;
         min-height: 38px;
         padding: 4px;
@@ -211,6 +230,9 @@
 
       .font-choices button[data-font="writer"] { font-family: Georgia, "Times New Roman", serif; }
       .font-choices button[data-font="clean"] { font-family: Arial, sans-serif; }
+      .font-choices button[data-font="cursive"] { font-family: "Segoe Script", "Bradley Hand", cursive; }
+      .font-choices button[data-font="technical"] { font-family: "Roboto Mono", Consolas, monospace; }
+      .font-choices button[data-font="playful"] { font-family: "Comic Sans MS", "Trebuchet MS", sans-serif; }
 
       .note-size-controls {
         display: grid;
@@ -746,6 +768,42 @@
       .tool-choice .tool-state { margin-left: auto; color: var(--muted); font-size: 0.69rem; }
       .tool-choice[aria-pressed="false"] { color: var(--muted); }
       .tool-choice[aria-pressed="false"] .icon { opacity: 0.55; }
+
+      .view-menu-view-options {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .view-menu-view-options > button {
+        display: flex;
+        width: 100%;
+        min-height: 44px;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 7px;
+        padding: 4px 0;
+      }
+
+      .view-menu-view-options > button[hidden] { display: none; }
+
+      .view-menu-view-options {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .view-menu-view-options > button {
+        display: flex;
+        width: 100%;
+        min-height: 44px;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 7px;
+        padding: 4px 0;
+      }
+
+      .view-menu-view-options > button[hidden] {
+        display: none;
+      }
 
       .notes-toggle,
       .toolbar-button {
@@ -1376,6 +1434,8 @@
 
       .note-card {
         position: relative;
+        background: var(--note-surface, transparent);
+        color: var(--note-surface-ink, var(--ink));
         padding: 16px 0 18px;
         border-bottom: 1px solid var(--line);
         opacity: 0.58;
@@ -1392,6 +1452,39 @@
       }
 
       .note-card.actions-expanded { z-index: 2; opacity: 1; }
+
+      .note-card.note-color-mist {
+        --note-surface: #e4eff3;
+        --note-surface-ink: #23404a;
+      }
+
+      .note-card.note-color-sage {
+        --note-surface: #e4efe8;
+        --note-surface-ink: #254334;
+      }
+
+      .note-card.note-color-peach {
+        --note-surface: #f7e6dc;
+        --note-surface-ink: #56372d;
+      }
+
+      .note-card.note-color-lavender {
+        --note-surface: #eee7f5;
+        --note-surface-ink: #403453;
+      }
+
+      .note-card.note-color-butter {
+        --note-surface: #f7efc9;
+        --note-surface-ink: #4a3e20;
+      }
+
+      .note-card.note-color-rose {
+        --note-surface: #f4e1e7;
+        --note-surface-ink: #532d3b;
+      }
+
+      .note-card[class*="note-color-"] h2 { color: var(--note-surface-ink); }
+      .note-card[class*="note-color-"] .date { color: color-mix(in srgb, var(--note-surface-ink) 68%, transparent); }
 
       .newest-note {
         background: linear-gradient(
@@ -1415,6 +1508,26 @@
         letter-spacing: -0.025em;
         line-height: 1.25;
         text-align: center;
+      }
+
+      .note-card:not(.is-editing) .note-view {
+        display: contents;
+      }
+
+      .note-card:not(.is-editing) .note-view h2 {
+        position: absolute;
+        top: 15px;
+        right: 104px;
+        left: 104px;
+        max-width: none;
+        margin: 2px 0 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .note-card:not(.is-editing) .note-view .note-content {
+        margin-top: 12px;
       }
 
       .note-top-row {
@@ -1573,6 +1686,14 @@
         color: var(--ink);
       }
 
+      .archive-btn {
+        border: 1px solid #b9cec4;
+        background: #edf4f0;
+        color: var(--accent);
+      }
+
+      .archive-btn:hover { background: #dcebe3; }
+
       .delete-btn {
         background: var(--delete-button);
         color: #fff;
@@ -1587,6 +1708,49 @@
         height: 16px;
       }
 
+      .note-color-control { position: relative; }
+
+      .note-color-menu {
+        position: absolute;
+        z-index: 4;
+        top: calc(100% + 5px);
+        right: 0;
+        display: grid;
+        grid-template-columns: repeat(4, 26px);
+        gap: 5px;
+        padding: 7px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        box-shadow: 0 9px 22px rgba(51, 45, 35, 0.16);
+      }
+
+      .note-color-menu[hidden] { display: none; }
+
+      .note-color-swatch {
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid rgba(36, 35, 31, 0.18);
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .note-color-swatch[data-color=""] { background: var(--paper); }
+      .note-color-swatch[data-color="mist"] { background: #e4eff3; }
+      .note-color-swatch[data-color="sage"] { background: #e4efe8; }
+      .note-color-swatch[data-color="peach"] { background: #f7e6dc; }
+      .note-color-swatch[data-color="lavender"] { background: #eee7f5; }
+      .note-color-swatch[data-color="butter"] { background: #f7efc9; }
+      .note-color-swatch[data-color="rose"] { background: #f4e1e7; }
+
+      .note-color-swatch[aria-pressed="true"] {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .note-card.is-editing .note-color-control { display: none; }
+
       .edit-btn .edit-close-icon,
       .note-card.is-editing .edit-btn .edit-pencil-icon {
         display: none;
@@ -1598,6 +1762,7 @@
 
       .note-card.is-editing .pin-btn,
       .note-card.is-editing .hide-note-btn,
+      .note-card.is-editing .archive-btn,
       .note-card.is-editing .delete-btn,
       .note-card.is-editing .note-action-divider {
         display: none;
@@ -1696,6 +1861,35 @@
         text-decoration-thickness: 1px;
         text-underline-offset: 3px;
       }
+
+      body[data-link-style="plain"] .note-content a {
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      body[data-link-style="plain"] .note-content a:hover,
+      body[data-link-style="plain"] .note-content a:focus-visible {
+        text-decoration: underline;
+      }
+
+      .link-style-toggle {
+        display: flex;
+        width: 100%;
+        min-height: 38px;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 8px;
+        padding: 5px 0;
+        border: 0;
+        border-top: 1px solid var(--line);
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 0.74rem;
+        text-align: left;
+      }
+
+      .link-style-toggle .tool-state { color: var(--muted); font-size: 0.69rem; }
 
       blockquote {
         margin: 1.5rem 0;
@@ -2138,6 +2332,63 @@
         background: #f8f6f0;
         box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
       }
+
+      .archived-panel {
+        position: fixed;
+        z-index: 60;
+        inset: 70px max(16px, calc((100vw - 680px) / 2)) auto;
+        max-height: calc(100vh - 90px);
+        padding: 22px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #f8f6f0;
+        box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
+      }
+
+      .archived-panel[hidden] { display: none; }
+
+      .archived-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .archived-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .archived-item-title {
+        overflow: hidden;
+        font-family: var(--note-title-font);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .archived-item-meta,
+      .archived-empty {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 0.74rem;
+      }
+
+      .archived-item button {
+        min-height: 34px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+
+      .archived-item button:hover { background: #e4efe9; }
 
       .info-panel {
         position: fixed;
@@ -2757,6 +3008,19 @@
         .header-actions .icon { width: 27px; height: 27px; }
         .view-menu .icon { width: 22px; height: 22px; }
         .tool-choice .icon { width: 19px; height: 19px; }
+        .view-menu-view-options {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 2px;
+          padding: 2px 5px 6px;
+        }
+        .view-menu-view-options > button {
+          min-height: 38px;
+          justify-content: center;
+          gap: 5px;
+          padding: 3px 5px;
+          font-size: 0.74rem;
+        }
         .note-action { width: 36px; height: 36px; }
         .note-action .icon { width: 18px; height: 18px; }
         .note-actions-toggle { width: 36px; height: 36px; font-size: 1.35rem; }
@@ -3182,27 +3446,29 @@
           </div>
           <div class="menu-opacity-control">
             <label for="menu-opacity">Menu opacity <span id="menu-opacity-value">88%</span></label>
-            <input type="range" id="menu-opacity" min="40" max="100" value="88" aria-label="Menu opacity" />
+            <input type="range" id="menu-opacity" min="15" max="100" value="88" aria-label="Menu opacity" />
           </div>
-          <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 7h14M5 12h14M5 17h14" />
-            </svg>
-            <span id="density-toggle-label">Full</span>
-          </button>
-          <button class="toolbar-button" id="date-sections-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Collapse all date sections" title="Collapse all date sections" hidden>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m7 9 5-5 5 5M7 15l5 5 5-5" />
-            </svg>
-            <span id="date-sections-toggle-label">Fold</span>
-          </button>
-          <button class="notes-toggle" id="notes-toggle" type="button" aria-controls="notes-list" aria-expanded="true" aria-label="Hide notes" title="Hide notes">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-              <circle cx="12" cy="12" r="2.5" />
-            </svg>
-            <span>Notes</span>
-          </button>
+          <div class="view-menu-view-options">
+            <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 7h14M5 12h14M5 17h14" />
+              </svg>
+              <span id="density-toggle-label">Full</span>
+            </button>
+            <button class="toolbar-button" id="date-sections-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Collapse all date sections" title="Collapse all date sections" hidden>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m7 9 5-5 5 5M7 15l5 5 5-5" />
+              </svg>
+              <span id="date-sections-toggle-label">Fold</span>
+            </button>
+            <button class="notes-toggle" id="notes-toggle" type="button" aria-controls="notes-list" aria-expanded="true" aria-label="Hide notes" title="Hide notes">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                <circle cx="12" cy="12" r="2.5" />
+              </svg>
+              <span>Notes</span>
+            </button>
+          </div>
           <div class="hidden-notes-control" id="hidden-notes-control" hidden>
             <button class="toolbar-button" id="hidden-notes-toggle" type="button" aria-controls="hidden-notes-panel" aria-expanded="false" aria-label="Open hidden notes" title="Hidden notes">
               <span id="hidden-notes-label">Hidden 0</span>
@@ -3221,21 +3487,28 @@
               <button type="button" data-font="writer" aria-pressed="false" title="Serif titles and text">Writer</button>
               <button type="button" data-font="balanced" aria-pressed="true" title="Serif titles and clean text">Balanced</button>
               <button type="button" data-font="clean" aria-pressed="false" title="Clean titles and text">Clean</button>
+              <button type="button" data-font="cursive" aria-pressed="false" title="Cursive titles with readable text">Cursive</button>
+              <button type="button" data-font="technical" aria-pressed="false" title="Technical monospace titles and text">Technical</button>
+              <button type="button" data-font="playful" aria-pressed="false" title="Playful titles with readable text">Playful</button>
             </div>
             <div class="note-size-controls">
               <div class="note-size-control">
                 <label for="note-title-size">Title size <output id="note-title-size-value" for="note-title-size">100%</output></label>
-                <input type="range" id="note-title-size" min="90" max="125" step="5" value="100" />
+                <input type="range" id="note-title-size" min="75" max="150" step="5" value="100" />
               </div>
               <div class="note-size-control">
                 <label for="note-body-size">Text size <output id="note-body-size-value" for="note-body-size">100%</output></label>
-                <input type="range" id="note-body-size" min="90" max="125" step="5" value="100" />
+                <input type="range" id="note-body-size" min="75" max="150" step="5" value="100" />
               </div>
             </div>
             <div class="note-text-preview" aria-label="Note text preview">
               <strong>A note title</strong>
               <span>A quiet place to write.</span>
             </div>
+            <button class="link-style-toggle" id="link-style-toggle" type="button" aria-pressed="true" aria-label="Link underlines: on">
+              <span>Link underlines</span>
+              <span class="tool-state" id="link-style-state">On</span>
+            </button>
           </div>
             </div>
           </div>
@@ -3301,10 +3574,11 @@
               <div class="account-menu-section" id="account-notes-section">
                 <span class="account-menu-label">Notes</span>
                 <button id="unpin-all-notes" type="button" hidden>Unpin all notes</button>
+                <button id="archived-open" type="button">Archived notes</button>
               </div>
               <div class="account-menu-section" id="account-admin-section" hidden>
                 <span class="account-menu-label">Administration</span>
-                <button id="admin-open" type="button">Manage users and signups</button>
+                <button id="admin-open" type="button">Users &amp; signups</button>
               </div>
               <div class="account-menu-section" id="account-data-section">
                 <span class="account-menu-label">Data</span>
@@ -3447,6 +3721,15 @@
       </div>
     </section>
 
+    <section class="archived-panel" id="archived-panel" role="dialog" aria-labelledby="archived-heading" hidden>
+      <div class="archive-header">
+        <h2 id="archived-heading">Archived notes</h2>
+        <button class="admin-close" id="archived-close" type="button" aria-label="Close archived notes">×</button>
+      </div>
+      <p class="archive-total" id="archived-total">Loading…</p>
+      <div class="archived-list" id="archived-list"></div>
+    </section>
+
     <section class="info-panel" id="profile-panel" role="dialog" aria-labelledby="profile-heading" hidden>
       <div class="info-panel-header">
         <h2 id="profile-heading">Profile</h2>
@@ -3573,6 +3856,17 @@
       let fontMode = "balanced";
       let titleSize = 100;
       let bodySize = 100;
+      let linkUnderlines = true;
+      const noteColorOptions = [
+        ["", "No color"],
+        ["mist", "Mist blue"],
+        ["sage", "Sage"],
+        ["peach", "Peach"],
+        ["lavender", "Lavender"],
+        ["butter", "Butter"],
+        ["rose", "Rose"],
+      ];
+      const noteColorKeys = new Set(noteColorOptions.map(([key]) => key));
       const noteTools = ["pin", "edit", "hide", "delete"];
       let visibleTools = new Set(noteTools);
       let menuOpacity = 88;
@@ -3627,6 +3921,7 @@
           fontMode,
           titleSize,
           bodySize,
+          linkUnderlines,
           adminUserFilter,
           adminUserSort,
           searchActive,
@@ -3684,10 +3979,10 @@
 
       function applyMenuOpacity(value) {
         const parsed = Number(value);
-        menuOpacity = Number.isFinite(parsed) ? Math.max(40, Math.min(100, Math.round(parsed))) : 88;
+        menuOpacity = Number.isFinite(parsed) ? Math.max(15, Math.min(100, Math.round(parsed))) : 88;
         const menu = document.getElementById("view-menu");
         menu.style.setProperty("--controls-opacity", String(menuOpacity / 100));
-        menu.style.setProperty("--controls-blur", menuOpacity <= 55 ? "7px" : menuOpacity <= 70 ? "5px" : "3px");
+        menu.style.setProperty("--controls-blur", menuOpacity <= 30 ? "9px" : menuOpacity <= 55 ? "7px" : menuOpacity <= 75 ? "5px" : "3px");
         document.getElementById("menu-opacity").value = String(menuOpacity);
         document.getElementById("menu-opacity-value").textContent = `${menuOpacity}%`;
       }
@@ -3706,17 +4001,26 @@
       }
 
       function applyFontMode(mode) {
-        fontMode = ["writer", "balanced", "clean"].includes(mode) ? mode : "balanced";
+        fontMode = ["writer", "balanced", "clean", "cursive", "technical", "playful"].includes(mode) ? mode : "balanced";
         document.body.dataset.noteFont = fontMode;
         document.querySelectorAll("#font-choices button").forEach((button) => {
           button.setAttribute("aria-pressed", String(button.dataset.font === fontMode));
         });
       }
 
+      function applyLinkStyle(value) {
+        linkUnderlines = value !== false;
+        document.body.dataset.linkStyle = linkUnderlines ? "underlined" : "plain";
+        const toggle = document.getElementById("link-style-toggle");
+        toggle.setAttribute("aria-pressed", String(linkUnderlines));
+        toggle.setAttribute("aria-label", `Link underlines: ${linkUnderlines ? "on" : "off"}`);
+        document.getElementById("link-style-state").textContent = linkUnderlines ? "On" : "Color only";
+      }
+
       function applyNoteSizes(title, body) {
         const clampSize = (value) => {
           const number = Number(value);
-          return Number.isFinite(number) ? Math.max(90, Math.min(125, Math.round(number / 5) * 5)) : 100;
+          return Number.isFinite(number) ? Math.max(75, Math.min(150, Math.round(number / 5) * 5)) : 100;
         };
         titleSize = clampSize(title);
         bodySize = clampSize(body);
@@ -3779,6 +4083,7 @@
         applyDensityMode(Number(state.densityIndex));
         applyFontMode(state.fontMode);
         applyNoteSizes(state.titleSize, state.bodySize);
+        applyLinkStyle(state.linkUnderlines);
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
           ? state.adminUserFilter
           : "all";
@@ -3873,6 +4178,7 @@
         document.getElementById("app-shell").hidden = true;
         document.getElementById("admin-panel").hidden = true;
         document.getElementById("archive-panel").hidden = true;
+        document.getElementById("archived-panel").hidden = true;
         document.getElementById("profile-panel").hidden = true;
         document.getElementById("help-panel").hidden = true;
         document.getElementById("auth-screen").hidden = false;
@@ -4217,6 +4523,43 @@
         </div>`;
       }
 
+      function noteColorSwatches(note) {
+        return noteColorOptions
+          .map(([color, label]) => `
+            <button class="note-color-swatch" type="button" data-color="${color}" aria-label="${label}" aria-pressed="${String(note.background_color === color)}" title="${label}" onclick="setNoteColor(${note.id}, '${color}')"></button>`)
+          .join("");
+      }
+
+      function toggleNoteColorMenu(id) {
+        const card = document.getElementById(`note-${id}`);
+        const menu = document.getElementById(`note-colors-${id}`);
+        const button = card?.querySelector(".color-btn");
+        if (!menu || !button) return;
+        const shouldOpen = menu.hidden;
+        document.querySelectorAll(".note-color-menu:not([hidden])").forEach((openMenu) => {
+          openMenu.hidden = true;
+          openMenu.closest(".note-color-control")?.querySelector(".color-btn")?.setAttribute("aria-expanded", "false");
+        });
+        menu.hidden = !shouldOpen;
+        button.setAttribute("aria-expanded", String(shouldOpen));
+      }
+
+      async function setNoteColor(id, color) {
+        if (!noteColorKeys.has(color)) return;
+        const response = await apiFetch(`/api/notes/color?id=${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ color }),
+        });
+        if (!response.ok) {
+          alert("Could not change the note color.");
+          return;
+        }
+        const note = loadedNotes.get(id);
+        if (note) note.background_color = color;
+        await loadNotes();
+      }
+
       async function loadNotes(append = false) {
         if (notesLoading) return false;
         if (append && !notesNextCursor) return true;
@@ -4343,9 +4686,10 @@
             const hasTitle = Boolean(n.title.trim());
             const displayTitle = getDisplayTitle(n);
             const isNewest = n.id === newestNoteId;
+            const noteColor = noteColorKeys.has(n.background_color) ? n.background_color : "";
 
             renderedNotes += `
-            <article class="note-card ${isNewest ? "newest-note" : ""} ${n.pinned ? "pinned-note" : ""}" id="note-${n.id}">
+            <article class="note-card ${isNewest ? "newest-note" : ""} ${n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""}" id="note-${n.id}">
               <div class="note-top-row">
                 <div class="date-row">
                   ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
@@ -4377,6 +4721,24 @@
                     </svg>
                     <span class="visually-hidden">Hide note</span>
                   </button>
+                  <button class="note-action archive-btn" onclick="archiveNote(${n.id})" aria-label="Archive note" title="Archive note">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" />
+                    </svg>
+                    <span class="visually-hidden">Archive note</span>
+                  </button>
+                  <span class="note-color-control">
+                    <button class="note-action color-btn" type="button" onclick="toggleNoteColorMenu(${n.id})" aria-controls="note-colors-${n.id}" aria-expanded="false" aria-label="Change note color" title="Change note color">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z" />
+                        <circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none" /><circle cx="9.5" cy="6.8" r="1" fill="currentColor" stroke="none" /><circle cx="14" cy="6.8" r="1" fill="currentColor" stroke="none" /><circle cx="17" cy="10" r="1" fill="currentColor" stroke="none" />
+                      </svg>
+                      <span class="visually-hidden">Change note color</span>
+                    </button>
+                    <span class="note-color-menu" id="note-colors-${n.id}" role="group" aria-label="Note color" hidden>
+                      ${noteColorSwatches(n)}
+                    </span>
+                  </span>
                   </div>
                   <span class="note-action-divider" aria-hidden="true"></span>
                   <button class="note-action delete-btn" onclick="deleteNote(${n.id})" aria-label="Delete note" title="Delete note">
@@ -4903,6 +5265,73 @@
         saveHiddenNoteIds();
         setActiveNoteCount(activeNoteCount - 1);
         await Promise.all([loadNotes(), loadTrash()]);
+      }
+
+      async function archiveNote(id) {
+        const response = await apiFetch(`/api/notes/archive?id=${id}`, { method: "POST" });
+        if (!response.ok) {
+          alert("Could not archive this note.");
+          return;
+        }
+        loadedNotes.delete(id);
+        await loadNotes();
+      }
+
+      function closeArchivedPanel() {
+        document.getElementById("archived-panel").hidden = true;
+      }
+
+      async function openArchivedPanel() {
+        closeAdminPanel();
+        closeProfilePanel();
+        closeHelpPanel();
+        closeArchiveOverview();
+        closeSearchPanel();
+        closeTrashPanel();
+        closeHiddenNotesPanel();
+        document.getElementById("account-control").open = false;
+        const panel = document.getElementById("archived-panel");
+        const list = document.getElementById("archived-list");
+        panel.hidden = false;
+        list.innerHTML = '<p class="archived-empty">Loading…</p>';
+        let response;
+        try {
+          response = await apiFetch("/api/notes/archived");
+        } catch {
+          list.innerHTML = '<p class="archived-empty">Could not reach the server.</p>';
+          return;
+        }
+        if (!response.ok) {
+          list.innerHTML = '<p class="archived-empty">Could not load archived notes.</p>';
+          return;
+        }
+        const data = await response.json();
+        const notes = data.notes || [];
+        document.getElementById("archived-total").textContent = `${notes.length} archived ${notes.length === 1 ? "note" : "notes"}`;
+        list.innerHTML = notes.length
+          ? notes.map((note) => {
+              const title = getDisplayTitle(note);
+              const preview = note.content.replace(/\s+/g, " ").trim();
+              return `<article class="archived-item">
+                <div>
+                  <div class="archived-item-title">${escapeHTML(title)}</div>
+                  <div class="archived-item-meta">Archived ${escapeHTML(formatAdminTime(note.archived_at))}${preview ? ` · ${escapeHTML(preview.slice(0, 140))}${preview.length > 140 ? "…" : ""}` : ""}</div>
+                </div>
+                <button type="button" onclick="unarchiveNote(${note.id})">Unarchive</button>
+              </article>`;
+            }).join("")
+          : '<p class="archived-empty">No archived notes.</p>';
+      }
+
+      async function unarchiveNote(id) {
+        const response = await apiFetch(`/api/notes/unarchive?id=${id}`, { method: "POST" });
+        if (!response.ok) {
+          alert("Could not restore this note.");
+          return;
+        }
+        revealedNoteId = id;
+        closeArchivedPanel();
+        await loadNotes();
       }
 
       async function deleteAllNotes() {
@@ -5844,6 +6273,11 @@
         saveUIState();
       });
 
+      document.getElementById("link-style-toggle").addEventListener("click", () => {
+        applyLinkStyle(!linkUnderlines);
+        saveUIState();
+      });
+
       document.getElementById("density-toggle").addEventListener("click", () => {
         applyDensityMode((densityIndex + 1) % densityModes.length);
         saveUIState();
@@ -6035,6 +6469,7 @@
         closeSearchPanel();
         closeTrashPanel();
         closeHiddenNotesPanel();
+        closeArchivedPanel();
         const panel = document.getElementById("archive-panel");
         panel.hidden = false;
         saveUIState();
@@ -6194,6 +6629,13 @@
           !archivePanel.contains(event.target) &&
           !document.getElementById("archive-open").contains(event.target)
         ) closeArchiveOverview();
+
+        const archivedPanel = document.getElementById("archived-panel");
+        if (
+          !archivedPanel.hidden &&
+          !archivedPanel.contains(event.target) &&
+          !document.getElementById("archived-open").contains(event.target)
+        ) closeArchivedPanel();
       });
 
       document.addEventListener("pointerdown", (event) => {
@@ -6346,12 +6788,15 @@
 
       document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
       document.getElementById("unpin-all-notes").addEventListener("click", unpinAllNotes);
+      document.getElementById("archived-open").addEventListener("click", openArchivedPanel);
+      document.getElementById("archived-close").addEventListener("click", closeArchivedPanel);
       document.getElementById("date-sections-toggle").addEventListener("click", toggleAllDateSections);
 
       document.getElementById("admin-open").addEventListener("click", async () => {
         document.getElementById("account-control").open = false;
         closeProfilePanel();
         closeHelpPanel();
+        closeArchivedPanel();
         document.getElementById("admin-panel").hidden = false;
         saveUIState();
         await loadAdmin();
@@ -6361,6 +6806,7 @@
         closeAdminPanel();
         closeHelpPanel();
         closeArchiveOverview();
+        closeArchivedPanel();
         document.getElementById("account-control").open = false;
         document.getElementById("profile-panel").hidden = false;
         document.getElementById("profile-heading").textContent = currentUser.username;
@@ -6391,6 +6837,7 @@
         closeAdminPanel();
         closeProfilePanel();
         closeArchiveOverview();
+        closeArchivedPanel();
         document.getElementById("account-control").open = false;
         document.getElementById("help-panel").hidden = false;
       }

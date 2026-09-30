@@ -88,6 +88,7 @@ func run() error {
 	mux.HandleFunc("/api/notes/search", protect(searchNotesHandler, false))
 	mux.HandleFunc("/api/notes/search-page", protect(pagedSearchNotesHandler, false))
 	mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
+	mux.HandleFunc("/api/notes/color", protect(updateNoteColorHandler, true))
 	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
 	mux.HandleFunc("/api/notes/unpin-all", protect(unpinAllNotesHandler, true))
 	mux.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
@@ -95,6 +96,8 @@ func run() error {
 	mux.HandleFunc("/api/notes/trash", protect(trashNotesHandler, false))
 	mux.HandleFunc("/api/notes/trash-page", protect(pagedTrashNotesHandler, false))
 	mux.HandleFunc("/api/notes/archive", protect(noteArchiveHandler, false))
+	mux.HandleFunc("/api/notes/archived", protect(archivedNotesHandler, false))
+	mux.HandleFunc("/api/notes/unarchive", protect(unarchiveNoteHandler, true))
 	mux.HandleFunc("/api/notes/restore", protect(restoreNotesHandler, true))
 	mux.HandleFunc("/api/notes/empty-trash", protect(emptyTrashHandler, true))
 	mux.HandleFunc("/api/admin/overview", protect(requireAdmin(adminOverviewHandler), false))
@@ -227,7 +230,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// quey db
-	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned FROM notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
+	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Query error", 500)
 		return
@@ -239,7 +242,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var n models.Note
 		// scan cols. into struct fields
-		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned)
+		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor)
 		if err != nil {
 			log.Println("Scan error:", err)
 			http.Error(w, "Could not load notes", http.StatusInternalServerError)
@@ -276,7 +279,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conditions := []string{"user_id = ?", "deleted_at IS NULL"}
+	conditions := []string{"user_id = ?", "deleted_at IS NULL", "archived_at IS NULL"}
 	args := []any{userIDFromRequest(r)}
 
 	fromDate, err := parseSearchDate(r.URL.Query().Get("from"))
@@ -324,7 +327,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	query := "SELECT id, title, content, created_at, pinned FROM notes WHERE " +
+	query := "SELECT id, title, content, created_at, pinned, background_color FROM notes WHERE " +
 		strings.Join(conditions, " AND ") +
 		" ORDER BY pinned DESC, created_at DESC"
 	rows, err := db.DB.Query(query, args...)
@@ -337,7 +340,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	matches := make([]models.Note, 0)
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor); err != nil {
 			log.Println("Search scan error:", err)
 			http.Error(w, "Search failed", http.StatusInternalServerError)
 			return
@@ -373,7 +376,7 @@ func pinNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := db.DB.Exec(
-		"UPDATE notes SET pinned = CASE pinned WHEN 1 THEN 0 ELSE 1 END WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+		"UPDATE notes SET pinned = CASE pinned WHEN 1 THEN 0 ELSE 1 END WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
 		id, userIDFromRequest(r),
 	)
 	if err != nil {
@@ -399,7 +402,7 @@ func unpinAllNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := db.DB.Exec(
-		"UPDATE notes SET pinned = 0 WHERE user_id = ? AND deleted_at IS NULL AND pinned = 1",
+		"UPDATE notes SET pinned = 0 WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND pinned = 1",
 		userIDFromRequest(r),
 	); err != nil {
 		http.Error(w, "Could not unpin notes", http.StatusInternalServerError)
@@ -430,7 +433,7 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := db.DB.Exec(
-		"UPDATE notes SET title = ?, content = ?, rendered_content = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+		"UPDATE notes SET title = ?, content = ?, rendered_content = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
 		n.Title,
 		n.Content,
 		mdToHTML(n.Content),
@@ -455,6 +458,58 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+var allowedNoteColors = map[string]struct{}{
+	"":         {},
+	"mist":     {},
+	"sage":     {},
+	"peach":    {},
+	"lavender": {},
+	"butter":   {},
+	"rose":     {},
+}
+
+func updateNoteColorHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		http.Error(w, "Use PUT or POST", http.StatusMethodNotAllowed)
+		return
+	}
+	id, ok := noteIDFromRequest(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		Color string `json:"color"`
+	}
+	if err := decodeJSONBody(w, r, &input); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+	if _, ok := allowedNoteColors[input.Color]; !ok {
+		http.Error(w, "Invalid note color", http.StatusBadRequest)
+		return
+	}
+	result, err := db.DB.Exec(
+		"UPDATE notes SET background_color = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
+		input.Color,
+		id,
+		userIDFromRequest(r),
+	)
+	if err != nil {
+		http.Error(w, "Could not update note color", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Could not update note color", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "Note not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
 		http.Error(w, "Use DELETE or POST", http.StatusMethodNotAllowed)
@@ -465,7 +520,7 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := db.DB.Exec(
-		"UPDATE notes SET deleted_at = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+		"UPDATE notes SET deleted_at = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
 		time.Now(),
 		id,
 		userIDFromRequest(r),
@@ -492,7 +547,7 @@ func deleteAllNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := db.DB.Exec(
-		"UPDATE notes SET deleted_at = ? WHERE user_id = ? AND deleted_at IS NULL",
+		"UPDATE notes SET deleted_at = ? WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
 		time.Now(), userIDFromRequest(r),
 	); err != nil {
 		http.Error(w, "Delete failed", http.StatusInternalServerError)

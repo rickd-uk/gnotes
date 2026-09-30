@@ -390,7 +390,7 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 	var activeNotes, recycledNotes int
 	err := db.DB.QueryRow(`
 		SELECT users.created_at, users.last_login_at, users.email,
-			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NULL),
+			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NULL AND archived_at IS NULL),
 			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NOT NULL)
 		FROM users WHERE users.id = ?`, session.UserID,
 	).Scan(&joinedAt, &lastLogin, &email, &activeNotes, &recycledNotes)

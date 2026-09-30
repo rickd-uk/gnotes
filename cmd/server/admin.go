@@ -61,7 +61,7 @@ func adminOverviewHandler(w http.ResponseWriter, r *http.Request) {
 		SELECT users.id, users.username, users.role, users.active, users.created_at,
 		       users.last_login_at,
 		       COUNT(notes.id),
-		       COUNT(CASE WHEN notes.deleted_at IS NULL THEN notes.id END),
+		       COUNT(CASE WHEN notes.deleted_at IS NULL AND notes.archived_at IS NULL THEN notes.id END),
 		       COUNT(CASE WHEN notes.deleted_at IS NOT NULL THEN notes.id END)
 		FROM users LEFT JOIN notes ON notes.user_id = users.id
 		GROUP BY users.id
