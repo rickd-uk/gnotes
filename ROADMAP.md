@@ -4,12 +4,13 @@ Last reviewed: 2026-09-29
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.4`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
 - Isolated user accounts, administrator controls, signup policy, invitations, CSRF protection, and persistent login throttling.
 - Autosaved drafts and edits, refresh recovery, pinning, hiding, recycling, date sections, archive overviews, pagination, and indexed full-text search.
+- Recoverable note archiving, persistent note background colors, expanded appearance controls, selectable writing styles, and link underline preferences.
 - Responsive density controls and persistent per-user interface state.
 - Markdown formatting tools, fenced-code completion, brace pairing, and server-side syntax highlighting.
 - A one-command release updater and operational checker.

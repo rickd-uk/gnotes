@@ -4,6 +4,7 @@ A compact, multi-user Markdown notes application written in Go with SQLite and a
 
 See [SECURITY.md](SECURITY.md) for the production checklist, threat boundaries, incident response, and restore procedure.
 See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command updates, health checks, and rollback procedure.
+See [PROGRESS.md](PROGRESS.md) for the current deployed release, completed work, and future plans.
 Production runs on a Kagoya VPS as a rootless Podman container with a validated daily backup timer; the Ubuntu/systemd instructions below are an alternative installation layout.
 See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritized future work.
 
