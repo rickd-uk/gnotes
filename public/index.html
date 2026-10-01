@@ -371,6 +371,10 @@
         bottom: 1px;
       }
 
+      .mobile-note-save {
+        display: none;
+      }
+
       .format-control {
         position: relative;
         flex: 0 0 auto;
@@ -708,6 +712,8 @@
       }
 
       .note-action:focus-visible,
+      .mobile-note-save:focus-visible,
+      .archived-quick-open:focus-visible,
       .delete-btn:focus-visible,
       .notes-toggle:focus-visible,
       .toolbar-button:focus-visible,
@@ -725,7 +731,20 @@
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        margin-bottom: 0;
+        margin-bottom: 8px;
+      }
+
+      .archived-quick-open {
+        min-height: 36px;
+        margin-left: auto;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 700;
       }
 
       #controls-toggle .tools-slash {
@@ -1451,6 +1470,21 @@
         transform: translateY(0);
       }
 
+      .note-card.is-just-saved {
+        animation: saved-note-glow 1.6s ease-out;
+      }
+
+      @keyframes saved-note-glow {
+        from {
+          background-color: rgba(49, 91, 76, 0.11);
+          box-shadow: inset 3px 0 0 rgba(49, 91, 76, 0.55);
+        }
+        to {
+          background-color: transparent;
+          box-shadow: inset 3px 0 0 transparent;
+        }
+      }
+
       .note-card.actions-expanded { z-index: 2; opacity: 1; }
 
       .note-card.note-color-mist {
@@ -1964,6 +1998,21 @@
         font-family: Georgia, "Times New Roman", serif;
         font-size: 1.2rem;
         font-style: italic;
+      }
+
+      .empty-state p {
+        margin: 0 0 12px;
+      }
+
+      .empty-state button {
+        min-height: 38px;
+        padding: 7px 12px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font: 700 0.78rem var(--note-body-font);
       }
 
       #notes-list[hidden] {
@@ -3038,6 +3087,29 @@
           padding-top: 0;
         }
 
+        .note-card {
+          padding-right: 12px;
+          padding-left: 12px;
+        }
+
+        #notes-list:not(.density-titles) .note-card:not(.is-editing) .note-view {
+          display: block;
+        }
+
+        #notes-list:not(.density-titles) .note-card:not(.is-editing) .note-view h2 {
+          position: static;
+          max-width: none;
+          margin: 8px 0 0;
+          overflow: visible;
+          overflow-wrap: anywhere;
+          text-overflow: clip;
+          white-space: normal;
+        }
+
+        .note-card .date {
+          text-align: left;
+        }
+
         .form-container {
           margin: 14px 0 16px;
         }
@@ -3045,7 +3117,56 @@
         #content {
           min-height: 56px;
           margin-top: 10px;
-          padding-bottom: 8px;
+          padding: 0 0 8px;
+        }
+
+        .form-actions {
+          position: static;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .form-actions .shortcut,
+        .form-actions .shortcut.is-error {
+          position: static;
+          width: auto;
+          max-width: none;
+          height: auto;
+          flex: 1;
+          padding: 0;
+          overflow: visible;
+          clip: auto;
+          background: transparent;
+          color: var(--muted);
+          font-size: 0.72rem;
+          white-space: normal;
+        }
+
+        .form-actions .shortcut.is-error {
+          color: var(--danger);
+        }
+
+        .mobile-note-save:not([hidden]) {
+          display: inline-flex;
+          min-height: 44px;
+          align-items: center;
+          justify-content: center;
+          padding: 7px 14px;
+          border: 0;
+          border-radius: 6px;
+          background: var(--accent);
+          color: white;
+          cursor: pointer;
+          font: inherit;
+          font-size: 0.78rem;
+          font-weight: 700;
+        }
+
+        .mobile-note-save:disabled {
+          cursor: default;
+          opacity: 0.6;
         }
 
         .format-toggle {
@@ -3366,6 +3487,7 @@
         }
 
         .note-card {
+          animation: none;
           transform: none;
           transition: none;
         }
@@ -3574,7 +3696,6 @@
               <div class="account-menu-section" id="account-notes-section">
                 <span class="account-menu-label">Notes</span>
                 <button id="unpin-all-notes" type="button" hidden>Unpin all notes</button>
-                <button id="archived-open" type="button">Archived notes</button>
               </div>
               <div class="account-menu-section" id="account-admin-section" hidden>
                 <span class="account-menu-label">Administration</span>
@@ -3646,7 +3767,7 @@
         <textarea id="content" rows="2" placeholder="Start writing…" aria-label="Note content"></textarea>
 
         <div class="form-actions">
-          <span class="shortcut" id="draft-status" role="status" aria-live="polite"></span>
+          <span class="shortcut" id="draft-status" role="status" aria-live="polite">Drafts save automatically</span>
           <div class="format-control" id="new-note-format-control">
             <button class="format-toggle" type="button" aria-controls="new-note-format-toolbar" aria-expanded="false" onclick="toggleFormattingToolbar('new-note-format-control')" title="Formatting" aria-label="Open formatting toolbar">Aa</button>
             <div class="format-toolbar" id="new-note-format-toolbar" role="toolbar" aria-label="Format note content" hidden>
@@ -3686,6 +3807,7 @@
               <button class="format-close" type="button" onclick="closeFormattingToolbar('new-note-format-control')" title="Hide formatting" aria-label="Hide formatting toolbar">×</button>
             </div>
           </div>
+          <button class="mobile-note-save" id="mobile-note-save" type="submit" hidden>Save note</button>
         </div>
       </form>
 
@@ -3697,7 +3819,9 @@
         <div class="notes-toolbar">
           <h2 class="visually-hidden" id="notes-heading">Recent notes</h2>
           <button class="calendar-clear" id="calendar-clear" type="button" hidden>Recent</button>
+          <button class="archived-quick-open" id="archived-quick-open" type="button" aria-controls="archived-panel">Archived notes</button>
         </div>
+        <p class="search-status" id="notes-load-status" role="status" hidden></p>
         <div id="notes-list"></div>
         <button class="load-more" id="load-more-notes" type="button" hidden>Load older</button>
       </section>
@@ -3754,6 +3878,7 @@
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
         <div><h3>Edit a note</h3><p>Use the pencil on a note. Press it again to save and close the editor.</p></div>
+        <div><h3>Note actions on a phone</h3><p>Swipe left on a note to reveal its actions, then tap one. Swipe right to close them. The three-dot button also works.</p></div>
         <div><h3>Change the view</h3><p>Open Controls for note tools, density, hidden notes, and date sections. The Markdown guide is in your account menu.</p></div>
       </div>
     </section>
@@ -3838,6 +3963,7 @@
       let trashedNoteCount = 0;
       let draftVersion = 0;
       let draftSaveTimer;
+      let draftStatusResetTimer;
       let draftSaveChain = Promise.resolve();
       let draftFinalizing = false;
       let loadedNotes = new Map();
@@ -4200,8 +4326,13 @@
         document.getElementById("auth-screen").hidden = true;
         document.getElementById("app-shell").hidden = true;
         document.getElementById("startup-screen").hidden = false;
-        await Promise.allSettled([loadNotes(), loadTrash(), loadDraft()]);
+        const [notesResult, , draftResult] = await Promise.allSettled([loadNotes(), loadTrash(), loadDraft()]);
         if (currentUser !== session) return;
+        if (notesResult.status === "rejected") {
+          showNotesLoadError("Could not display notes. Reload the page to try again.");
+          notesLoading = false;
+        }
+        if (draftResult.status === "rejected") setDraftStatus("Draft unavailable", true);
         if (restoredUI.adminOpen && session.role === "admin") await loadAdmin();
         if (restoredUI.archiveOpen) await openArchiveOverview();
         document.getElementById("startup-screen").hidden = true;
@@ -4576,7 +4707,7 @@
         try {
           res = await apiFetch(`${pageURL.pathname}${pageURL.search}`);
         } catch {
-          document.getElementById("search-status").textContent = "Could not reach the server.";
+          showNotesLoadError("Could not reach the server. Reload the page to try again.");
           notesLoading = false;
           loadMore.disabled = false;
           loadMore.textContent = searchActive ? "More results" : "Load older";
@@ -4584,14 +4715,14 @@
         }
         if (!res.ok) {
           const message = await res.text();
-          document.getElementById("search-status").textContent =
-            message.trim() || "Search failed.";
+          if (res.status !== 401) showNotesLoadError(message.trim() || "Could not display notes.");
           notesLoading = false;
           loadMore.disabled = false;
           loadMore.textContent = searchActive ? "More results" : "Load older";
           return false;
         }
         const page = await res.json();
+        document.getElementById("notes-load-status").hidden = true;
         if (!append) loadedNotes = new Map();
         (page.notes || []).forEach((note) => loadedNotes.set(note.id, note));
         if (!append) await loadRememberedEditingNote();
@@ -4612,8 +4743,7 @@
           setActiveNoteCount(notesTotal);
           setPinnedNoteCount(page.pinned_total || 0);
         }
-        const notesSection = document.getElementById("notes-section");
-        notesSection.hidden = !searchActive && notesTotal === 0;
+        document.getElementById("notes-section").hidden = false;
         const searchSummary = highlightQuery
           ? `${notesTotal} ${notesTotal === 1 ? "note" : "notes"} · ${page.match_count || 0} ${page.match_count === 1 ? "match" : "matches"}`
           : String(notesTotal);
@@ -4630,7 +4760,7 @@
         if (!notes.length) {
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML = searchActive
-            ? '<p class="empty-state">No matching notes.</p>'
+            ? `<div class="empty-state"><p>${calendarActive ? "No notes for this date." : "No matching notes."}</p><button type="button" onclick="showRecentNotes()">Show recent notes</button></div>`
             : "";
           loadMore.hidden = true;
           updateDateSectionsControl();
@@ -4781,6 +4911,13 @@
         }
         notesLoading = false;
         return true;
+      }
+
+      function showNotesLoadError(message) {
+        const status = document.getElementById("notes-load-status");
+        status.textContent = message;
+        status.hidden = false;
+        document.getElementById("notes-section").hidden = false;
       }
 
       function buildSearchURL() {
@@ -5161,9 +5298,11 @@
       }
 
       function setDraftStatus(message, isError = false) {
+        clearTimeout(draftStatusResetTimer);
         const status = document.getElementById("draft-status");
-        status.textContent = message;
+        status.textContent = message || "Drafts save automatically";
         status.classList.toggle("is-error", isError);
+        document.getElementById("mobile-note-save").hidden = !draftHasText();
       }
 
       async function loadDraft() {
@@ -5191,21 +5330,26 @@
         clearTimeout(draftSaveTimer);
         const draft = currentDraft();
         draftSaveChain = draftSaveChain.catch(() => false).then(async () => {
-          const response = await apiFetch("/api/draft/update", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(draft),
-          });
-          if (!response.ok) {
-            setDraftStatus(response.status === 409
-              ? "Newer draft open in another tab"
-              : "Draft save failed", true);
+          try {
+            const response = await apiFetch("/api/draft/update", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(draft),
+            });
+            if (!response.ok) {
+              setDraftStatus(response.status === 409
+                ? "Newer draft open in another tab"
+                : "Draft save failed", true);
+              return false;
+            }
+            if (draft.version === draftVersion) {
+              setDraftStatus(draftHasText() ? "Draft saved" : "");
+            }
+            return true;
+          } catch {
+            setDraftStatus("Draft save failed", true);
             return false;
           }
-          if (draft.version === draftVersion) {
-            setDraftStatus(draftHasText() ? "Draft saved" : "");
-          }
-          return true;
         });
         return draftSaveChain;
       }
@@ -5215,9 +5359,13 @@
         const titleInput = document.getElementById("title");
         const contentInput = document.getElementById("content");
         draftFinalizing = true;
+        const mobileSave = document.getElementById("mobile-note-save");
+        mobileSave.disabled = true;
         titleInput.disabled = true;
         contentInput.disabled = true;
+        let saveConfirmed = false;
         try {
+          setDraftStatus("Saving note…");
           if (draftVersion < 1) draftVersion = Date.now();
           const saved = await queueDraftSave();
           if (!saved) return;
@@ -5232,22 +5380,40 @@
               : "Could not finish note", true);
             return;
           }
+          saveConfirmed = true;
           const createdNote = response.status === 201;
+          let created = null;
+          if (createdNote) {
+            try { created = await response.json(); } catch {}
+          }
           titleInput.value = "";
           contentInput.value = "";
           closeFormattingToolbar("new-note-format-control");
           contentInput.style.height = "";
           contentInput.style.overflowY = "hidden";
           draftVersion = 0;
-          setDraftStatus("");
+          setDraftStatus(createdNote ? "✓ Note saved" : "");
+          if (createdNote) {
+            draftStatusResetTimer = setTimeout(() => setDraftStatus(""), 2000);
+          }
           if (createdNote) setActiveNoteCount(activeNoteCount + 1);
           setNotesVisibility(true);
           saveUIState();
-          await loadNotes();
+          const loaded = createdNote && searchActive ? await showRecentNotes() : await loadNotes();
+          if (loaded && created?.id) {
+            const card = document.getElementById(`note-${created.id}`);
+            card?.classList.add("is-just-saved");
+            if (card) setTimeout(() => card.classList.remove("is-just-saved"), 1600);
+          }
+        } catch {
+          setDraftStatus(saveConfirmed
+            ? "Note saved; list could not refresh."
+            : "Could not confirm note save. Reload before retrying.", true);
         } finally {
           titleInput.disabled = false;
           contentInput.disabled = false;
           draftFinalizing = false;
+          mobileSave.disabled = false;
         }
       }
 
@@ -6066,6 +6232,50 @@
         if (shouldOpen) setNoteActionsOpen(card, true);
       }
 
+      let noteSwipeStart = null;
+      const notesList = document.getElementById("notes-list");
+
+      notesList.addEventListener("touchstart", (event) => {
+        noteSwipeStart = null;
+        if (!matchMedia("(max-width: 560px)").matches || event.touches.length !== 1 ||
+            notesList.classList.contains("tool-all-hidden")) return;
+        const target = event.target;
+        if (!(target instanceof Element) || target.closest("button, a, input, textarea, select, [contenteditable]")) return;
+        const card = target.closest(".note-card");
+        if (!card || card.classList.contains("is-editing")) return;
+        const touch = event.touches[0];
+        if (touch.clientX < 28 || touch.clientX > innerWidth - 28) return;
+        noteSwipeStart = {
+          card,
+          identifier: touch.identifier,
+          x: touch.clientX,
+          y: touch.clientY,
+          time: Date.now(),
+        };
+      }, { passive: true });
+
+      notesList.addEventListener("touchend", (event) => {
+        const start = noteSwipeStart;
+        noteSwipeStart = null;
+        if (!start || Date.now() - start.time > 850) return;
+        const touch = Array.from(event.changedTouches).find((item) => item.identifier === start.identifier);
+        if (!touch) return;
+        const dx = touch.clientX - start.x;
+        const dy = touch.clientY - start.y;
+        if (Math.abs(dx) < 64 || Math.abs(dy) > 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        const isOpen = start.card.classList.contains("actions-expanded");
+        if (dx < 0 && !isOpen) {
+          event.preventDefault();
+          document.querySelectorAll(".note-card.actions-expanded").forEach((card) => setNoteActionsOpen(card, false));
+          setNoteActionsOpen(start.card, true);
+        } else if (dx > 0 && isOpen) {
+          event.preventDefault();
+          setNoteActionsOpen(start.card, false);
+        }
+      }, { passive: false });
+
+      notesList.addEventListener("touchcancel", () => { noteSwipeStart = null; }, { passive: true });
+
       async function editNote(id) {
         if (editingNoteId === id) return updateNote(id);
         if (editingNoteId !== null) {
@@ -6389,8 +6599,9 @@
         selectedArchiveLabel = "";
         highlightQuery = "";
         saveUIState();
-        await loadNotes();
+        const loaded = await loadNotes();
         closeSearchPanel();
+        return loaded;
       }
 
       async function openCalendarDate() {
@@ -6634,7 +6845,7 @@
         if (
           !archivedPanel.hidden &&
           !archivedPanel.contains(event.target) &&
-          !document.getElementById("archived-open").contains(event.target)
+          !document.getElementById("archived-quick-open").contains(event.target)
         ) closeArchivedPanel();
       });
 
@@ -6788,7 +6999,7 @@
 
       document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
       document.getElementById("unpin-all-notes").addEventListener("click", unpinAllNotes);
-      document.getElementById("archived-open").addEventListener("click", openArchivedPanel);
+      document.getElementById("archived-quick-open").addEventListener("click", openArchivedPanel);
       document.getElementById("archived-close").addEventListener("click", closeArchivedPanel);
       document.getElementById("date-sections-toggle").addEventListener("click", toggleAllDateSections);
 
