@@ -731,7 +731,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        margin-bottom: 8px;
+        margin-bottom: 0;
       }
 
       .archived-quick-open {
@@ -1531,7 +1531,7 @@
       .note-card[class*="note-color-"] h2 { color: var(--note-surface-ink); }
       .note-card[class*="note-color-"] .date { color: color-mix(in srgb, var(--note-surface-ink) 68%, transparent); }
 
-      .newest-note {
+      .newest-note:not([class*="note-color-"]) {
         background: linear-gradient(
           90deg,
           rgba(49, 91, 76, 0.07),
@@ -1761,8 +1761,8 @@
         top: calc(100% + 5px);
         right: 0;
         display: grid;
-        grid-template-columns: repeat(4, 26px);
-        gap: 5px;
+        grid-template-columns: repeat(4, 36px);
+        gap: 6px;
         padding: 7px;
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -1773,8 +1773,8 @@
       .note-color-menu[hidden] { display: none; }
 
       .note-color-swatch {
-        width: 26px;
-        height: 26px;
+        width: 36px;
+        height: 36px;
         padding: 0;
         border: 1px solid rgba(36, 35, 31, 0.18);
         border-radius: 50%;
@@ -1793,6 +1793,8 @@
         outline: 2px solid var(--accent);
         outline-offset: 2px;
       }
+
+      .note-color-swatch:disabled { cursor: wait; opacity: 0.6; }
 
       .note-card.is-editing .note-color-control { display: none; }
 
@@ -2464,6 +2466,88 @@
       }
 
       .info-panel[hidden] { display: none; }
+
+      .welcome-overlay {
+        position: fixed;
+        z-index: 90;
+        inset: 0;
+        display: grid;
+        padding: 16px;
+        place-items: center;
+        background: rgba(36, 35, 31, 0.42);
+      }
+
+      .welcome-overlay[hidden] { display: none; }
+
+      .welcome-card {
+        width: min(100%, 440px);
+        max-height: calc(100dvh - 32px);
+        padding: 24px;
+        overflow-y: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #f8f6f0;
+        box-shadow: 0 24px 65px rgba(36, 35, 31, 0.24);
+      }
+
+      .welcome-card h2 {
+        margin: 0 0 14px;
+        font: 500 1.5rem Georgia, "Times New Roman", serif;
+      }
+
+      .welcome-steps {
+        margin: 0 0 18px;
+        padding-left: 22px;
+      }
+
+      .welcome-steps li + li { margin-top: 12px; }
+      .welcome-steps strong { display: block; font-size: 0.86rem; }
+      .welcome-steps span { display: block; color: var(--muted); font-size: 0.82rem; }
+
+      .welcome-remember {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        font-size: 0.8rem;
+      }
+
+      .welcome-remember input {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 16px;
+        margin: 0;
+        accent-color: var(--accent);
+      }
+
+      .welcome-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .welcome-actions button {
+        min-height: 40px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font: 650 0.78rem var(--note-body-font);
+      }
+
+      .welcome-actions .welcome-start {
+        border-color: #bad0c2;
+        background: #e1ebe5;
+      }
+
+      .welcome-actions button:focus-visible,
+      .welcome-remember input:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+        outline-offset: 2px;
+      }
 
       .info-panel-header {
         display: flex;
@@ -3354,6 +3438,21 @@
           box-shadow: none;
         }
 
+        .view-menu-view-options {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 2px;
+          padding: 2px 5px 6px;
+        }
+
+        .view-menu-view-options > button {
+          min-height: 40px;
+          justify-content: center;
+          gap: 5px;
+          padding: 3px 5px;
+          font-size: 0.74rem;
+        }
+
         .notes-toolbar {
           align-items: flex-start;
         }
@@ -3657,6 +3756,10 @@
             </svg>
           </button>
 
+          <button class="archived-quick-open" id="archived-quick-open" type="button" aria-controls="archived-panel" aria-label="Archived notes" title="Archived notes">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" /></svg>
+          </button>
+
           <div class="trash-control">
             <button class="trash-toggle" id="trash-toggle" type="button" aria-controls="trash-panel" aria-expanded="false" aria-label="Open recycle bin" title="Recycle bin">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -3834,9 +3937,6 @@
         <div class="notes-toolbar">
           <h2 class="visually-hidden" id="notes-heading">Recent notes</h2>
           <button class="calendar-clear" id="calendar-clear" type="button" hidden>Recent</button>
-          <button class="archived-quick-open" id="archived-quick-open" type="button" aria-controls="archived-panel" aria-label="Archived notes" title="Archived notes">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" /></svg>
-          </button>
         </div>
         <p class="search-status" id="notes-load-status" role="status" hidden></p>
         <div id="notes-list"></div>
@@ -3899,6 +3999,22 @@
         <div><h3>Change the view</h3><p>Open Controls for note tools, density, hidden notes, and date sections. The Markdown guide is in your account menu.</p></div>
       </div>
     </section>
+
+    <div class="welcome-overlay" id="welcome-overlay" hidden>
+      <section class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-heading">
+        <h2 id="welcome-heading">Welcome to gnotes</h2>
+        <ol class="welcome-steps">
+          <li><strong>Write your first note</strong><span>Type a title or some text in the writing area. Your draft saves as you type. Tap Save on a phone, or click outside the writing area on a larger screen.</span></li>
+          <li><strong>Find it again</strong><span>Saved notes appear below the writing area. Use Search in the header to find a note later.</span></li>
+        </ol>
+        <label class="welcome-remember"><input id="welcome-dont-show" type="checkbox" />Don’t show this again</label>
+        <div class="welcome-actions">
+          <button class="welcome-start" id="welcome-start" type="button">Start writing</button>
+          <button id="welcome-help" type="button">Help</button>
+          <button id="welcome-markdown" type="button">Markdown guide</button>
+        </div>
+      </section>
+    </div>
 
     <section class="admin-panel" id="admin-panel" aria-labelledby="admin-heading" hidden>
       <div class="admin-header">
@@ -4324,6 +4440,7 @@
         document.getElementById("archived-panel").hidden = true;
         document.getElementById("profile-panel").hidden = true;
         document.getElementById("help-panel").hidden = true;
+        document.getElementById("welcome-overlay").hidden = true;
         document.getElementById("auth-screen").hidden = false;
         document.getElementById("auth-status").textContent = message;
         loadAuthConfig().then(() => {
@@ -4331,7 +4448,24 @@
         });
       }
 
-      async function enterApp(session) {
+      function welcomeStorageKey(username) {
+        return `gnotes-welcome:${username.toLowerCase()}`;
+      }
+
+      function showWelcome() {
+        document.getElementById("welcome-dont-show").checked = false;
+        document.getElementById("welcome-overlay").hidden = false;
+        document.getElementById("welcome-start").focus();
+      }
+
+      function dismissWelcome() {
+        if (currentUser && document.getElementById("welcome-dont-show").checked) {
+          try { localStorage.setItem(welcomeStorageKey(currentUser.username), "dismissed"); } catch {}
+        }
+        document.getElementById("welcome-overlay").hidden = true;
+      }
+
+      async function enterApp(session, newAccount = false) {
         csrfToken = session.csrf_token;
         currentUser = session;
         loadCollapsedDateSections();
@@ -4354,6 +4488,14 @@
         if (restoredUI.archiveOpen) await openArchiveOverview();
         document.getElementById("startup-screen").hidden = true;
         document.getElementById("app-shell").hidden = false;
+        if (newAccount) {
+          try { localStorage.setItem(welcomeStorageKey(session.username), "pending"); } catch {}
+          showWelcome();
+        } else {
+          try {
+            if (localStorage.getItem(welcomeStorageKey(session.username)) === "pending") showWelcome();
+          } catch {}
+        }
       }
 
       async function initializeAuth() {
@@ -4694,18 +4836,38 @@
 
       async function setNoteColor(id, color) {
         if (!noteColorKeys.has(color)) return;
-        const response = await apiFetch(`/api/notes/color?id=${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ color }),
-        });
-        if (!response.ok) {
+        const menu = document.getElementById(`note-colors-${id}`);
+        if (!menu || menu.dataset.saving === "true") return;
+        menu.dataset.saving = "true";
+        menu.querySelectorAll(".note-color-swatch").forEach((swatch) => { swatch.disabled = true; });
+        try {
+          const response = await apiFetch(`/api/notes/color?id=${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ color }),
+          });
+          if (!response.ok) throw new Error("Color update failed");
+          const note = loadedNotes.get(id);
+          if (note) note.background_color = color;
+          const card = document.getElementById(`note-${id}`);
+          if (card) {
+            noteColorOptions.forEach(([key]) => {
+              if (key) card.classList.remove(`note-color-${key}`);
+            });
+            if (color) card.classList.add(`note-color-${color}`);
+            card.querySelectorAll(".note-color-swatch").forEach((swatch) => {
+              swatch.setAttribute("aria-pressed", String(swatch.dataset.color === color));
+            });
+            setNoteActionsOpen(card, false);
+          }
+        } catch {
           alert("Could not change the note color.");
-          return;
+        } finally {
+          delete menu.dataset.saving;
+          menu.querySelectorAll(".note-color-swatch").forEach((swatch) => { swatch.disabled = false; });
+          menu.hidden = true;
+          menu.closest(".note-color-control")?.querySelector(".color-btn")?.setAttribute("aria-expanded", "false");
         }
-        const note = loadedNotes.get(id);
-        if (note) note.background_color = color;
-        await loadNotes();
       }
 
       async function loadNotes(append = false) {
@@ -6867,6 +7029,7 @@
       });
 
       document.addEventListener("pointerdown", (event) => {
+        if (!document.getElementById("welcome-overlay").hidden) return;
         if (editingNoteId !== null && !event.target.closest(".edit-btn")) {
           const editor = document.getElementById(`note-editor-${editingNoteId}`);
           if (editor && !editor.contains(event.target)) updateNote(editingNoteId);
@@ -6983,7 +7146,8 @@
         event.preventDefault();
         const status = document.getElementById("auth-status");
         status.textContent = "";
-        const endpoint = authMode === "register" ? "/api/auth/register" : "/api/auth/login";
+        const newAccount = authMode === "register";
+        const endpoint = newAccount ? "/api/auth/register" : "/api/auth/login";
         try {
           const response = await fetch(endpoint, {
             method: "POST",
@@ -6993,7 +7157,7 @@
               password: document.getElementById("auth-password").value,
               setup_token: document.getElementById("setup-token").value,
               invite_code: document.getElementById("invite-code").value,
-              email: authMode === "register" ? document.getElementById("auth-email").value.trim() : "",
+              email: newAccount ? document.getElementById("auth-email").value.trim() : "",
             }),
           });
           if (!response.ok) {
@@ -7003,7 +7167,7 @@
           document.getElementById("auth-password").value = "";
           document.getElementById("invite-code").value = "";
           document.getElementById("auth-email").value = "";
-          await enterApp(await response.json());
+          await enterApp(await response.json(), newAccount);
         } catch {
           status.textContent = "Could not reach the server.";
         }
@@ -7076,6 +7240,42 @@
       document.getElementById("help-open").addEventListener("click", openHelpPanel);
       document.getElementById("profile-close").addEventListener("click", closeProfilePanel);
       document.getElementById("help-close").addEventListener("click", closeHelpPanel);
+
+      document.getElementById("welcome-start").addEventListener("click", () => {
+        dismissWelcome();
+        document.getElementById("content").focus();
+      });
+      document.getElementById("welcome-help").addEventListener("click", (event) => {
+        event.stopPropagation();
+        dismissWelcome();
+        openHelpPanel();
+        document.getElementById("help-close").focus();
+      });
+      document.getElementById("welcome-markdown").addEventListener("click", (event) => {
+        event.stopPropagation();
+        dismissWelcome();
+        document.getElementById("account-control").open = true;
+        document.getElementById("markdown-help").open = true;
+        document.getElementById("markdown-guide-close").focus();
+      });
+      document.getElementById("welcome-overlay").addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          dismissWelcome();
+          document.getElementById("content").focus();
+        }
+        if (event.key !== "Tab") return;
+        const focusable = [...document.querySelectorAll("#welcome-overlay button, #welcome-overlay input")];
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      });
 
       function closeAdminPanel() {
         const panel = document.getElementById("admin-panel");
