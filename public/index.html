@@ -735,16 +735,27 @@
       }
 
       .archived-quick-open {
-        min-height: 36px;
+        display: grid;
+        width: 40px;
+        height: 40px;
         margin-left: auto;
-        padding: 6px 10px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
+        padding: 0;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
         background: transparent;
-        color: var(--accent);
+        color: var(--muted);
         cursor: pointer;
-        font-size: 0.75rem;
-        font-weight: 700;
+      }
+
+      .archived-quick-open:hover {
+        background: #e9e5dc;
+        color: var(--accent);
+      }
+
+      .archived-quick-open .icon {
+        width: 20px;
+        height: 20px;
       }
 
       #controls-toggle .tools-slash {
@@ -3150,18 +3161,22 @@
 
         .mobile-note-save:not([hidden]) {
           display: inline-flex;
-          min-height: 44px;
+          min-height: 38px;
           align-items: center;
           justify-content: center;
-          padding: 7px 14px;
-          border: 0;
+          padding: 5px 11px;
+          border: 1px solid #bad0c2;
           border-radius: 6px;
-          background: var(--accent);
-          color: white;
+          background: #e1ebe5;
+          color: var(--accent);
           cursor: pointer;
           font: inherit;
-          font-size: 0.78rem;
-          font-weight: 700;
+          font-size: 0.74rem;
+          font-weight: 650;
+        }
+
+        .mobile-note-save:not([hidden]):hover {
+          background: #d6e5dc;
         }
 
         .mobile-note-save:disabled {
@@ -3819,7 +3834,9 @@
         <div class="notes-toolbar">
           <h2 class="visually-hidden" id="notes-heading">Recent notes</h2>
           <button class="calendar-clear" id="calendar-clear" type="button" hidden>Recent</button>
-          <button class="archived-quick-open" id="archived-quick-open" type="button" aria-controls="archived-panel">Archived notes</button>
+          <button class="archived-quick-open" id="archived-quick-open" type="button" aria-controls="archived-panel" aria-label="Archived notes" title="Archived notes">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" /></svg>
+          </button>
         </div>
         <p class="search-status" id="notes-load-status" role="status" hidden></p>
         <div id="notes-list"></div>
