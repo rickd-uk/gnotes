@@ -1,10 +1,10 @@
 # gnotes roadmap
 
-Last reviewed: 2026-09-29
+Last reviewed: 2026-10-01
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.4`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.8`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -12,10 +12,12 @@ The current release includes:
 - Autosaved drafts and edits, refresh recovery, pinning, hiding, recycling, date sections, archive overviews, pagination, and indexed full-text search.
 - Recoverable note archiving, persistent note background colors, expanded appearance controls, selectable writing styles, and link underline preferences.
 - Responsive density controls and persistent per-user interface state.
+- Mobile Save control, swipe-revealed note actions, direct Archived access in the header, and a welcome dialog after account creation.
+- A mobile Controls row for Full, Fold, and Notes; Hide remains in Controls. The welcome dismissal preference is browser-local.
 - Markdown formatting tools, fenced-code completion, brace pairing, and server-side syntax highlighting.
 - A one-command release updater and operational checker.
 
-## Next release: recovery tooling
+## Recovery tooling
 
 The recovery milestone is a safe, tested restore workflow. The systemd and Podman commands, integration tests, and an isolated full application rehearsal are implemented. The Podman command and a pre-update backup were verified on Kagoya after the `v0.7.2` deployment.
 
@@ -38,7 +40,13 @@ After recovery tooling:
 4. Add privacy-conscious audit records for administrator actions and authentication security events, with a documented retention period.
 5. Periodically test restoration instead of treating backup creation alone as proof of recoverability.
 
-The notification provider and off-server storage destination require an explicit deployment choice before implementation.
+The notification provider and off-server storage destination require an explicit deployment choice before implementation. Wasabi is a possible destination, but no Wasabi backup is currently configured.
+
+## Mobile verification
+
+1. Retest v0.7.8 on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them, use the header Archive control, swipe actions, and color swatches.
+2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
+3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 
 ## Browser and account security
 
