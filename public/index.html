@@ -4392,7 +4392,6 @@
           searchOpen: !document.getElementById("search-panel").hidden,
           trashOpen: !document.getElementById("trash-panel").hidden,
           hiddenNotesOpen: !document.getElementById("hidden-notes-panel").hidden,
-          accountOpen: document.getElementById("account-control").open,
           invitationsOpen: document.querySelector(".admin-invitations-section").open,
           adminOpen: !document.getElementById("admin-panel").hidden,
           archiveOpen: !document.getElementById("archive-panel").hidden,
@@ -4545,7 +4544,7 @@
         document.getElementById("trash-toggle").setAttribute("aria-expanded", String(Boolean(state.trashOpen)));
         document.getElementById("hidden-notes-panel").hidden = !state.hiddenNotesOpen;
         document.getElementById("hidden-notes-toggle").setAttribute("aria-expanded", String(Boolean(state.hiddenNotesOpen)));
-        document.getElementById("account-control").open = Boolean(state.accountOpen);
+        document.getElementById("account-control").open = false;
         document.querySelector(".admin-invitations-section").open = Boolean(state.invitationsOpen);
         document.getElementById("admin-panel").hidden = !(state.adminOpen && currentUser.role === "admin");
         document.getElementById("archive-panel").hidden = !state.archiveOpen;
@@ -4631,6 +4630,8 @@
         destroyEditRichEditor();
         destroyDraftRichEditor();
         document.body.classList.remove("rich-mode");
+        document.getElementById("account-control").open = false;
+        document.getElementById("markdown-help").open = false;
         csrfToken = "";
         currentUser = null;
         notesLoading = false;
