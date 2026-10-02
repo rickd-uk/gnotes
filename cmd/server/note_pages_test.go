@@ -90,6 +90,83 @@ func TestPagedNotesTraversesLargeCollectionWithoutDuplicates(t *testing.T) {
 	}
 }
 
+func TestPagedArchivedNotesAndSearch(t *testing.T) {
+	db.InitDB(filepath.Join(t.TempDir(), "archived-pages.db"))
+	t.Cleanup(func() { db.DB.Close() })
+	userID := insertPageTestUser(t, "archived-reader")
+	otherUserID := insertPageTestUser(t, "archived-other")
+	base := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	for i := 0; i < 125; i++ {
+		archivedAt := base.Add(-time.Duration(i/3) * time.Minute)
+		if _, err := db.DB.Exec(`INSERT INTO notes (user_id, title, content, created_at, archived_at)
+			VALUES (?, ?, ?, ?, ?)`, userID, fmt.Sprintf("Archived %03d", i), "findable body", base.Add(-30*24*time.Hour), archivedAt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, owner := range []int{userID, otherUserID} {
+		if _, err := db.DB.Exec(`INSERT INTO notes (user_id, title, content, created_at)
+			VALUES (?, 'Active', 'findable body', ?)`, owner, base); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.DB.Exec(`INSERT INTO notes (user_id, title, content, created_at, archived_at)
+		VALUES (?, 'Other archive', 'findable body', ?, ?)`, otherUserID, base, base); err != nil {
+		t.Fatal(err)
+	}
+	seen := make(map[int]bool)
+	cursor := ""
+	for pageNumber := 0; ; pageNumber++ {
+		path := "/api/notes/page?archive=1&limit=17"
+		if cursor != "" {
+			path += "&cursor=" + url.QueryEscape(cursor)
+		}
+		page := requestNotePage(t, pagedListNotesHandler, path, userID)
+		if page.Total != 125 || page.Pinned != 0 || len(page.Notes) > 17 {
+			t.Fatalf("archived page %d: total=%d pinned=%d notes=%d", pageNumber, page.Total, page.Pinned, len(page.Notes))
+		}
+		for _, note := range page.Notes {
+			if seen[note.ID] || note.ArchivedAt == nil || note.HTMLContent == "" {
+				t.Fatalf("bad archived note %+v", note)
+			}
+			seen[note.ID] = true
+		}
+		cursor = page.NextCursor
+		if cursor == "" {
+			break
+		}
+		if pageNumber > 10 {
+			t.Fatal("archived pagination did not terminate")
+		}
+	}
+	if len(seen) != 125 {
+		t.Fatalf("visited %d archived notes, want 125", len(seen))
+	}
+
+	search := requestNotePage(t, pagedSearchNotesHandler,
+		"/api/notes/search-page?archive=1&q=findable&scope=content&limit=10", userID)
+	if search.Total != 125 || len(search.Notes) != 10 {
+		t.Fatalf("archived search total=%d notes=%d", search.Total, len(search.Notes))
+	}
+	if search.NextCursor == "" {
+		t.Fatal("archived search did not return a next cursor")
+	}
+	nextSearch := requestNotePage(t, pagedSearchNotesHandler,
+		"/api/notes/search-page?archive=1&q=findable&scope=content&limit=10&cursor="+url.QueryEscape(search.NextCursor), userID)
+	if len(nextSearch.Notes) != 10 || nextSearch.Notes[0].ID == search.Notes[len(search.Notes)-1].ID {
+		t.Fatalf("archived search did not advance: %+v", nextSearch)
+	}
+	dateSearch := requestNotePage(t, pagedSearchNotesHandler,
+		"/api/notes/search-page?archive=1&from_time=2026-10-02T11:50:00Z&to_time=2026-10-02T12:01:00Z", userID)
+	if dateSearch.Total != 33 {
+		t.Fatalf("archive date search total=%d, want 33", dateSearch.Total)
+	}
+	active := requestNotePage(t, pagedSearchNotesHandler,
+		"/api/notes/search-page?q=findable&scope=content", userID)
+	if active.Total != 1 {
+		t.Fatalf("active search total=%d, want 1", active.Total)
+	}
+}
+
 func TestPagedSearchPreservesSubstringAndCaseSemantics(t *testing.T) {
 	db.InitDB(filepath.Join(t.TempDir(), "search-pages.db"))
 	t.Cleanup(func() { db.DB.Close() })

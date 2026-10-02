@@ -89,39 +89,56 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conditions := []string{"user_id = ?", "deleted_at IS NULL", "archived_at IS NULL"}
+	archived := r.URL.Query().Get("archive") == "1"
+	archiveCondition := "archived_at IS NULL"
+	if archived {
+		archiveCondition = "archived_at IS NOT NULL"
+	}
+	conditions := []string{"user_id = ?", "deleted_at IS NULL", archiveCondition}
 	args := []any{userIDFromRequest(r)}
 	if hasCursor {
-		conditions = append(conditions, `(pinned < ? OR
+		if archived {
+			conditions = append(conditions, "(unixepoch(archived_at) < ? OR (unixepoch(archived_at) = ? AND id < ?))")
+			args = append(args, cursor.CreatedAt.Unix(), cursor.CreatedAt.Unix(), cursor.ID)
+		} else {
+			conditions = append(conditions, `(pinned < ? OR
 			(pinned = ? AND unixepoch(created_at) < ?) OR
 			(pinned = ? AND unixepoch(created_at) = ? AND id < ?))`)
-		pinned := boolInt(cursor.Pinned)
-		args = append(args, pinned, pinned, cursor.CreatedAt.Unix(), pinned, cursor.CreatedAt.Unix(), cursor.ID)
+			pinned := boolInt(cursor.Pinned)
+			args = append(args, pinned, pinned, cursor.CreatedAt.Unix(), pinned, cursor.CreatedAt.Unix(), cursor.ID)
+		}
 	}
 
-	query := `SELECT id, title, content, rendered_content, created_at, pinned, background_color
-    FROM notes WHERE ` + strings.Join(conditions, " AND ") + `
-	ORDER BY pinned DESC, unixepoch(created_at) DESC, id DESC LIMIT ?`
-	notes, nextCursor, err := queryActiveNotePage(query, args, limit)
+	columns := "id, title, content, rendered_content, created_at, pinned, background_color"
+	order := "pinned DESC, unixepoch(created_at) DESC, id DESC"
+	if archived {
+		columns += ", archived_at"
+		order = "unixepoch(archived_at) DESC, id DESC"
+	}
+	query := "SELECT " + columns + " FROM notes WHERE " + strings.Join(conditions, " AND ") +
+		" ORDER BY " + order + " LIMIT ?"
+	notes, nextCursor, err := queryNotePage(query, args, limit, archived)
 	if err != nil {
 		http.Error(w, "Could not load notes", http.StatusInternalServerError)
 		return
 	}
 	var total int
 	if err := db.DB.QueryRow(
-		"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
+		"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND "+archiveCondition,
 		userIDFromRequest(r),
 	).Scan(&total); err != nil {
 		http.Error(w, "Could not count notes", http.StatusInternalServerError)
 		return
 	}
 	var pinned int
-	if err := db.DB.QueryRow(
-		"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND pinned = 1",
-		userIDFromRequest(r),
-	).Scan(&pinned); err != nil {
-		http.Error(w, "Could not count pinned notes", http.StatusInternalServerError)
-		return
+	if !archived {
+		if err := db.DB.QueryRow(
+			"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND pinned = 1",
+			userIDFromRequest(r),
+		).Scan(&pinned); err != nil {
+			http.Error(w, "Could not count pinned notes", http.StatusInternalServerError)
+			return
+		}
 	}
 	writeNotePage(w, notePage{Notes: notes, NextCursor: nextCursor, Total: total, Pinned: pinned})
 }
@@ -148,18 +165,29 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	countConditions := append([]string(nil), conditions...)
 	countArgs := append([]any(nil), args...)
+	archived := r.URL.Query().Get("archive") == "1"
 	if hasCursor {
-		conditions = append(conditions, `(n.pinned < ? OR
+		if archived {
+			conditions = append(conditions, "(unixepoch(n.archived_at) < ? OR (unixepoch(n.archived_at) = ? AND n.id < ?))")
+			args = append(args, cursor.CreatedAt.Unix(), cursor.CreatedAt.Unix(), cursor.ID)
+		} else {
+			conditions = append(conditions, `(n.pinned < ? OR
 			(n.pinned = ? AND unixepoch(n.created_at) < ?) OR
 			(n.pinned = ? AND unixepoch(n.created_at) = ? AND n.id < ?))`)
-		pinned := boolInt(cursor.Pinned)
-		args = append(args, pinned, pinned, cursor.CreatedAt.Unix(), pinned, cursor.CreatedAt.Unix(), cursor.ID)
+			pinned := boolInt(cursor.Pinned)
+			args = append(args, pinned, pinned, cursor.CreatedAt.Unix(), pinned, cursor.CreatedAt.Unix(), cursor.ID)
+		}
 	}
 
 	fromClause := " FROM notes n " + join + " WHERE " + strings.Join(conditions, " AND ")
-	query := `SELECT n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color` +
-		fromClause + ` ORDER BY n.pinned DESC, unixepoch(n.created_at) DESC, n.id DESC LIMIT ?`
-	notes, nextCursor, err := queryActiveNotePage(query, args, limit)
+	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color"
+	order := "n.pinned DESC, unixepoch(n.created_at) DESC, n.id DESC"
+	if archived {
+		columns += ", n.archived_at"
+		order = "unixepoch(n.archived_at) DESC, n.id DESC"
+	}
+	query := "SELECT " + columns + fromClause + " ORDER BY " + order + " LIMIT ?"
+	notes, nextCursor, err := queryNotePage(query, args, limit, archived)
 	if err != nil {
 		http.Error(w, "Search failed", http.StatusInternalServerError)
 		return
@@ -291,18 +319,25 @@ func pagedSearchFilter(r *http.Request) (string, []string, []any, error) {
 		return "", nil, nil, errors.New("invalid search scope")
 	}
 
-	conditions := []string{"n.user_id = ?", "n.deleted_at IS NULL", "n.archived_at IS NULL"}
+	archived := r.URL.Query().Get("archive") == "1"
+	archiveCondition := "n.archived_at IS NULL"
+	dateColumn := "n.created_at"
+	if archived {
+		archiveCondition = "n.archived_at IS NOT NULL"
+		dateColumn = "n.archived_at"
+	}
+	conditions := []string{"n.user_id = ?", "n.deleted_at IS NULL", archiveCondition}
 	args := []any{userIDFromRequest(r)}
 	fromDate, toDate, err := pagedSearchTimes(r)
 	if err != nil {
 		return "", nil, nil, err
 	}
 	if !fromDate.IsZero() {
-		conditions = append(conditions, "unixepoch(n.created_at) >= ?")
+		conditions = append(conditions, "unixepoch("+dateColumn+") >= ?")
 		args = append(args, fromDate.Unix())
 	}
 	if !toDate.IsZero() {
-		conditions = append(conditions, "unixepoch(n.created_at) < ?")
+		conditions = append(conditions, "unixepoch("+dateColumn+") < ?")
 		args = append(args, toDate.Unix())
 	}
 
@@ -387,6 +422,10 @@ func ftsSearchEligible(query string) bool {
 }
 
 func queryActiveNotePage(query string, args []any, limit int) ([]models.Note, string, error) {
+	return queryNotePage(query, args, limit, false)
+}
+
+func queryNotePage(query string, args []any, limit int, archived bool) ([]models.Note, string, error) {
 	queryArgs := append(append([]any{}, args...), limit+1)
 	rows, err := db.DB.Query(query, queryArgs...)
 	if err != nil {
@@ -397,9 +436,17 @@ func queryActiveNotePage(query string, args []any, limit int) ([]models.Note, st
 	for rows.Next() {
 		var note models.Note
 		var rendered sql.NullString
-		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor); err != nil {
+		fields := []any{&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor}
+		var archivedAt sql.NullTime
+		if archived {
+			fields = append(fields, &archivedAt)
+		}
+		if err := rows.Scan(fields...); err != nil {
 			rows.Close()
 			return nil, "", err
+		}
+		if archivedAt.Valid {
+			note.ArchivedAt = &archivedAt.Time
 		}
 		if rendered.Valid {
 			note.HTMLContent = template.HTML(rendered.String)
@@ -425,7 +472,11 @@ func queryActiveNotePage(query string, args []any, limit int) ([]models.Note, st
 	if len(notes) > limit {
 		notes = notes[:limit]
 		last := notes[len(notes)-1]
-		nextCursor, err = encodeCursor(activeNoteCursor{Pinned: last.Pinned, CreatedAt: last.CreatedAt, ID: last.ID})
+		cursorTime := last.CreatedAt
+		if archived && last.ArchivedAt != nil {
+			cursorTime = *last.ArchivedAt
+		}
+		nextCursor, err = encodeCursor(activeNoteCursor{Pinned: !archived && last.Pinned, CreatedAt: cursorTime, ID: last.ID})
 		if err != nil {
 			return nil, "", err
 		}

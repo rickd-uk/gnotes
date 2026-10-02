@@ -868,6 +868,32 @@
         color: var(--accent);
       }
 
+      .archived-quick-open[aria-pressed="true"] {
+        background: #d8e8e0;
+        color: #235b47;
+        box-shadow: inset 0 0 0 1px #82a697;
+      }
+
+      .archive-mode-banner {
+        margin: 12px 0 4px;
+        padding: 14px 16px;
+        border: 1px solid #b9cec4;
+        border-left: 4px solid #4d8068;
+        border-radius: 7px;
+        background: #e9f2ed;
+        color: #254b3a;
+      }
+
+      .archive-mode-banner strong { display: block; font-size: 1rem; }
+      .archive-mode-banner span { display: block; margin-top: 2px; font-size: 0.78rem; }
+      #app-shell.archive-mode #note-form { display: none; }
+      #app-shell.archive-mode #hidden-notes-toggle,
+      #app-shell.archive-mode #archive-open { display: none; }
+      #app-shell.archive-mode #notes-list .note-card { cursor: default; }
+      #app-shell.archive-mode #notes-list .note-card:not([class*="note-color-"]) {
+        background: rgba(77, 128, 104, 0.045);
+      }
+
       .archived-quick-open .icon {
         width: 20px;
         height: 20px;
@@ -2509,63 +2535,6 @@
         box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
       }
 
-      .archived-panel {
-        position: fixed;
-        z-index: 60;
-        inset: 70px max(16px, calc((100vw - 680px) / 2)) auto;
-        max-height: calc(100vh - 90px);
-        padding: 22px;
-        overflow: auto;
-        border: 1px solid var(--line);
-        background: #f8f6f0;
-        box-shadow: 0 24px 65px rgba(51, 45, 35, 0.24);
-      }
-
-      .archived-panel[hidden] { display: none; }
-
-      .archived-list {
-        display: grid;
-        gap: 8px;
-        margin-top: 16px;
-      }
-
-      .archived-item {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 14px;
-        align-items: center;
-        padding: 11px 0;
-        border-bottom: 1px solid var(--line);
-      }
-
-      .archived-item-title {
-        overflow: hidden;
-        font-family: var(--note-title-font);
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .archived-item-meta,
-      .archived-empty {
-        margin-top: 2px;
-        color: var(--muted);
-        font-size: 0.74rem;
-      }
-
-      .archived-item button {
-        min-height: 34px;
-        padding: 6px 10px;
-        border: 1px solid var(--line);
-        border-radius: 5px;
-        background: transparent;
-        color: var(--accent);
-        cursor: pointer;
-        font-size: 0.74rem;
-        font-weight: 700;
-      }
-
-      .archived-item button:hover { background: #e4efe9; }
-
       .info-panel {
         position: fixed;
         z-index: 60;
@@ -3820,7 +3789,7 @@
             </svg>
           </button>
 
-          <button class="archived-quick-open" id="archived-quick-open" type="button" aria-controls="archived-panel" aria-label="Archived notes" title="Archived notes">
+          <button class="archived-quick-open" id="archived-quick-open" type="button" aria-pressed="false" aria-controls="notes-section" aria-label="Show archived notes" title="Show archived notes">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" /></svg>
           </button>
 
@@ -3951,6 +3920,8 @@
         </form>
       </section>
 
+      <div class="archive-mode-banner" id="archive-mode-banner" hidden><strong>Archived notes</strong><span>Saved for later · select the archive icon to return to recent notes</span></div>
+
       <form class="form-container" id="note-form" aria-label="Create a note">
         <input type="text" id="title" placeholder="Note title" aria-label="Note title" />
         <textarea id="content" rows="2" placeholder="Start writing…" aria-label="Note content"></textarea>
@@ -3994,15 +3965,6 @@
           <div id="archive-weeks"></div>
         </details>
       </div>
-    </section>
-
-    <section class="archived-panel" id="archived-panel" role="dialog" aria-labelledby="archived-heading" hidden>
-      <div class="archive-header">
-        <h2 id="archived-heading">Archived notes</h2>
-        <button class="admin-close" id="archived-close" type="button" aria-label="Close archived notes">×</button>
-      </div>
-      <p class="archive-total" id="archived-total">Loading…</p>
-      <div class="archived-list" id="archived-list"></div>
     </section>
 
     <section class="info-panel" id="profile-panel" role="dialog" aria-labelledby="profile-heading" hidden>
@@ -4197,6 +4159,7 @@
       const noteTools = ["pin", "hide", "archive", "color", "copy", "delete"];
       let quickActions = ["archive", "delete"];
       let showNoteTools = true;
+      let archiveMode = false;
       let menuOpacity = 88;
       let searchActive = false;
       let activeSearchURL = "";
@@ -4448,6 +4411,12 @@
           const divider = menu.querySelector(".note-action-divider");
           const actions = new Map([...card.querySelectorAll("[data-note-action]")]
             .map((element) => [element.dataset.noteAction, element]));
+          if (archiveMode) {
+            quick.append(actions.get("archive"), actions.get("copy"));
+            menu.hidden = true;
+            card.querySelector(".note-actions-toggle").hidden = true;
+            return;
+          }
           noteTools.forEach((key) => {
             const element = actions.get(key);
             if (!element) return;
@@ -4676,6 +4645,14 @@
         selectedCalendarDate = "";
         selectedArchiveLabel = "";
         highlightQuery = "";
+        archiveMode = false;
+        document.getElementById("app-shell").classList.remove("archive-mode");
+        document.getElementById("archive-mode-banner").hidden = true;
+        const archiveToggle = document.getElementById("archived-quick-open");
+        archiveToggle.setAttribute("aria-pressed", "false");
+        archiveToggle.setAttribute("aria-label", "Show archived notes");
+        archiveToggle.title = "Show archived notes";
+        document.getElementById("search-all").textContent = "All notes";
         setActiveNoteCount(0);
         setPinnedNoteCount(0);
         loadedNotes.clear();
@@ -4686,7 +4663,6 @@
         document.getElementById("app-shell").hidden = true;
         document.getElementById("admin-panel").hidden = true;
         document.getElementById("archive-panel").hidden = true;
-        document.getElementById("archived-panel").hidden = true;
         document.getElementById("profile-panel").hidden = true;
         document.getElementById("transfer-panel").hidden = true;
         document.getElementById("help-panel").hidden = true;
@@ -5130,6 +5106,7 @@
         const pageURL = searchActive
           ? new URL(activeSearchURL || buildSearchURL(), location.origin)
           : new URL("/api/notes/page", location.origin);
+        if (archiveMode) pageURL.searchParams.set("archive", "1");
         pageURL.searchParams.set("limit", "50");
         if (append) pageURL.searchParams.set("cursor", notesNextCursor);
         let res;
@@ -5154,21 +5131,20 @@
         document.getElementById("notes-load-status").hidden = true;
         if (!append) loadedNotes = new Map();
         (page.notes || []).forEach((note) => loadedNotes.set(note.id, note));
-        if (!append) await loadRememberedEditingNote();
-        if (!append && revealedNoteId && !loadedNotes.has(revealedNoteId)) {
+        if (!append && !archiveMode) await loadRememberedEditingNote();
+        if (!append && !archiveMode && revealedNoteId && !loadedNotes.has(revealedNoteId)) {
           await loadNoteIntoView(revealedNoteId);
         }
-        const notes = [...loadedNotes.values()].sort((left, right) =>
-          Number(right.pinned) - Number(left.pinned) ||
-          new Date(right.created_at) - new Date(left.created_at) ||
-          right.id - left.id,
-        );
-        notes.forEach((note) => {
+        const notes = [...loadedNotes.values()].sort((left, right) => archiveMode
+          ? new Date(right.archived_at) - new Date(left.archived_at) || right.id - left.id
+          : Number(right.pinned) - Number(left.pinned) ||
+            new Date(right.created_at) - new Date(left.created_at) || right.id - left.id);
+        if (!archiveMode) notes.forEach((note) => {
           if (hiddenNoteIds.has(note.id)) hiddenNotes.set(note.id, note);
         });
         notesNextCursor = page.next_cursor || "";
         notesTotal = page.total || 0;
-        if (!searchActive) {
+        if (!searchActive && !archiveMode) {
           setActiveNoteCount(notesTotal);
           setPinnedNoteCount(page.pinned_total || 0);
         }
@@ -5179,9 +5155,10 @@
         document.getElementById("notes-heading").textContent = calendarActive
           ? `${selectedArchiveLabel || formatCalendarDate(selectedCalendarDate)} · ${notesTotal}`
           : searchActive
-            ? `Search results · ${searchSummary}`
-            : "Recent notes";
+            ? `${archiveMode ? "Archived " : ""}search results · ${searchSummary}`
+            : archiveMode ? `Archived notes · ${notesTotal}` : "Recent notes";
         document.getElementById("calendar-clear").hidden = !calendarActive;
+        document.getElementById("calendar-clear").textContent = archiveMode ? "All archived" : "Recent";
         updateSearchToggleState();
 
         updateHiddenNotesControl();
@@ -5189,15 +5166,15 @@
         if (!notes.length) {
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML = searchActive
-            ? `<div class="empty-state"><p>${calendarActive ? "No notes for this date." : "No matching notes."}</p><button type="button" onclick="showRecentNotes()">Show recent notes</button></div>`
-            : "";
+            ? `<div class="empty-state"><p>${calendarActive ? "No notes for this date." : "No matching notes."}</p><button type="button" onclick="showRecentNotes()">${archiveMode ? "Show all archived notes" : "Show recent notes"}</button></div>`
+            : archiveMode ? '<p class="empty-state">No archived notes yet.</p>' : "";
           loadMore.hidden = true;
           updateDateSectionsControl();
           notesLoading = false;
           return true;
         }
 
-        const visibleNotes = notes.filter((note) => !hiddenNoteIds.has(note.id));
+        const visibleNotes = archiveMode ? notes : notes.filter((note) => !hiddenNoteIds.has(note.id));
         if (!visibleNotes.length) {
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML =
@@ -5212,23 +5189,25 @@
 
         const now = new Date();
         const newestNoteId = visibleNotes.reduce((newest, note) =>
-          new Date(note.created_at) > new Date(newest.created_at) ? note : newest,
+          new Date(archiveMode ? note.archived_at : note.created_at) >
+            new Date(archiveMode ? newest.archived_at : newest.created_at) ? note : newest,
         ).id;
         let renderedNotes = "";
         let activeDateSection = "";
         let dateSectionIndex = -1;
 
         visibleNotes.forEach((n) => {
-            const dateSection = n.pinned
+            const noteDate = archiveMode ? n.archived_at : n.created_at;
+            const dateSection = !archiveMode && n.pinned
               ? "Pinned"
-              : formatDateSection(n.created_at, now);
+              : formatDateSection(noteDate, now);
             if (dateSection !== activeDateSection) {
               if (activeDateSection) renderedNotes += "</section>";
               activeDateSection = dateSection;
               dateSectionIndex += 1;
-              const dateSectionKey = n.pinned
+              const dateSectionKey = !archiveMode && n.pinned
                 ? "pinned"
-                : `date:${formatLocalDateKey(n.created_at)}`;
+                : `${archiveMode ? "archive-date" : "date"}:${formatLocalDateKey(noteDate)}`;
               const sectionCollapsed = !searchActive && collapsedDateSections.has(dateSectionKey);
               renderedNotes += `
                 <section class="date-group ${dateSection === "Pinned" ? "pinned-section" : ""} ${sectionCollapsed ? "is-collapsed" : ""}" aria-labelledby="date-section-${dateSectionIndex}">
@@ -5248,11 +5227,11 @@
             const noteColor = noteColorKeys.has(n.background_color) ? n.background_color : "";
 
             renderedNotes += `
-            <article class="note-card ${isNewest ? "newest-note" : ""} ${n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""}" id="note-${n.id}">
+            <article class="note-card ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""}" id="note-${n.id}">
               <div class="note-top-row">
                 <div class="date-row">
                   ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
-                  <time class="date" datetime="${escapeHTML(n.created_at)}">${n.pinned ? `${formatDateSection(n.created_at, now)} · ` : ""}${formatNoteTime(n.created_at)}</time>
+                  <time class="date" datetime="${escapeHTML(noteDate)}">${!archiveMode && n.pinned ? `${formatDateSection(n.created_at, now)} · ` : ""}${formatNoteTime(noteDate)}</time>
                 </div>
                 <div class="note-actions">
                   <div class="note-quick-actions"></div>
@@ -5272,7 +5251,7 @@
                     </svg>
                     <span class="visually-hidden">Hide note</span>
                   </button>
-                  <button class="note-action archive-btn" data-note-action="archive" onclick="archiveNote(${n.id})" aria-label="Archive note" title="Archive note">
+                  <button class="note-action archive-btn" data-note-action="archive" onclick="${archiveMode ? "unarchiveNote" : "archiveNote"}(${n.id})" aria-label="${archiveMode ? "Unarchive" : "Archive"} note" title="${archiveMode ? "Unarchive" : "Archive"} note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" />
                     </svg>
@@ -5331,7 +5310,7 @@
 
         updateDateSectionsControl();
         observeNoteCards();
-        restoreRememberedEditingNote();
+        if (!archiveMode) restoreRememberedEditingNote();
         if (revealedNoteId) {
           document.getElementById(`note-${revealedNoteId}`)?.scrollIntoView({ block: "center" });
           revealedNoteId = null;
@@ -5883,11 +5862,12 @@
         await loadNotes();
       }
 
-      function closeArchivedPanel() {
-        document.getElementById("archived-panel").hidden = true;
-      }
-
-      async function openArchivedPanel() {
+      async function toggleArchiveMode() {
+        if (notesLoading) {
+          setTimeout(toggleArchiveMode, 150);
+          return;
+        }
+        if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
         closeAdminPanel();
         closeProfilePanel();
         closeHelpPanel();
@@ -5896,47 +5876,28 @@
         closeTrashPanel();
         closeHiddenNotesPanel();
         document.getElementById("account-control").open = false;
-        const panel = document.getElementById("archived-panel");
-        const list = document.getElementById("archived-list");
-        panel.hidden = false;
-        list.innerHTML = '<p class="archived-empty">Loading…</p>';
-        let response;
-        try {
-          response = await apiFetch("/api/notes/archived");
-        } catch {
-          list.innerHTML = '<p class="archived-empty">Could not reach the server.</p>';
-          return;
-        }
-        if (!response.ok) {
-          list.innerHTML = '<p class="archived-empty">Could not load archived notes.</p>';
-          return;
-        }
-        const data = await response.json();
-        const notes = data.notes || [];
-        document.getElementById("archived-total").textContent = `${notes.length} archived ${notes.length === 1 ? "note" : "notes"}`;
-        list.innerHTML = notes.length
-          ? notes.map((note) => {
-              const title = getDisplayTitle(note);
-              const preview = note.content.replace(/\s+/g, " ").trim();
-              return `<article class="archived-item">
-                <div>
-                  <div class="archived-item-title">${escapeHTML(title)}</div>
-                  <div class="archived-item-meta">Archived ${escapeHTML(formatAdminTime(note.archived_at))}${preview ? ` · ${escapeHTML(preview.slice(0, 140))}${preview.length > 140 ? "…" : ""}` : ""}</div>
-                </div>
-                <button type="button" onclick="unarchiveNote(${note.id})">Unarchive</button>
-              </article>`;
-            }).join("")
-          : '<p class="archived-empty">No archived notes.</p>';
+        archiveMode = !archiveMode;
+        const shell = document.getElementById("app-shell");
+        shell.classList.toggle("archive-mode", archiveMode);
+        document.getElementById("archive-mode-banner").hidden = !archiveMode;
+        const toggle = document.getElementById("archived-quick-open");
+        toggle.setAttribute("aria-pressed", String(archiveMode));
+        toggle.setAttribute("aria-label", archiveMode ? "Show recent notes" : "Show archived notes");
+        toggle.title = archiveMode ? "Show recent notes" : "Show archived notes";
+        document.getElementById("search-all").textContent = archiveMode ? "All archived" : "All notes";
+        document.getElementById("notes-list").style.setProperty("--quick-action-count", String(archiveMode ? 2 : quickActions.length));
+        await showRecentNotes();
       }
 
       async function unarchiveNote(id) {
+        const wasPinned = Boolean(loadedNotes.get(id)?.pinned);
         const response = await apiFetch(`/api/notes/unarchive?id=${id}`, { method: "POST" });
         if (!response.ok) {
           alert("Could not restore this note.");
           return;
         }
-        revealedNoteId = id;
-        closeArchivedPanel();
+        setActiveNoteCount(activeNoteCount + 1);
+        if (wasPinned) setPinnedNoteCount(pinnedNoteCount + 1);
         await loadNotes();
       }
 
@@ -6779,7 +6740,7 @@
 
       notesList.addEventListener("click", (event) => {
         const target = event.target;
-        if (!(target instanceof Element) || suppressNoteClick) return;
+        if (!(target instanceof Element) || suppressNoteClick || archiveMode) return;
         const card = target.closest(".note-card");
         if (!card || card.classList.contains("is-editing") ||
             target.closest("a, button, input, textarea, select, label, summary, [contenteditable], .note-actions")) return;
@@ -7257,7 +7218,6 @@
         closeSearchPanel();
         closeTrashPanel();
         closeHiddenNotesPanel();
-        closeArchivedPanel();
         const panel = document.getElementById("archive-panel");
         panel.hidden = false;
         saveUIState();
@@ -7418,12 +7378,6 @@
           !document.getElementById("archive-open").contains(event.target)
         ) closeArchiveOverview();
 
-        const archivedPanel = document.getElementById("archived-panel");
-        if (
-          !archivedPanel.hidden &&
-          !archivedPanel.contains(event.target) &&
-          !document.getElementById("archived-quick-open").contains(event.target)
-        ) closeArchivedPanel();
       });
 
       document.addEventListener("pointerdown", (event) => {
@@ -7588,7 +7542,6 @@
         closeProfilePanel();
         closeHelpPanel();
         closeArchiveOverview();
-        closeArchivedPanel();
         document.getElementById("account-control").open = false;
         document.getElementById("transfer-panel").hidden = false;
         document.getElementById("transfer-close").focus();
@@ -7691,15 +7644,13 @@
 
       document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
       document.getElementById("unpin-all-notes").addEventListener("click", unpinAllNotes);
-      document.getElementById("archived-quick-open").addEventListener("click", openArchivedPanel);
-      document.getElementById("archived-close").addEventListener("click", closeArchivedPanel);
+      document.getElementById("archived-quick-open").addEventListener("click", toggleArchiveMode);
       document.getElementById("date-sections-toggle").addEventListener("click", toggleAllDateSections);
 
       document.getElementById("admin-open").addEventListener("click", async () => {
         document.getElementById("account-control").open = false;
         closeProfilePanel();
         closeHelpPanel();
-        closeArchivedPanel();
         document.getElementById("admin-panel").hidden = false;
         saveUIState();
         await loadAdmin();
@@ -7709,7 +7660,6 @@
         closeAdminPanel();
         closeHelpPanel();
         closeArchiveOverview();
-        closeArchivedPanel();
         document.getElementById("account-control").open = false;
         document.getElementById("profile-panel").hidden = false;
         document.getElementById("profile-heading").textContent = currentUser.username;
@@ -7740,7 +7690,6 @@
         closeAdminPanel();
         closeProfilePanel();
         closeArchiveOverview();
-        closeArchivedPanel();
         document.getElementById("account-control").open = false;
         document.getElementById("help-panel").hidden = false;
       }

@@ -161,6 +161,9 @@ func InitDB(filepath string) {
     ON notes (user_id, deleted_at DESC, id DESC);
   CREATE INDEX IF NOT EXISTS idx_notes_user_active_absolute_page
     ON notes (user_id, deleted_at, pinned DESC, unixepoch(created_at) DESC, id DESC);
+  CREATE INDEX IF NOT EXISTS idx_notes_user_archived_page
+    ON notes (user_id, deleted_at, unixepoch(archived_at) DESC, id DESC)
+    WHERE archived_at IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_notes_user_trash_absolute_page
     ON notes (user_id, unixepoch(deleted_at) DESC, id DESC);
   CREATE INDEX IF NOT EXISTS idx_sessions_expiry
