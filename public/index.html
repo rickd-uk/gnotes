@@ -892,6 +892,14 @@
         padding: 2px 5px 8px 16px;
       }
 
+      .tool-visibility > span {
+        display: block;
+        grid-column: 1 / -1;
+        padding: 5px 8px;
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
       .tool-visibility .tool-choice {
         display: flex;
         width: 100%;
@@ -1657,7 +1665,7 @@
       .note-card:not(.is-editing) .note-view h2 {
         position: absolute;
         top: 15px;
-        right: 104px;
+        right: calc(104px + 44px * var(--quick-action-count));
         left: 104px;
         max-width: none;
         margin: 2px 0 0;
@@ -1687,6 +1695,8 @@
         opacity: 0.82;
         transition: opacity 140ms ease;
       }
+
+      .note-quick-actions { display: flex; align-items: center; gap: 4px; }
 
       .note-actions-toggle {
         width: 40px;
@@ -1829,9 +1839,48 @@
         background: var(--delete-button-hover);
       }
 
+      .note-quick-actions .delete-btn {
+        border: 1px solid color-mix(in srgb, var(--danger) 34%, var(--line));
+        background: transparent;
+        color: var(--danger);
+      }
+
+      .note-quick-actions .delete-btn:hover,
+      .note-quick-actions .delete-btn:focus-visible {
+        background: color-mix(in srgb, var(--danger) 12%, var(--paper));
+      }
+
       .note-action .icon {
         width: 20px;
         height: 20px;
+      }
+
+      .note-undo-toast {
+        position: fixed;
+        z-index: 12;
+        right: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow: 0 9px 22px rgba(51, 45, 35, 0.16);
+        font-size: 0.82rem;
+      }
+
+      .note-undo-toast button {
+        min-width: 44px;
+        min-height: 40px;
+        border: 0;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
       }
 
       .note-color-control { position: relative; }
@@ -2111,15 +2160,6 @@
         display: none;
       }
 
-      #notes-list.tool-pin-hidden .pin-btn,
-      #notes-list.tool-hide-hidden .hide-note-btn,
-      #notes-list.tool-delete-hidden .delete-btn,
-      #notes-list.tool-divider-hidden .note-action-divider {
-        display: none;
-      }
-
-      #notes-list.tool-safe-hidden .note-safe-actions { display: none; }
-
       #notes-list.tool-all-hidden .note-actions { display: none; }
 
       #notes-list.density-compact .note-card {
@@ -2151,7 +2191,7 @@
 
       #notes-list.density-titles .note-card {
         min-height: 48px;
-        padding: 13px 54px 13px 12px;
+        padding: 13px calc(54px + 44px * var(--quick-action-count)) 13px 12px;
       }
 
       #notes-list.density-titles .note-card.is-editing { padding-right: 12px; }
@@ -2175,6 +2215,8 @@
       }
 
       #notes-list.density-titles .note-card h2 {
+        left: 12px;
+        right: calc(54px + 44px * var(--quick-action-count));
         max-width: none;
         margin: 0;
         overflow: hidden;
@@ -2182,7 +2224,7 @@
         font-size: calc(0.92rem * var(--note-title-scale));
         font-weight: 550;
         line-height: 1.35;
-        text-align: center;
+        text-align: left;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
@@ -2190,6 +2232,8 @@
       #notes-list.density-titles.tool-all-hidden .note-card {
         padding-right: 12px;
       }
+
+      #notes-list.density-titles.tool-all-hidden .note-card h2 { right: 12px; }
 
       .fallback-title {
         color: var(--muted);
@@ -3698,16 +3742,14 @@
             <span>Tools</span>
             <span class="tools-state" id="controls-state" aria-hidden="true">All shown</span>
           </button>
-          <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Show note tools">
-            <button class="tool-choice" type="button" data-tool="pin" aria-pressed="true" aria-label="Show Pin tool">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" /></svg><span>Pin</span><span class="tool-state" aria-hidden="true">Shown</span>
-            </button>
-            <button class="tool-choice" type="button" data-tool="hide" aria-pressed="true" aria-label="Show Hide tool">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg><span>Hide</span><span class="tool-state" aria-hidden="true">Shown</span>
-            </button>
-            <button class="tool-choice" type="button" data-tool="delete" aria-pressed="true" aria-label="Show Delete tool">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" /></svg><span>Delete</span><span class="tool-state" aria-hidden="true">Shown</span>
-            </button>
+          <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Quick note actions">
+            <span>Quick actions · up to two; a third replaces the first</span>
+            <button class="tool-choice" type="button" data-tool="archive"><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
+            <button class="tool-choice" type="button" data-tool="delete"><span>Delete</span><span class="tool-state" aria-hidden="true"></span></button>
+            <button class="tool-choice" type="button" data-tool="pin"><span>Pin</span><span class="tool-state" aria-hidden="true"></span></button>
+            <button class="tool-choice" type="button" data-tool="hide"><span>Hide</span><span class="tool-state" aria-hidden="true"></span></button>
+            <button class="tool-choice" type="button" data-tool="color"><span>Color</span><span class="tool-state" aria-hidden="true"></span></button>
+            <button class="tool-choice" type="button" data-tool="copy"><span>Copy</span><span class="tool-state" aria-hidden="true"></span></button>
           </div>
           <div class="menu-opacity-control">
             <label for="menu-opacity">Menu opacity <span id="menu-opacity-value">88%</span></label>
@@ -3931,6 +3973,11 @@
       </section>
     </main>
 
+    <div class="note-undo-toast" id="note-undo-toast" role="status" aria-live="polite" hidden>
+      <span>Note moved to recycle bin</span>
+      <button id="undo-note-delete" type="button">Undo</button>
+    </div>
+
     <section class="archive-panel" id="archive-panel" role="dialog" aria-labelledby="archive-heading" hidden>
       <div class="archive-header">
         <h2 id="archive-heading">Notes overview</h2>
@@ -4013,9 +4060,9 @@
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
-        <div><h3>Edit a note</h3><p>Use the pencil on a note. Press it again to save and close the editor.</p></div>
-        <div><h3>Note actions on a phone</h3><p>Swipe left on a note to reveal its actions, then tap one. Swipe right to close them. The three-dot button also works.</p></div>
-        <div><h3>Change the view</h3><p>Open Controls for note tools, density, hidden notes, and date sections. You can change note font and size there too.</p></div>
+        <div><h3>Edit a note</h3><p>Tap or click a note to edit it. Choose Done to close the editor.</p></div>
+        <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
+        <div><h3>Change the view</h3><p>Open Controls to choose quick actions, density, hidden notes, and date sections. You can change note font and size there too.</p></div>
       </div>
     </section>
 
@@ -4125,6 +4172,8 @@
       let loadedTrash = new Map();
       let trashNextCursor = "";
       let trashLoading = false;
+      let deletedNoteUndoId = null;
+      let deletedNoteUndoTimer;
       const hiddenNoteIds = new Set();
       const hiddenNotes = new Map();
       let revealedNoteId = null;
@@ -4145,8 +4194,9 @@
         ["rose", "Rose"],
       ];
       const noteColorKeys = new Set(noteColorOptions.map(([key]) => key));
-      const noteTools = ["pin", "hide", "delete"];
-      let visibleTools = new Set(noteTools);
+      const noteTools = ["pin", "hide", "archive", "color", "copy", "delete"];
+      let quickActions = ["archive", "delete"];
+      let showNoteTools = true;
       let menuOpacity = 88;
       let searchActive = false;
       let activeSearchURL = "";
@@ -4346,7 +4396,8 @@
           invitationsOpen: document.querySelector(".admin-invitations-section").open,
           adminOpen: !document.getElementById("admin-panel").hidden,
           archiveOpen: !document.getElementById("archive-panel").hidden,
-          visibleTools: noteTools.filter((tool) => visibleTools.has(tool)),
+          quickActions,
+          showNoteTools,
           menuOpacity,
           densityIndex,
           fontMode,
@@ -4373,30 +4424,55 @@
         try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
       }
 
-      function applyVisibleTools(tools) {
-        visibleTools = new Set(Array.isArray(tools) ? tools.filter((tool) => noteTools.includes(tool)) : noteTools);
+      function applyQuickActions(actions) {
+        quickActions = Array.isArray(actions)
+          ? [...new Set(actions.filter((tool) => noteTools.includes(tool)))].slice(0, 2)
+          : ["archive", "delete"];
         const notesList = document.getElementById("notes-list");
-        noteTools.forEach((tool) => notesList.classList.toggle(`tool-${tool}-hidden`, !visibleTools.has(tool)));
-        const safeShown = ["pin", "hide"].some((tool) => visibleTools.has(tool));
-        notesList.classList.toggle("tool-safe-hidden", !safeShown);
-        notesList.classList.toggle("tool-divider-hidden", !safeShown || !visibleTools.has("delete"));
-        notesList.classList.toggle("tool-all-hidden", visibleTools.size === 0);
-        if (visibleTools.size === 0) {
-          notesList.querySelectorAll(".note-card.actions-expanded").forEach((card) => setNoteActionsOpen(card, false));
-        }
+        notesList.style.setProperty("--quick-action-count", String(quickActions.length));
         document.querySelectorAll("#tool-visibility .tool-choice").forEach((button) => {
-          const shown = visibleTools.has(button.dataset.tool);
-          button.setAttribute("aria-pressed", String(shown));
-          button.setAttribute("aria-label", `${shown ? "Hide" : "Show"} ${button.dataset.tool} tool`);
-          button.querySelector(".tool-state").textContent = shown ? "Shown" : "Hidden";
+          const selected = quickActions.includes(button.dataset.tool);
+          button.setAttribute("aria-pressed", String(selected));
+          button.setAttribute("aria-label", `${button.dataset.tool}: ${selected ? "quick action" : "in More menu"}`);
+          button.querySelector(".tool-state").textContent = selected ? "Quick" : "Menu";
         });
+        refreshQuickActions();
+      }
+
+      function refreshQuickActions() {
+        document.querySelectorAll("#notes-list .note-card").forEach((card) => {
+          const quick = card.querySelector(".note-quick-actions");
+          const menu = card.querySelector(".note-tools");
+          if (!quick || !menu) return;
+          const safe = menu.querySelector(".note-safe-actions");
+          const divider = menu.querySelector(".note-action-divider");
+          const actions = new Map([...card.querySelectorAll("[data-note-action]")]
+            .map((element) => [element.dataset.noteAction, element]));
+          noteTools.forEach((key) => {
+            const element = actions.get(key);
+            if (!element) return;
+            if (quickActions.includes(key)) quick.append(element);
+            else if (key === "delete") menu.append(element);
+            else safe.append(element);
+          });
+          quickActions.forEach((key) => {
+            const element = actions.get(key);
+            if (element) quick.append(element);
+          });
+          divider.hidden = !safe.children.length || quickActions.includes("delete");
+        });
+      }
+
+      function applyNoteToolsVisibility(shown) {
+        showNoteTools = shown;
+        const notesList = document.getElementById("notes-list");
+        notesList.classList.toggle("tool-all-hidden", !shown);
+        if (!shown) notesList.querySelectorAll(".note-card.actions-expanded").forEach((card) => setNoteActionsOpen(card, false));
         const toggle = document.getElementById("controls-toggle");
-        const allShown = visibleTools.size === noteTools.length;
-        const allHidden = visibleTools.size === 0;
-        toggle.setAttribute("aria-pressed", allHidden ? "true" : allShown ? "false" : "mixed");
-        toggle.setAttribute("aria-label", `${allShown ? "Hide" : "Show"} all note tools`);
-        toggle.title = `${allShown ? "Hide" : "Show"} all note tools`;
-        document.getElementById("controls-state").textContent = allShown ? "All shown" : allHidden ? "All hidden" : "Some hidden";
+        toggle.setAttribute("aria-pressed", String(!shown));
+        toggle.setAttribute("aria-label", `${shown ? "Hide" : "Show"} note tools`);
+        toggle.title = `${shown ? "Hide" : "Show"} note tools`;
+        document.getElementById("controls-state").textContent = shown ? "Shown" : "Hidden";
       }
 
       function applyMenuOpacity(value) {
@@ -4500,7 +4576,8 @@
         document.getElementById("admin-panel").hidden = !(state.adminOpen && currentUser.role === "admin");
         document.getElementById("archive-panel").hidden = !state.archiveOpen;
         document.getElementById("notes-list").hidden = false;
-        applyVisibleTools(state.visibleTools);
+        applyQuickActions(state.quickActions);
+        applyNoteToolsVisibility(state.showNoteTools !== false && (!Array.isArray(state.visibleTools) || state.visibleTools.length > 0));
         applyMenuOpacity(state.menuOpacity);
         applyDensityMode(Number(state.densityIndex));
         applyFontMode(state.fontMode);
@@ -4576,6 +4653,9 @@
       }
 
       function showAuth(message = "") {
+        clearTimeout(deletedNoteUndoTimer);
+        deletedNoteUndoId = null;
+        document.getElementById("note-undo-toast").hidden = true;
         clearTimeout(liveSearchTimer);
         closeFormattingToolbars();
         destroyEditRichEditor();
@@ -5175,29 +5255,30 @@
                   <time class="date" datetime="${escapeHTML(n.created_at)}">${n.pinned ? `${formatDateSection(n.created_at, now)} · ` : ""}${formatNoteTime(n.created_at)}</time>
                 </div>
                 <div class="note-actions">
+                  <div class="note-quick-actions"></div>
                   <button class="note-actions-toggle" type="button" onclick="toggleNoteActions(${n.id})" aria-controls="note-tools-${n.id}" aria-expanded="false" aria-label="Show tools for this note" title="Show note tools">…</button>
                   <div class="note-tools" id="note-tools-${n.id}">
                   <div class="note-safe-actions">
-                  <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
+                  <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" data-note-action="pin" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" />
                     </svg>
                     <span class="visually-hidden">${n.pinned ? "Unpin" : "Pin"} note</span>
                   </button>
-                  <button class="note-action hide-note-btn" onclick="hideNote(${n.id})" aria-label="Hide note" title="Hide note">
+                  <button class="note-action hide-note-btn" data-note-action="hide" onclick="hideNote(${n.id})" aria-label="Hide note" title="Hide note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
                       <circle cx="12" cy="12" r="2.5" />
                     </svg>
                     <span class="visually-hidden">Hide note</span>
                   </button>
-                  <button class="note-action archive-btn" onclick="archiveNote(${n.id})" aria-label="Archive note" title="Archive note">
+                  <button class="note-action archive-btn" data-note-action="archive" onclick="archiveNote(${n.id})" aria-label="Archive note" title="Archive note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" />
                     </svg>
                     <span class="visually-hidden">Archive note</span>
                   </button>
-                  <span class="note-color-control">
+                  <span class="note-color-control" data-note-action="color">
                     <button class="note-action color-btn" type="button" onclick="toggleNoteColorMenu(${n.id})" aria-controls="note-colors-${n.id}" aria-expanded="false" aria-label="Change note color" title="Change note color">
                       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z" />
@@ -5209,13 +5290,13 @@
                       ${noteColorSwatches(n)}
                     </span>
                   </span>
-                  <button class="note-action copy-note-btn" type="button" onclick="copyNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
+                  <button class="note-action copy-note-btn" data-note-action="copy" type="button" onclick="copyNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
                     <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
                   </button>
                   </div>
                   <span class="note-action-divider" aria-hidden="true"></span>
-                  <button class="note-action delete-btn" onclick="deleteNote(${n.id})" aria-label="Delete note" title="Delete note">
+                  <button class="note-action delete-btn" data-note-action="delete" onclick="deleteNote(${n.id})" aria-label="Delete note" title="Delete note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" />
                     </svg>
@@ -5242,6 +5323,7 @@
 
         renderedNotes += "</section>";
         document.getElementById("notes-list").innerHTML = renderedNotes;
+        refreshQuickActions();
         highlightSearchMatches();
         loadMore.hidden = !notesNextCursor;
         loadMore.disabled = false;
@@ -5782,6 +5864,13 @@
         saveHiddenNoteIds();
         setActiveNoteCount(activeNoteCount - 1);
         await Promise.all([loadNotes(), loadTrash()]);
+        deletedNoteUndoId = id;
+        document.getElementById("note-undo-toast").hidden = false;
+        clearTimeout(deletedNoteUndoTimer);
+        deletedNoteUndoTimer = setTimeout(() => {
+          deletedNoteUndoId = null;
+          document.getElementById("note-undo-toast").hidden = true;
+        }, 8000);
       }
 
       async function archiveNote(id) {
@@ -5955,12 +6044,24 @@
         });
         if (!res.ok) {
           alert("Could not recover this note.");
-          return;
+          return false;
         }
         setActiveNoteCount(activeNoteCount + 1);
         trashedNoteCount = Math.max(0, trashedNoteCount - 1);
         await Promise.all([loadNotes(), loadTrash()]);
+        if (deletedNoteUndoId === id) {
+          clearTimeout(deletedNoteUndoTimer);
+          deletedNoteUndoId = null;
+          document.getElementById("note-undo-toast").hidden = true;
+        }
+        return true;
       }
+
+      document.getElementById("undo-note-delete").addEventListener("click", async () => {
+        const id = deletedNoteUndoId;
+        if (id === null) return;
+        await restoreNote(id);
+      });
 
       async function restoreAllNotes() {
         const res = await apiFetch("/api/notes/restore?id=all", {
@@ -5973,6 +6074,9 @@
         setActiveNoteCount(activeNoteCount + trashedNoteCount);
         trashedNoteCount = 0;
         await Promise.all([loadNotes(), loadTrash()]);
+        clearTimeout(deletedNoteUndoTimer);
+        deletedNoteUndoId = null;
+        document.getElementById("note-undo-toast").hidden = true;
         closeTrashPanel();
       }
 
@@ -5986,6 +6090,9 @@
         }
         trashedNoteCount = 0;
         await loadTrash();
+        clearTimeout(deletedNoteUndoTimer);
+        deletedNoteUndoId = null;
+        document.getElementById("note-undo-toast").hidden = true;
         closeTrashPanel();
       }
 
@@ -6922,17 +7029,19 @@
       });
 
       document.getElementById("controls-toggle").addEventListener("click", () => {
-        applyVisibleTools(visibleTools.size === noteTools.length ? [] : noteTools);
+        applyNoteToolsVisibility(!showNoteTools);
         saveUIState();
       });
 
       document.getElementById("tool-visibility").addEventListener("click", (event) => {
         const button = event.target.closest("button[data-tool]");
         if (!button) return;
-        const next = new Set(visibleTools);
-        if (next.has(button.dataset.tool)) next.delete(button.dataset.tool);
-        else next.add(button.dataset.tool);
-        applyVisibleTools([...next]);
+        const next = quickActions.filter((key) => key !== button.dataset.tool);
+        if (next.length === quickActions.length) {
+          if (next.length === 2) next.shift();
+          next.push(button.dataset.tool);
+        }
+        applyQuickActions(next);
         saveUIState();
       });
 

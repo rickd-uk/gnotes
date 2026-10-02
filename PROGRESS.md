@@ -43,6 +43,7 @@ Last updated: 2026-10-03
 - A 320px Chromium sign-out/sign-in check confirmed the account menu stays closed, including with a legacy saved `accountOpen: true` value and after reloading while the menu was open.
 - A 320px Chromium check confirmed the six action icons stay on one row without horizontal overflow, the Copy icon copies note text, and title and multi-paragraph body clicks place the editing caret in the clicked text and paragraph.
 - Local rich-text links now turn typed or pasted `[label](URL)` into a labeled hyperlink. Untitled note previews use the label rather than showing the Markdown syntax. Chromium checks covered typing, pasting one or two links, text after a link, invalid URLs, saving, and reopening a saved link. This work has not been deployed.
+- Local note cards now show up to two chosen quick actions beside the More button, defaulting to Archive and Delete. Controls lets each browser choose from Archive, Delete, Pin, Hide, Color, and Copy; all remaining actions stay in More. Delete offers an eight-second Undo button. Chromium checks at 320px, 375px, and 1024px covered Full, Compact, and Titles layouts, action selection and persistence, menu fit, color, delete, undo, and archive. This work has not been deployed.
 
 ## Future plans
 
