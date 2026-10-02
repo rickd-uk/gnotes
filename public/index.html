@@ -6671,12 +6671,13 @@
       }
 
       let noteSwipeStart = null;
-      let noteSwipeHandledAt = 0;
+      let noteGesture = null;
+      let suppressNoteClick = false;
       const notesList = document.getElementById("notes-list");
 
       notesList.addEventListener("click", (event) => {
         const target = event.target;
-        if (!(target instanceof Element) || Date.now() - noteSwipeHandledAt < 350) return;
+        if (!(target instanceof Element) || suppressNoteClick) return;
         const card = target.closest(".note-card");
         if (!card || card.classList.contains("is-editing") ||
             target.closest("a, button, input, textarea, select, label, summary, [contenteditable], .note-actions")) return;
@@ -6684,6 +6685,35 @@
         const focusBody = Boolean(target.closest(".note-content"));
         editNote(Number(card.id.slice(5)), focusBody);
       });
+
+      notesList.addEventListener("pointerdown", (event) => {
+        suppressNoteClick = false;
+        noteGesture = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+        };
+      }, { passive: true });
+
+      notesList.addEventListener("pointermove", (event) => {
+        if (!noteGesture || event.pointerId !== noteGesture.id) return;
+        if (Math.hypot(event.clientX - noteGesture.x, event.clientY - noteGesture.y) > 10) {
+          suppressNoteClick = true;
+        }
+      }, { passive: true });
+
+      notesList.addEventListener("pointerup", (event) => {
+        if (!noteGesture || event.pointerId !== noteGesture.id) return;
+        if (Math.hypot(event.clientX - noteGesture.x, event.clientY - noteGesture.y) > 10) {
+          suppressNoteClick = true;
+        }
+        noteGesture = null;
+      }, { passive: true });
+
+      notesList.addEventListener("pointercancel", () => {
+        if (noteGesture) suppressNoteClick = true;
+        noteGesture = null;
+      }, { passive: true });
 
       notesList.addEventListener("touchstart", (event) => {
         noteSwipeStart = null;
@@ -6716,12 +6746,12 @@
         const isOpen = start.card.classList.contains("actions-expanded");
         if (dx < 0 && !isOpen) {
           event.preventDefault();
-          noteSwipeHandledAt = Date.now();
+          suppressNoteClick = true;
           document.querySelectorAll(".note-card.actions-expanded").forEach((card) => setNoteActionsOpen(card, false));
           setNoteActionsOpen(start.card, true);
         } else if (dx > 0 && isOpen) {
           event.preventDefault();
-          noteSwipeHandledAt = Date.now();
+          suppressNoteClick = true;
           setNoteActionsOpen(start.card, false);
         }
       }, { passive: false });
