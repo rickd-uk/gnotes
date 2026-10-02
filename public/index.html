@@ -828,6 +828,7 @@
 
       .note-action:focus-visible,
       .note-save:focus-visible,
+      .edit-done:focus-visible,
       .archived-quick-open:focus-visible,
       .delete-btn:focus-visible,
       .toolbar-button:focus-visible,
@@ -1709,8 +1710,8 @@
         top: calc(100% + 4px);
         right: 0;
         display: flex;
-        width: 283px;
-        flex-wrap: wrap;
+        width: max-content;
+        flex-wrap: nowrap;
         align-items: center;
         gap: 5px;
         padding: 5px;
@@ -1720,17 +1721,7 @@
         box-shadow: 0 9px 22px rgba(51, 45, 35, 0.16);
       }
       .note-actions:not(.is-open) .note-tools { display: none; }
-      .note-card.is-editing .note-actions-toggle { display: none; }
-      .note-card.is-editing .note-tools {
-        position: static;
-        display: flex;
-        width: auto;
-        flex-wrap: nowrap;
-        padding: 0;
-        border: 0;
-        background: transparent;
-        box-shadow: none;
-      }
+      .note-card.is-editing .note-actions { display: none; }
 
       .note-safe-actions {
         display: flex;
@@ -1743,21 +1734,6 @@
         margin: 0 2px;
         background: var(--line);
       }
-
-      .copy-note-text {
-        width: 100%;
-        padding: 8px 6px 3px;
-        border: 0;
-        border-top: 1px solid var(--line);
-        background: transparent;
-        color: var(--ink);
-        cursor: pointer;
-        font-size: 0.76rem;
-        text-align: left;
-      }
-
-      .copy-note-text:hover { color: var(--accent); }
-      .note-card.is-editing .copy-note-text { display: none; }
 
       .note-card:hover .note-actions,
       .note-card:focus-within .note-actions {
@@ -1773,26 +1749,6 @@
         border: none;
         border-radius: 50%;
         cursor: pointer;
-      }
-
-      .edit-btn {
-        background: var(--edit-button);
-        color: var(--edit-ink);
-      }
-
-      .edit-btn:hover {
-        background: var(--edit-button-hover);
-      }
-
-      .note-card.is-editing .edit-btn {
-        width: 40px;
-        height: 40px;
-        background: #e9e4da;
-        color: var(--ink);
-      }
-
-      .note-card.is-editing .note-actions {
-        opacity: 1;
       }
 
       .pin-btn {
@@ -1823,6 +1779,18 @@
         border-color: #568674;
         background: #c4ded2;
         color: #164936;
+      }
+
+      .copy-note-btn {
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--muted);
+      }
+
+      .copy-note-btn:hover {
+        border-color: #a9a296;
+        background: #e9e4da;
+        color: var(--ink);
       }
 
       .pinned-section .date-section-heading {
@@ -1909,25 +1877,6 @@
 
       .note-color-swatch:disabled { cursor: wait; opacity: 0.6; }
 
-      .note-card.is-editing .note-color-control { display: none; }
-
-      .edit-btn .edit-close-icon,
-      .note-card.is-editing .edit-btn .edit-pencil-icon {
-        display: none;
-      }
-
-      .note-card.is-editing .edit-btn .edit-close-icon {
-        display: block;
-      }
-
-      .note-card.is-editing .pin-btn,
-      .note-card.is-editing .hide-note-btn,
-      .note-card.is-editing .archive-btn,
-      .note-card.is-editing .delete-btn,
-      .note-card.is-editing .note-action-divider {
-        display: none;
-      }
-
       .note-content[hidden],
       .note-view[hidden],
       .note-editor[hidden] {
@@ -1973,6 +1922,20 @@
         color: var(--muted);
         font-size: 0.7rem;
       }
+
+      .edit-done {
+        min-height: 38px;
+        padding: 5px 12px;
+        border: 1px solid #bad0c2;
+        border-radius: 6px;
+        background: #e1ebe5;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 650;
+      }
+
+      .edit-done:hover { background: #d6e5dc; }
 
       .date {
         display: block;
@@ -2149,7 +2112,6 @@
       }
 
       #notes-list.tool-pin-hidden .pin-btn,
-      #notes-list.tool-edit-hidden .edit-btn,
       #notes-list.tool-hide-hidden .hide-note-btn,
       #notes-list.tool-delete-hidden .delete-btn,
       #notes-list.tool-divider-hidden .note-action-divider {
@@ -2158,15 +2120,7 @@
 
       #notes-list.tool-safe-hidden .note-safe-actions { display: none; }
 
-      #notes-list .note-card.is-editing .edit-btn,
-      #notes-list.tool-edit-hidden .note-card.is-editing .edit-btn {
-        display: grid;
-      }
-
-      #notes-list .note-card.is-editing .note-safe-actions { display: flex; }
-
       #notes-list.tool-all-hidden .note-actions { display: none; }
-      #notes-list.tool-all-hidden .note-card.is-editing .note-actions { display: flex; }
 
       #notes-list.density-compact .note-card {
         padding-top: 11px;
@@ -3748,9 +3702,6 @@
             <button class="tool-choice" type="button" data-tool="pin" aria-pressed="true" aria-label="Show Pin tool">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" /></svg><span>Pin</span><span class="tool-state" aria-hidden="true">Shown</span>
             </button>
-            <button class="tool-choice" type="button" data-tool="edit" aria-pressed="true" aria-label="Show Edit tool">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10.9-10.9a2.1 2.1 0 0 0-3-3L5.2 16Z" /><path d="m14.8 6.4 2.8 2.8M4 20l1.2-4" /></svg><span>Edit</span><span class="tool-state" aria-hidden="true">Shown</span>
-            </button>
             <button class="tool-choice" type="button" data-tool="hide" aria-pressed="true" aria-label="Show Hide tool">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg><span>Hide</span><span class="tool-state" aria-hidden="true">Shown</span>
             </button>
@@ -4194,7 +4145,7 @@
         ["rose", "Rose"],
       ];
       const noteColorKeys = new Set(noteColorOptions.map(([key]) => key));
-      const noteTools = ["pin", "edit", "hide", "delete"];
+      const noteTools = ["pin", "hide", "delete"];
       let visibleTools = new Set(noteTools);
       let menuOpacity = 88;
       let searchActive = false;
@@ -4426,7 +4377,7 @@
         visibleTools = new Set(Array.isArray(tools) ? tools.filter((tool) => noteTools.includes(tool)) : noteTools);
         const notesList = document.getElementById("notes-list");
         noteTools.forEach((tool) => notesList.classList.toggle(`tool-${tool}-hidden`, !visibleTools.has(tool)));
-        const safeShown = ["pin", "edit", "hide"].some((tool) => visibleTools.has(tool));
+        const safeShown = ["pin", "hide"].some((tool) => visibleTools.has(tool));
         notesList.classList.toggle("tool-safe-hidden", !safeShown);
         notesList.classList.toggle("tool-divider-hidden", !safeShown || !visibleTools.has("delete"));
         notesList.classList.toggle("tool-all-hidden", visibleTools.size === 0);
@@ -5233,15 +5184,6 @@
                     </svg>
                     <span class="visually-hidden">${n.pinned ? "Unpin" : "Pin"} note</span>
                   </button>
-                  <button class="note-action edit-btn" onclick="editNote(${n.id})" aria-label="Edit note" title="Edit note">
-                    <svg class="icon edit-pencil-icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="m4 20 4.2-1 10.9-10.9a2.1 2.1 0 0 0-3-3L5.2 16Z" />
-                      <path d="m14.8 6.4 2.8 2.8M4 20l1.2-4" />
-                    </svg>
-                    <svg class="icon edit-close-icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="m6 6 12 12M18 6 6 18" />
-                    </svg>
-                  </button>
                   <button class="note-action hide-note-btn" onclick="hideNote(${n.id})" aria-label="Hide note" title="Hide note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
@@ -5267,6 +5209,10 @@
                       ${noteColorSwatches(n)}
                     </span>
                   </span>
+                  <button class="note-action copy-note-btn" type="button" onclick="copyNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
+                    <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
+                  </button>
                   </div>
                   <span class="note-action-divider" aria-hidden="true"></span>
                   <button class="note-action delete-btn" onclick="deleteNote(${n.id})" aria-label="Delete note" title="Delete note">
@@ -5275,7 +5221,6 @@
                     </svg>
                     <span class="visually-hidden">Delete note</span>
                   </button>
-                  <button class="copy-note-text" type="button" onclick="copyNoteText(${n.id}, this)" aria-label="Copy note text"><span class="copy-note-label" aria-live="polite">Copy text</span></button>
                   </div>
                 </div>
               </div>
@@ -5289,6 +5234,7 @@
                   <div class="rich-editor-container" id="rich-editor-${n.id}" hidden></div>
                   <div class="editor-actions">
                     <span class="edit-hint" role="status" aria-live="polite"></span>
+                    <button class="edit-done" type="button" onclick="updateNote(${n.id})">Done</button>
                   </div>
                 </div>
             </article>`;
@@ -6586,7 +6532,7 @@
         }
       }
 
-      function openNoteEditor(id, selectTitle = true, focusBody = false) {
+      function openNoteEditor(id, selectTitle = true, focusBody = false, textOffset = null) {
         const note = loadedNotes.get(id);
         const view = document.getElementById(`note-view-${id}`);
         const editor = document.getElementById(`note-editor-${id}`);
@@ -6599,19 +6545,26 @@
         editor.hidden = false;
         const card = document.getElementById(`note-${id}`);
         card.classList.add("is-editing");
-        const editButton = card.querySelector(".edit-btn");
-        editButton.setAttribute("aria-label", "Save and close editor");
-        editButton.title = "Save and close editor";
         resizeTextareaToContent(contentInput);
         editingNoteId = id;
         rememberEditingNote(id);
         if (!markdownSource) mountEditRichEditor(id);
         if (focusBody) {
-          if (richEdit) richEdit.focus();
-          else contentInput.focus();
+          if (richEdit) richEdit.focusAtTextOffset(textOffset);
+          else {
+            contentInput.focus();
+            if (textOffset !== null) {
+              const rawOffset = typeof textOffset === "number" ? textOffset : textOffset.globalOffset;
+              const position = Math.min(rawOffset, contentInput.value.length);
+              contentInput.setSelectionRange(position, position);
+            }
+          }
         } else {
           titleInput.focus();
-          if (selectTitle) titleInput.select();
+          if (textOffset !== null) {
+            const position = Math.min(textOffset, titleInput.value.length);
+            titleInput.setSelectionRange(position, position);
+          } else if (selectTitle) titleInput.select();
         }
         return true;
       }
@@ -6667,14 +6620,53 @@
         } catch {}
         const label = button.querySelector(".copy-note-label");
         if (!label) return;
-        label.textContent = copied ? "Copied" : "Could not copy";
-        setTimeout(() => { if (label.isConnected) label.textContent = "Copy text"; }, 1800);
+        const message = copied ? "Copied note text" : "Could not copy note text";
+        label.textContent = message;
+        button.setAttribute("aria-label", message);
+        button.title = message;
+        setTimeout(() => {
+          if (!button.isConnected) return;
+          label.textContent = "Copy note text";
+          button.setAttribute("aria-label", "Copy note text");
+          button.title = "Copy note text";
+        }, 1800);
       }
 
       let noteSwipeStart = null;
       let noteGesture = null;
       let suppressNoteClick = false;
       const notesList = document.getElementById("notes-list");
+
+      function textOffsetAtPoint(container, x, y) {
+        const caret = document.caretPositionFromPoint?.(x, y);
+        const range = caret ? null : document.caretRangeFromPoint?.(x, y);
+        const node = caret?.offsetNode || range?.startContainer;
+        const offset = caret?.offset ?? range?.startOffset;
+        if (!node || !container.contains(node)) return null;
+        const blocks = container.classList.contains("note-content") ? [...container.children] : [];
+        const blockIndex = blocks.findIndex((block) => block.contains(node));
+        const scope = blockIndex < 0 ? container : blocks[blockIndex];
+        const priorText = blockIndex < 0 ? 0 : blocks.slice(0, blockIndex)
+          .reduce((total, block) => total + block.textContent.length, 0);
+        const result = (localOffset) => blockIndex < 0 ? localOffset : {
+          blockIndex,
+          offset: localOffset,
+          globalOffset: priorText + localOffset,
+        };
+        const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+        let total = 0;
+        let current;
+        while ((current = walker.nextNode())) {
+          if (current === node) return result(total + Math.min(offset, current.textContent.length));
+          total += current.textContent.length;
+        }
+        try {
+          const before = document.createRange();
+          before.selectNodeContents(scope);
+          before.setEnd(node, offset);
+          return result(before.toString().length);
+        } catch { return null; }
+      }
 
       notesList.addEventListener("click", (event) => {
         const target = event.target;
@@ -6683,8 +6675,10 @@
         if (!card || card.classList.contains("is-editing") ||
             target.closest("a, button, input, textarea, select, label, summary, [contenteditable], .note-actions")) return;
         if (window.getSelection()?.toString().trim()) return;
-        const focusBody = Boolean(target.closest(".note-content"));
-        editNote(Number(card.id.slice(5)), focusBody);
+        const body = target.closest(".note-content");
+        const title = target.closest(".note-view h2");
+        const textOffset = body || title ? textOffsetAtPoint(body || title, event.clientX, event.clientY) : null;
+        editNote(Number(card.id.slice(5)), Boolean(body), textOffset);
       });
 
       notesList.addEventListener("pointerdown", (event) => {
@@ -6759,14 +6753,14 @@
 
       notesList.addEventListener("touchcancel", () => { noteSwipeStart = null; }, { passive: true });
 
-      async function editNote(id, focusBody = false) {
+      async function editNote(id, focusBody = false, textOffset = null) {
         if (editingNoteId === id) return updateNote(id);
         if (editingNoteId !== null) {
           const saved = await updateNote(editingNoteId);
           if (!saved) return;
         }
 
-        openNoteEditor(id, !focusBody, focusBody);
+        openNoteEditor(id, !focusBody, focusBody, textOffset);
       }
 
       function currentEdit(id) {
@@ -7324,7 +7318,7 @@
       document.addEventListener("pointerdown", (event) => {
         if (!document.getElementById("welcome-overlay").hidden) return;
         if (richContextMenu.contains(event.target)) return;
-        if (editingNoteId !== null && !event.target.closest(".edit-btn")) {
+        if (editingNoteId !== null) {
           const editor = document.getElementById(`note-editor-${editingNoteId}`);
           if (editor && !editor.contains(event.target)) updateNote(editingNoteId);
         }

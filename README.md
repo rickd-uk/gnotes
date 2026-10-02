@@ -13,7 +13,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Per-user accounts, sessions, CSRF protection, and note isolation
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
-- Create, autosave, resume editing by clicking a note, pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
+- Create, autosave, resume editing by clicking near the desired text position in a note, finish with Done, pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
 - Copy a note’s displayed text from its action menu; read-only page text does not select by dragging, while editors remain selectable
 - Archive notes for later reading and restore them without deleting them
 - Cursor-paginated note and recycle-bin loading with indexed full-text search

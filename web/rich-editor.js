@@ -49,6 +49,25 @@ function mount(host, markdown, onChange, onContext = () => {}) {
       onContext(null);
     },
     focus: () => editor.commands.focus(),
+    focusAtTextOffset(offset) {
+      const position = typeof offset === 'object' && offset !== null ? offset : { offset };
+      if (!Number.isInteger(position.offset) || position.offset < 0) return editor.commands.focus('end');
+      const block = Number.isInteger(position.blockIndex)
+        ? editor.view.dom.children[position.blockIndex]
+        : null;
+      const scope = block || editor.view.dom;
+      const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+      let remaining = block ? position.offset : (position.globalOffset ?? position.offset);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (remaining <= node.textContent.length) {
+          const position = editor.view.posAtDOM(node, remaining);
+          return editor.chain().focus().setTextSelection(position).run();
+        }
+        remaining -= node.textContent.length;
+      }
+      return editor.commands.focus('end');
+    },
     destroy: () => { onContext(null); editor.destroy(); },
     format(command, removeSlash = false) {
       const chain = editor.chain().focus();
