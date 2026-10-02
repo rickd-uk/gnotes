@@ -1,0 +1,16 @@
+{
+  "name": "gnotes-editor",
+  "private": true,
+  "scripts": {
+    "build:editor": "esbuild web/rich-editor.js --bundle --minify --format=iife --outfile=public/rich-editor.js"
+  },
+  "dependencies": {
+    "@tiptap/core": "3.31.3",
+    "@tiptap/extension-list": "3.31.3",
+    "@tiptap/markdown": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

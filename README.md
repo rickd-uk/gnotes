@@ -13,23 +13,36 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Per-user accounts, sessions, CSRF protection, and note isolation
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
-- Create, autosave, resume editing, pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
+- Create, autosave, resume editing by clicking a note, pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
+- Copy a note’s displayed text from its action menu; read-only page text does not select by dragging, while editors remain selectable
 - Archive notes for later reading and restore them without deleting them
 - Cursor-paginated note and recycle-bin loading with indexed full-text search
 - Live title/content search with note and occurrence counts, highlighting, date ranges, scope, and case controls
 - Calendar jumps and monthly/weekly archive overviews for large collections
 - Server-backed per-user draft autosave and refresh recovery
 - Responsive layouts, three note-density modes, and per-user interface-state restoration
-- Markdown rendering, syntax-highlighted code, writing guide, automatic code pairing, and a compact formatting toolbar
+- Rich text editing by default: select text for bold, italic, or a link; type `/` at the start of a paragraph for headings, lists, and checklists. Markdown source editing is opt-in under **Account → Advanced**
+- Global note font and 65–175% title/text size controls, including in the rich text editor; menu opacity ranges from 0–100%
 - User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion
+- Account-menu export of all or selected notes and import of gnotes JSON, Markdown, plain text, or a gnotes export ZIP
+
+### Export and import
+
+Open **Account → Export & import**. Choose gnotes JSON for a complete copy of active, archived, and recycled notes, including dates, pinning, and colors. Plain text exports contain readable note bodies. Markdown export and import appear after enabling **Edit Markdown source** under **Account → Advanced**. When exporting multiple notes in a readable format, gnotes creates a ZIP with a JSON manifest that preserves note details for reimport. Keep the manifest with the files; the importer reads it as the source of record.
+
+Select notes in the panel to export one or more, or use **Export all**. Imports add notes to the signed-in account. **Skip exact matches** avoids adding a note already present with the same details; **Create another copy** imports it again. A standalone Markdown or text file becomes one active note named after the file. Imports are checked before any note is written and are limited to 64 MB and 10,000 notes per file.
+
+The editor stores a Markdown representation of rich text so existing notes, search, and exports continue to work. Enter creates a visible paragraph break; Shift+Enter creates a line break. Notes containing Markdown that cannot be converted back exactly open in source editing to preserve their original text. The Markdown source preference is saved per account in the current browser.
 
 ## Local development
 
-Requirements: Go 1.25 or later.
+Requirements: Go 1.25 or later. Node.js is needed only to rebuild the bundled rich text editor.
 
 ```bash
 make run
 ```
+
+After changing [web/rich-editor.js](web/rich-editor.js), rebuild the checked-in browser bundle with `npm ci && npm run build:editor`.
 
 The server listens on `http://127.0.0.1:8080` by default. The first account must be named `rick`; it becomes the administrator and claims notes created before accounts were introduced.
 

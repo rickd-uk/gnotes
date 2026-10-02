@@ -1,6 +1,6 @@
 # gnotes progress
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 ## Current production release
 
@@ -36,6 +36,9 @@ Last updated: 2026-10-01
 - Local 320px browser checks covered the header, Controls row, welcome dialog, new-account “Don’t show this again” behavior, and visible note-color updates.
 - Retest the deployed update on the Pixel 6a in Brave, Epic, Firefox, and Chrome. A prior Epic empty list was caused by a saved date filter; choosing Recent showed notes. No browser-specific storage failure was confirmed.
 - Wasabi or other encrypted off-server backup storage is not configured. Daily validated backups currently remain on the Kagoya VPS.
+- Export and import are implemented locally after v0.7.8. The new account panel supports all or selected notes, three export formats, and JSON, ZIP, Markdown, and text import. Round-trip and account-isolation tests pass; this work has not been deployed.
+- Rich text editing is implemented locally after v0.7.8 with a small toolbar for selected text, `/` block options, visible paragraph breaks, and Markdown source editing under Account → Advanced. The global font and size controls still apply. Older Markdown that cannot round-trip through the rich editor opens in source mode to preserve it. The global Hide eye was removed; per-note Hide and the Hidden notes panel remain. The local controls now allow 0–100% menu opacity and 65–175% title and text sizes. The same Save button now appears on mobile and wider screens, note action buttons and icons are larger, and pinned note dates have left padding. Clicking a note opens editing while links and tools keep their own actions. Page and displayed note text no longer select by dragging; text fields and rich editors still allow selection. A Copy text row in each note menu copies the displayed body. This work has not been deployed.
+- Local Chromium checks covered export and import, rich text typing and saving, paragraph breaks, checklists, selected-text and slash commands, editing existing notes, Advanced preference restoration, old Markdown preservation, appearance range endpoints, Save on 320px and 1024px screens, pinned date spacing, action menu fit without horizontal overflow, click-to-edit from title and body, link clicks that do not open editing, note text copy, and editor selection. `go test ./...`, `go vet ./...`, and JavaScript syntax validation passed. The Pixel 6a was not connected, so the four-browser device retest remains open.
 
 ## Future plans
 
@@ -43,7 +46,7 @@ Priority order remains:
 
 1. Retest the mobile experience and note colors on the Pixel 6a, including Brave and Epic, and fix any reproducible issues.
 2. Replicate validated backups to encrypted storage outside Kagoya and alert on stale or failed backups, low disk space, service restarts, and TLS expiry.
-3. Add note export and import with Markdown, plain text, and a versioned lossless gnotes format.
+3. Review and release the local export/import and rich text changes after device testing.
 4. Move inline JavaScript and CSS into versioned assets and remove `unsafe-inline` from the Content Security Policy.
 5. Add privacy-conscious audit records for administration and authentication security events.
 6. Design password recovery and administrator MFA with recovery codes before implementation.
