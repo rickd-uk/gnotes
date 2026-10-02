@@ -1,13 +1,41 @@
-import { Editor } from '@tiptap/core';
+import { Editor, Extension, InputRule, PasteRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Markdown } from '@tiptap/markdown';
+
+const markdownLinkPattern = /(?<!\\)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g;
+
+function replaceMarkdownLink({ state, range, match }) {
+  const [, label, href] = match;
+  try {
+    if (!['http:', 'https:', 'mailto:'].includes(new URL(href).protocol)) return null;
+  } catch { return null; }
+  const link = state.schema.marks.link;
+  if (!link) return null;
+  const marks = state.doc.resolve(range.from).marks().filter((mark) => mark.type !== link);
+  state.tr.replaceWith(range.from, range.to,
+    state.schema.text(label, [...marks, link.create({ href })])).removeStoredMark(link);
+}
+
+const MarkdownLinkShortcut = Extension.create({
+  name: 'markdownLinkShortcut',
+  addInputRules() {
+    return [new InputRule({
+      find: /(?<!\\)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)$/,
+      handler: replaceMarkdownLink,
+    })];
+  },
+  addPasteRules() {
+    return [new PasteRule({ find: markdownLinkPattern, handler: replaceMarkdownLink })];
+  },
+});
 
 const extensions = [
   StarterKit.configure({ heading: { levels: [2, 3] } }),
   TaskList,
   TaskItem.configure({ nested: true }),
   Markdown.configure({ markedOptions: { gfm: true, breaks: false } }),
+  MarkdownLinkShortcut,
 ];
 
 function mount(host, markdown, onChange, onContext = () => {}) {

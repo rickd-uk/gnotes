@@ -5577,6 +5577,8 @@
             .replace(/^#{1,6}\s+/, "")
             .replace(/^(?:[-*+>]|\d+\.)\s+/, "")
             .replace(/^\[!(?:TIP|CAUTION)\]\s*/i, "")
+            .replace(/\\([\[\]])/g, "$1")
+            .replace(/\[([^\]\n]+)\]\((?:https?:\/\/|mailto:)[^\s)]+\)/g, "$1")
             .replace(/[*_`~]/g, "")
             .trim() || "Untitled note"
         );

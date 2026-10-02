@@ -1,6 +1,6 @@
 # gnotes progress
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 ## Current production release
 
@@ -42,6 +42,7 @@ Last updated: 2026-10-02
 - Local Chromium checks covered export and import, rich text typing and saving, paragraph breaks, checklists, selected-text and slash commands, editing existing notes, Advanced preference restoration, old Markdown preservation, appearance range endpoints, Save on 320px and 1024px screens, pinned date spacing, action menu fit without horizontal overflow, click-to-edit from title and body, link clicks that do not open editing, note text copy, and editor selection. In 320px Chromium touch emulation, a swipe did not open editing and the following tap did. `go test ./...`, `go vet ./...`, and JavaScript syntax validation passed. The Pixel 6a was not connected, so the four-browser device retest remains open.
 - A 320px Chromium sign-out/sign-in check confirmed the account menu stays closed, including with a legacy saved `accountOpen: true` value and after reloading while the menu was open.
 - A 320px Chromium check confirmed the six action icons stay on one row without horizontal overflow, the Copy icon copies note text, and title and multi-paragraph body clicks place the editing caret in the clicked text and paragraph.
+- Local rich-text links now turn typed or pasted `[label](URL)` into a labeled hyperlink. Untitled note previews use the label rather than showing the Markdown syntax. Chromium checks covered typing, pasting one or two links, text after a link, invalid URLs, saving, and reopening a saved link. This work has not been deployed.
 
 ## Future plans
 
