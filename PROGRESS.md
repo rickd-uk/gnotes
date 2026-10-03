@@ -4,7 +4,7 @@ Last updated: 2026-10-04
 
 ## Current production release
 
-`v0.7.14` is deployed on Kagoya at `https://gnotes.rickd.dev`.
+`v0.7.15` is deployed on Kagoya at `https://gnotes.rickd.dev`.
 
 - The release workflow passed Go tests, the race test, `go vet`, ShellCheck, backup and restore tests, and the application rehearsal.
 - The Kagoya updater verified the release checksum, created a pre-release SQLite backup, restarted the rootless Podman service, and verified application health.
@@ -12,6 +12,7 @@ Last updated: 2026-10-04
 - The `v0.7.12` release adds more rich-text formatting, interactive saved checklists, and named links. Its release workflow passed, and the deployed page hash matches the local release page.
 - The `v0.7.13` release adds code-block language and normal-text controls in the rich editor. The public page and rich-editor asset hashes match the release files.
 - The `v0.7.14` release keeps the code language picker open when entering a saved note. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and browser asset hashes match the release archive. Local and public health checks passed after deployment.
+- The `v0.7.15` release adds a persistent rich-text formatting toolbar to new and saved notes. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and public page hashes match the release archive. Local and public health checks passed after deployment.
 - Search → Dates and options now defaults Jump to date to today, removes the duplicate calendar picker button, and gives the section toggle larger, more prominent text.
 
 ## Recently completed
@@ -36,7 +37,7 @@ Last updated: 2026-10-04
 
 ## Verification and open checks
 
-- The rich editor now shows a persistent 14-command formatting toolbar in new and saved notes. A local 320px Chromium check verified toolbar visibility, no horizontal page overflow, Bold before typing, and Italic on selected text after reopening a saved note. This change is not yet deployed.
+- The rich editor now shows a persistent 14-command formatting toolbar in new and saved notes. A local 320px Chromium check verified toolbar visibility, no horizontal page overflow, Bold before typing, and Italic on selected text after reopening a saved note. Deployed in `v0.7.15`; an authenticated live browser check remains open.
 - Opening a saved code block by clicking its preview no longer immediately closes the language picker. A 320px Chromium test reproduced the missing picker, then verified a real click shows the picker and a language change persists after saving. The correction is deployed in `v0.7.14`; an authenticated live browser check remains open.
 - Rich-text code blocks now show a language picker at the cursor, including Plain and the existing source-editor language choices, plus a Normal text conversion. An existing custom language remains selectable. A 320px Chromium check covered picker fit, language changes, unknown-language preservation, plain code, saved highlighting, reopening, and persistence after editing an existing note. Go tests and vet passed. Deployed in `v0.7.13`.
 - Rich text now adds Strikethrough and Inline code to the selected-text toolbar, plus Small heading, Quote, Code block, and Divider to `/`; Checklist is the first `/` option and also appears in the selection toolbar. Saved checklist boxes can be ticked directly in Recent notes and persist after reload, with failed saves rolled back. The Link control opens an in-app form for display text and address; saved links show the name, reveal the address on hover, and can be removed without losing their text. Focused 320px browser checks covered the new commands, menu fit, named-link saving/removal, and checkbox persistence/error rollback, including a task-looking line inside a code block. `go test ./...`, `go vet ./...`, and JavaScript syntax checks passed. Deployed in `v0.7.12`.
