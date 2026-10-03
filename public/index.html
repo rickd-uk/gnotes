@@ -1125,14 +1125,7 @@
         border-bottom: 1px solid var(--line);
       }
 
-      .calendar-date-control { display: flex; align-items: center; gap: 5px; }
       .calendar-date-control input { min-width: 0; }
-      .calendar-jump .calendar-pick {
-        width: 38px;
-        min-width: 38px;
-        padding: 6px;
-      }
-      .calendar-pick .icon { width: 20px; height: 20px; }
 
       .calendar-jump button,
       .calendar-clear {
@@ -3311,7 +3304,6 @@
         .note-action .icon { width: 20px; height: 20px; }
         .note-actions-toggle { width: 40px; height: 40px; font-size: 1.45rem; }
         .scope-choice .icon { width: 18px; height: 18px; }
-        .calendar-pick .icon { width: 22px; height: 22px; }
       }
 
       @media (max-width: 560px) {
@@ -3944,9 +3936,6 @@
                 <label for="calendar-date">Jump to date</label>
                 <div class="calendar-date-control">
                   <input type="date" id="calendar-date" />
-                  <button class="calendar-pick" type="button" id="calendar-pick" aria-label="Choose date" title="Choose date">
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>
-                  </button>
                 </div>
               </div>
               <button type="button" id="calendar-open">View date</button>
@@ -7265,17 +7254,7 @@
         }
       }
 
-      function showCalendarPicker() {
-        const input = document.getElementById("calendar-date");
-        input.focus();
-        try { if (input.showPicker) input.showPicker(); else input.click(); } catch { input.click(); }
-      }
-
-      document.getElementById("calendar-pick").addEventListener("click", showCalendarPicker);
-      document.getElementById("calendar-open").addEventListener("click", () => {
-        if (!document.getElementById("calendar-date").value) showCalendarPicker();
-        else openCalendarDate();
-      });
+      document.getElementById("calendar-open").addEventListener("click", openCalendarDate);
       document.getElementById("calendar-date").addEventListener("change", openCalendarDate);
       document.getElementById("calendar-clear").addEventListener("click", showRecentNotes);
       document.getElementById("search-all").addEventListener("click", showRecentNotes);
