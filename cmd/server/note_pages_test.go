@@ -121,6 +121,9 @@ func TestPagedArchivedNotesAndSearch(t *testing.T) {
 			path += "&cursor=" + url.QueryEscape(cursor)
 		}
 		page := requestNotePage(t, pagedListNotesHandler, path, userID)
+		if page.View != "archived" {
+			t.Fatalf("archived page view = %q", page.View)
+		}
 		if page.Total != 125 || page.Pinned != 0 || len(page.Notes) > 17 {
 			t.Fatalf("archived page %d: total=%d pinned=%d notes=%d", pageNumber, page.Total, page.Pinned, len(page.Notes))
 		}
@@ -144,6 +147,9 @@ func TestPagedArchivedNotesAndSearch(t *testing.T) {
 
 	search := requestNotePage(t, pagedSearchNotesHandler,
 		"/api/notes/search-page?archive=1&q=findable&scope=content&limit=10", userID)
+	if search.View != "archived" {
+		t.Fatalf("archived search view = %q", search.View)
+	}
 	if search.Total != 125 || len(search.Notes) != 10 {
 		t.Fatalf("archived search total=%d notes=%d", search.Total, len(search.Notes))
 	}
@@ -162,7 +168,7 @@ func TestPagedArchivedNotesAndSearch(t *testing.T) {
 	}
 	active := requestNotePage(t, pagedSearchNotesHandler,
 		"/api/notes/search-page?q=findable&scope=content", userID)
-	if active.Total != 1 {
+	if active.Total != 1 || active.View != "recent" {
 		t.Fatalf("active search total=%d, want 1", active.Total)
 	}
 }

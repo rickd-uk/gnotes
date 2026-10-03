@@ -26,6 +26,7 @@ const (
 
 type notePage struct {
 	Notes      []models.Note `json:"notes"`
+	View       string        `json:"view"`
 	NextCursor string        `json:"next_cursor,omitempty"`
 	Total      int           `json:"total"`
 	Pinned     int           `json:"pinned_total,omitempty"`
@@ -140,7 +141,11 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeNotePage(w, notePage{Notes: notes, NextCursor: nextCursor, Total: total, Pinned: pinned})
+	view := "recent"
+	if archived {
+		view = "archived"
+	}
+	writeNotePage(w, notePage{Notes: notes, View: view, NextCursor: nextCursor, Total: total, Pinned: pinned})
 }
 
 func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
@@ -205,7 +210,11 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not count search results", http.StatusInternalServerError)
 		return
 	}
-	writeNotePage(w, notePage{Notes: notes, NextCursor: nextCursor, Total: total, MatchCount: matchCount})
+	view := "recent"
+	if archived {
+		view = "archived"
+	}
+	writeNotePage(w, notePage{Notes: notes, View: view, NextCursor: nextCursor, Total: total, MatchCount: matchCount})
 }
 
 func searchOccurrenceExpression(r *http.Request) (string, []any) {

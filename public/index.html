@@ -1909,6 +1909,50 @@
         font-weight: 700;
       }
 
+      .note-action-toast {
+        position: fixed;
+        z-index: 13;
+        right: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        padding: 13px 18px;
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--accent);
+        border-radius: 9px;
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow: 0 9px 22px rgba(51, 45, 35, 0.16);
+        font-size: 0.85rem;
+      }
+
+      .note-action-dialog {
+        width: min(420px, calc(100% - 32px));
+        max-height: calc(100dvh - 32px);
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #f8f6f0;
+        color: var(--ink);
+        box-shadow: 0 24px 65px rgba(36, 35, 31, 0.24);
+      }
+
+      .note-action-dialog::backdrop { background: rgba(36, 35, 31, 0.42); }
+      .note-action-dialog h2 { margin: 0 0 10px; font: 500 1.45rem Georgia, "Times New Roman", serif; }
+      .note-action-dialog p { margin: 0 0 22px; line-height: 1.5; font-size: 0.9rem; }
+      .note-action-dialog button {
+        display: block;
+        min-height: 42px;
+        margin-left: auto;
+        padding: 8px 18px;
+        border: 0;
+        border-radius: 7px;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .note-action-dialog button:hover { background: var(--accent-hover); }
+
       .note-color-control { position: relative; }
 
       .note-color-menu {
@@ -3949,6 +3993,13 @@
       <button id="undo-note-delete" type="button">Undo</button>
     </div>
 
+    <div class="note-action-toast" id="note-action-toast" role="status" aria-live="polite" hidden></div>
+    <dialog class="note-action-dialog" id="note-action-dialog" aria-labelledby="note-action-dialog-title" aria-describedby="note-action-dialog-message">
+      <h2 id="note-action-dialog-title"></h2>
+      <p id="note-action-dialog-message"></p>
+      <button type="button" id="note-action-dialog-close">Got it</button>
+    </dialog>
+
     <section class="archive-panel" id="archive-panel" role="dialog" aria-labelledby="archive-heading" hidden>
       <div class="archive-header">
         <h2 id="archive-heading">Notes overview</h2>
@@ -4136,6 +4187,7 @@
       let trashLoading = false;
       let deletedNoteUndoId = null;
       let deletedNoteUndoTimer;
+      let noteActionToastTimer;
       const hiddenNoteIds = new Set();
       const hiddenNotes = new Map();
       let revealedNoteId = null;
@@ -4623,6 +4675,9 @@
 
       function showAuth(message = "") {
         clearTimeout(deletedNoteUndoTimer);
+        clearTimeout(noteActionToastTimer);
+        document.getElementById("note-action-toast").hidden = true;
+        document.getElementById("note-action-dialog").close();
         deletedNoteUndoId = null;
         document.getElementById("note-undo-toast").hidden = true;
         clearTimeout(liveSearchTimer);
@@ -5128,6 +5183,18 @@
           return false;
         }
         const page = await res.json();
+        if (archiveMode && (page.view !== "archived" || (page.notes || []).some((note) => !note.archived_at || Number.isNaN(Date.parse(note.archived_at))))) {
+          const message = "Archived notes need the updated local server. Restart the app, then refresh this page.";
+          loadedNotes = new Map();
+          notesNextCursor = "";
+          document.getElementById("notes-list").replaceChildren();
+          loadMore.hidden = true;
+          showNotesLoadError(message);
+          showNoteActionDialog("Archived notes unavailable", message);
+          notesLoading = false;
+          loadMore.disabled = false;
+          return false;
+        }
         document.getElementById("notes-load-status").hidden = true;
         if (!append) loadedNotes = new Map();
         (page.notes || []).forEach((note) => loadedNotes.set(note.id, note));
@@ -5852,13 +5919,35 @@
         }, 8000);
       }
 
+      function showNoteActionDialog(title, message) {
+        const dialog = document.getElementById("note-action-dialog");
+        document.getElementById("note-action-dialog-title").textContent = title;
+        document.getElementById("note-action-dialog-message").textContent = message;
+        if (!dialog.open) dialog.showModal();
+        document.getElementById("note-action-dialog-close").focus();
+      }
+
+      function showNoteActionToast(message) {
+        const toast = document.getElementById("note-action-toast");
+        toast.textContent = message;
+        toast.hidden = false;
+        clearTimeout(noteActionToastTimer);
+        noteActionToastTimer = setTimeout(() => { toast.hidden = true; }, 3500);
+      }
+
       async function archiveNote(id) {
-        const response = await apiFetch(`/api/notes/archive?id=${id}`, { method: "POST" });
-        if (!response.ok) {
-          alert("Could not archive this note.");
+        try {
+          const response = await apiFetch(`/api/notes/archive?id=${id}`, { method: "POST" });
+          if (!response.ok) {
+            if (response.status !== 401) showNoteActionDialog("Could not archive note", "This note could not be archived. Please try again.");
+            return;
+          }
+        } catch {
+          showNoteActionDialog("Could not archive note", "Could not reach the server. Please try again.");
           return;
         }
         loadedNotes.delete(id);
+        showNoteActionToast("Note archived");
         await loadNotes();
       }
 
@@ -5891,13 +5980,21 @@
 
       async function unarchiveNote(id) {
         const wasPinned = Boolean(loadedNotes.get(id)?.pinned);
-        const response = await apiFetch(`/api/notes/unarchive?id=${id}`, { method: "POST" });
-        if (!response.ok) {
-          alert("Could not restore this note.");
+        try {
+          const response = await apiFetch(`/api/notes/unarchive?id=${id}`, { method: "POST" });
+          if (!response.ok) {
+            if (response.status !== 401) showNoteActionDialog("Could not unarchive note", response.status === 404
+              ? "This note is no longer in Archived notes. Refresh the page and try again."
+              : "This note could not be unarchived. Please try again.");
+            return;
+          }
+        } catch {
+          showNoteActionDialog("Could not unarchive note", "Could not reach the server. Please try again.");
           return;
         }
         setActiveNoteCount(activeNoteCount + 1);
         if (wasPinned) setPinnedNoteCount(pinnedNoteCount + 1);
+        showNoteActionToast("Note returned to Recent");
         await loadNotes();
       }
 
@@ -7705,6 +7802,9 @@
         dismissWelcome();
         if (richDraft) richDraft.focus();
         else document.getElementById("content").focus();
+      });
+      document.getElementById("note-action-dialog-close").addEventListener("click", () => {
+        document.getElementById("note-action-dialog").close();
       });
       document.getElementById("welcome-help").addEventListener("click", (event) => {
         event.stopPropagation();
