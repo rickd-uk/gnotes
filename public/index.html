@@ -462,6 +462,20 @@
       .rich-editor-container .tiptap ul[data-type="taskList"] { padding-left: 0; list-style: none; }
       .rich-editor-container .tiptap ul[data-type="taskList"] li { display: flex; gap: 8px; }
       .rich-editor-container .tiptap ul[data-type="taskList"] li > div { flex: 1; }
+      .rich-editor-container .tiptap input[type="checkbox"] {
+        width: 24px;
+        height: 24px;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+      .note-content input[type="checkbox"] {
+        width: 24px;
+        height: 24px;
+        margin-right: 6px;
+        vertical-align: middle;
+        accent-color: var(--accent);
+      }
+      .note-content input[type="checkbox"]:not(:disabled) { cursor: pointer; }
       .rich-context-menu {
         position: fixed;
         z-index: 85;
@@ -473,7 +487,12 @@
         background: #fffefa;
         box-shadow: 0 8px 25px rgb(31 31 26 / 18%);
       }
-      .rich-context-menu.is-slash { display: grid; min-width: 180px; }
+      .rich-context-menu.is-slash {
+        display: grid;
+        min-width: 180px;
+        max-height: min(70dvh, 360px);
+        overflow-y: auto;
+      }
       .rich-context-menu button {
         min-width: 34px;
         min-height: 34px;
@@ -487,7 +506,7 @@
       }
       .rich-context-menu button:hover,
       .rich-context-menu button:focus-visible { background: #e9e4da; outline: none; }
-      .rich-context-menu.is-slash button { text-align: left; }
+      .rich-context-menu.is-slash button { min-height: 38px; text-align: left; }
       .account-advanced summary { cursor: pointer; padding: 8px 10px; }
       .account-advanced label { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 0.8rem; }
       .account-advanced input { width: 18px; height: 18px; accent-color: var(--accent); }
@@ -1948,6 +1967,32 @@
       }
 
       .note-action-dialog button:hover { background: var(--accent-hover); }
+
+      .rich-link-dialog label {
+        display: block;
+        margin: 14px 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+      .rich-link-dialog input {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 42px;
+        margin-top: 6px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: white;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.9rem;
+      }
+      .rich-link-dialog .link-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+      .rich-link-dialog .link-dialog-actions button { margin: 0; }
+      .rich-link-dialog .link-dialog-actions .link-dialog-cancel { background: transparent; color: var(--accent); }
+      .rich-link-dialog .link-dialog-actions .link-dialog-cancel:hover { background: #e9e5dc; }
+      .rich-link-dialog .link-dialog-error { margin: 0; color: var(--danger); font-size: 0.8rem; }
 
       .note-color-control { position: relative; }
 
@@ -3991,6 +4036,19 @@
       <p id="note-action-dialog-message"></p>
       <button type="button" id="note-action-dialog-close">Got it</button>
     </dialog>
+    <dialog class="note-action-dialog rich-link-dialog" id="rich-link-dialog" aria-labelledby="rich-link-dialog-title">
+      <form id="rich-link-form" novalidate>
+        <h2 id="rich-link-dialog-title">Add link</h2>
+        <label>Display text<input id="rich-link-text" type="text" required /></label>
+        <label>Web address<input id="rich-link-url" type="url" inputmode="url" placeholder="https://example.com" required /></label>
+        <p class="link-dialog-error" id="rich-link-error" role="alert" hidden></p>
+        <div class="link-dialog-actions">
+          <button class="link-dialog-cancel" id="rich-link-remove" type="button" hidden>Remove link</button>
+          <button class="link-dialog-cancel" id="rich-link-cancel" type="button">Cancel</button>
+          <button type="submit">Save link</button>
+        </div>
+      </form>
+    </dialog>
 
     <section class="archive-panel" id="archive-panel" role="dialog" aria-labelledby="archive-heading" hidden>
       <div class="archive-header">
@@ -4064,6 +4122,7 @@
       </div>
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
+        <div><h3>Format and link</h3><p>Select text to format it or add a named link. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
         <div><h3>Edit a note</h3><p>Tap or click a note to edit it. Choose Done to close the editor.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
@@ -4241,6 +4300,46 @@
       document.body.append(richContextMenu);
       let richContextOwner = null;
       let richContextMode = "";
+      let richLinkRequest = null;
+
+      function openRichLinkDialog(request) {
+        richLinkRequest = request;
+        document.getElementById("rich-link-dialog-title").textContent = request.href ? "Edit link" : "Add link";
+        document.getElementById("rich-link-text").value = request.text;
+        document.getElementById("rich-link-url").value = request.href ||
+          (/^(https?:\/\/|mailto:)/i.test(request.text) ? request.text : "");
+        document.getElementById("rich-link-remove").hidden = !request.href;
+        document.getElementById("rich-link-error").hidden = true;
+        document.getElementById("rich-link-dialog").showModal();
+        document.getElementById(request.text ? "rich-link-text" : "rich-link-url").focus();
+      }
+
+      document.getElementById("rich-link-cancel").addEventListener("click", () => {
+        document.getElementById("rich-link-dialog").close();
+      });
+      document.getElementById("rich-link-remove").addEventListener("click", () => {
+        const request = richLinkRequest;
+        document.getElementById("rich-link-dialog").close();
+        request?.remove();
+      });
+      document.getElementById("rich-link-dialog").addEventListener("close", () => { richLinkRequest = null; });
+      document.getElementById("rich-link-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const label = document.getElementById("rich-link-text").value.trim();
+        const href = document.getElementById("rich-link-url").value.trim();
+        const error = document.getElementById("rich-link-error");
+        let validURL = false;
+        try { validURL = ["http:", "https:", "mailto:"].includes(new URL(href).protocol); } catch {}
+        if (!label || !validURL) {
+          error.textContent = "Enter display text and a valid web address.";
+          error.hidden = false;
+          document.getElementById(!label ? "rich-link-text" : "rich-link-url").focus();
+          return;
+        }
+        const request = richLinkRequest;
+        document.getElementById("rich-link-dialog").close();
+        request?.apply(label, href);
+      });
 
       function hideRichContext(owner = null) {
         if (owner && owner !== richContextOwner) return;
@@ -4258,21 +4357,30 @@
           richContextMenu.setAttribute("role", context.mode === "slash" ? "menu" : "toolbar");
           richContextMenu.setAttribute("aria-label", context.mode === "slash" ? "Insert block" : "Format selected text");
           richContextMenu.innerHTML = context.mode === "slash"
-            ? `<button type="button" data-rich-command="heading">Heading</button>
+            ? `<button type="button" data-rich-command="task">Checklist</button>
+               <button type="button" data-rich-command="heading">Heading</button>
+               <button type="button" data-rich-command="subheading">Small heading</button>
                <button type="button" data-rich-command="bullet">Bulleted list</button>
                <button type="button" data-rich-command="numbered">Numbered list</button>
-               <button type="button" data-rich-command="task">Checklist</button>`
+               <button type="button" data-rich-command="quote">Quote</button>
+               <button type="button" data-rich-command="codeBlock">Code block</button>
+               <button type="button" data-rich-command="divider">Divider</button>`
             : `<button type="button" data-rich-command="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
                <button type="button" data-rich-command="italic" aria-label="Italic" title="Italic"><em>I</em></button>
+               <button type="button" data-rich-command="strike" aria-label="Strikethrough" title="Strikethrough"><s>S</s></button>
+               <button type="button" data-rich-command="code" aria-label="Inline code" title="Inline code"><code>&lt;/&gt;</code></button>
+               <button type="button" data-rich-command="task" aria-label="Checklist" title="Checklist">☐</button>
                <button type="button" data-rich-command="link" aria-label="Add link" title="Add link">Link</button>`;
         }
         richContextMenu.hidden = false;
         const width = richContextMenu.offsetWidth;
         const height = richContextMenu.offsetHeight;
         const left = Math.max(12, Math.min(context.x - width / 2, innerWidth - width - 12));
-        const below = context.mode === "slash" || context.y < height + 20;
+        const below = context.mode === "slash"
+          ? context.y + height + 24 <= innerHeight || context.y < height + 24
+          : context.y < height + 20;
         richContextMenu.style.left = `${left}px`;
-        richContextMenu.style.top = `${below ? context.y + 20 : context.y - height - 8}px`;
+        richContextMenu.style.top = `${Math.max(8, Math.min(below ? context.y + 20 : context.y - height - 8, innerHeight - height - 8))}px`;
       }
 
       richContextMenu.addEventListener("pointerdown", (event) => {
@@ -4284,7 +4392,9 @@
         richContextOwner.format(button.dataset.richCommand, richContextMode === "slash");
         hideRichContext();
       });
-      window.addEventListener("scroll", () => hideRichContext(), true);
+      window.addEventListener("scroll", (event) => {
+        if (!(event.target instanceof Node) || !richContextMenu.contains(event.target)) hideRichContext();
+      }, true);
       window.addEventListener("resize", () => hideRichContext());
 
       function mountDraftRichEditor() {
@@ -4295,7 +4405,7 @@
         const editor = window.GnotesRichEditor.mount(host, input.value, (markdown) => {
           input.value = markdown;
           input.dispatchEvent(new Event("input", { bubbles: true }));
-        }, (context) => showRichContext(richDraft, context));
+        }, (context) => showRichContext(richDraft, context), openRichLinkDialog);
         if (!sameMarkdown(editor.getMarkdown(), input.value)) {
           editor.destroy();
           host.hidden = true;
@@ -4328,7 +4438,7 @@
         const editor = window.GnotesRichEditor.mount(host, input.value, (markdown) => {
           input.value = markdown;
           scheduleEditAutosave(id);
-        }, (context) => showRichContext(richEdit, context));
+        }, (context) => showRichContext(richEdit, context), openRichLinkDialog);
         if (!sameMarkdown(editor.getMarkdown(), input.value)) {
           editor.destroy();
           host.hidden = true;
@@ -4670,6 +4780,7 @@
         clearTimeout(noteActionToastTimer);
         document.getElementById("note-action-toast").hidden = true;
         document.getElementById("note-action-dialog").close();
+        document.getElementById("rich-link-dialog").close();
         deletedNoteUndoId = null;
         document.getElementById("note-undo-toast").hidden = true;
         clearTimeout(liveSearchTimer);
@@ -5361,6 +5472,10 @@
 
         renderedNotes += "</section>";
         document.getElementById("notes-list").innerHTML = renderedNotes;
+        enableNoteTaskCheckboxes();
+        document.querySelectorAll("#notes-list .note-content a[href]").forEach((link) => {
+          link.title = link.getAttribute("href");
+        });
         refreshQuickActions();
         highlightSearchMatches();
         loadMore.hidden = !notesNextCursor;
@@ -6797,6 +6912,72 @@
       let noteGesture = null;
       let suppressNoteClick = false;
       const notesList = document.getElementById("notes-list");
+
+      function taskLinesInMarkdown(markdown) {
+        const segments = markdown.split(/(\r?\n)/);
+        const tasks = [];
+        let fence = null;
+        for (let index = 0; index < segments.length; index += 2) {
+          const line = segments[index];
+          const fenceMatch = line.match(/^\s*(?:>\s*)*(`{3,}|~{3,})(.*)$/);
+          if (fenceMatch) {
+            if (!fence) fence = fenceMatch[1];
+            else if (fenceMatch[1][0] === fence[0] && fenceMatch[1].length >= fence.length && !fenceMatch[2].trim()) fence = null;
+            continue;
+          }
+          if (fence) continue;
+          const match = line.match(/^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\[)([ xX])(\])/);
+          if (match) tasks.push({ index, offset: match[1].length, checked: match[2] !== " " });
+        }
+        return { segments, tasks };
+      }
+
+      function enableNoteTaskCheckboxes() {
+        if (archiveMode) return;
+        notesList.querySelectorAll(".note-card").forEach((card) => {
+          const note = loadedNotes.get(Number(card.id.slice(5)));
+          if (!note) return;
+          const checkboxes = [...card.querySelectorAll(".note-view .note-content input[type='checkbox']")];
+          if (!checkboxes.length) return;
+          const { tasks } = taskLinesInMarkdown(note.content);
+          if (tasks.length !== checkboxes.length || tasks.some((task, index) => task.checked !== checkboxes[index].checked)) return;
+          checkboxes.forEach((checkbox, index) => {
+            checkbox.disabled = false;
+            checkbox.dataset.taskIndex = String(index);
+            checkbox.setAttribute("aria-label", checkbox.closest("li")?.textContent.trim().slice(0, 80) || "Checklist item");
+          });
+        });
+      }
+
+      notesList.addEventListener("change", async (event) => {
+        const checkbox = event.target;
+        if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox" || !checkbox.matches(".note-view .note-content input[data-task-index]")) return;
+        const card = checkbox.closest(".note-card");
+        const id = Number(card?.id.slice(5));
+        const note = loadedNotes.get(id);
+        const { segments, tasks } = taskLinesInMarkdown(note?.content || "");
+        const task = tasks[Number(checkbox.dataset.taskIndex)];
+        if (!note || !task || archiveMode || task.checked === checkbox.checked) {
+          checkbox.checked = Boolean(task?.checked);
+          return;
+        }
+        card.querySelectorAll(".note-view .note-content input[type='checkbox']").forEach((input) => { input.disabled = true; });
+        segments[task.index] = segments[task.index].slice(0, task.offset) + (checkbox.checked ? "x" : " ") + segments[task.index].slice(task.offset + 1);
+        try {
+          const response = await apiFetch(`/api/notes/update?id=${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: note.title, content: segments.join("") }),
+          });
+          if (!response.ok) throw new Error("Checklist update failed");
+          note.content = segments.join("");
+        } catch {
+          checkbox.checked = task.checked;
+          if (currentUser) showNoteActionDialog("Could not update checklist", "The checkbox could not be saved. Please try again.");
+        } finally {
+          if (card.isConnected && !archiveMode) card.querySelectorAll(".note-view .note-content input[data-task-index]").forEach((input) => { input.disabled = false; });
+        }
+      });
 
       function textOffsetAtPoint(container, x, y) {
         const caret = document.caretPositionFromPoint?.(x, y);

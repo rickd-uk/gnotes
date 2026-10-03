@@ -38,7 +38,7 @@ const extensions = [
   MarkdownLinkShortcut,
 ];
 
-function mount(host, markdown, onChange, onContext = () => {}) {
+function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}) {
   function updateContext(editor) {
     const selection = editor.state.selection;
     const { from, to, empty, $from } = selection;
@@ -98,25 +98,43 @@ function mount(host, markdown, onChange, onContext = () => {}) {
     },
     destroy: () => { onContext(null); editor.destroy(); },
     format(command, removeSlash = false) {
+      if (command === 'link') {
+        const href = editor.getAttributes('link').href || '';
+        if (href && editor.state.selection.empty) editor.commands.extendMarkRange('link');
+        const { from, to } = editor.state.selection;
+        const otherMarks = editor.state.selection.$from.marks()
+          .filter((mark) => mark.type.name !== 'link')
+          .map((mark) => ({ type: mark.type.name, attrs: mark.attrs }));
+        onLink({
+          text: editor.state.doc.textBetween(from, to, ' '),
+          href,
+          apply(label, url) {
+            if (editor.isDestroyed) return;
+            editor.chain().focus().insertContentAt({ from, to }, {
+              type: 'text', text: label, marks: [...otherMarks, { type: 'link', attrs: { href: url } }],
+            }).run();
+          },
+          remove() {
+            if (editor.isDestroyed || !href) return;
+            editor.chain().focus().setTextSelection({ from, to }).unsetLink().run();
+          },
+        });
+        return;
+      }
       const chain = editor.chain().focus();
       if (removeSlash) chain.deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from });
       if (command === 'bold') chain.toggleBold().run();
       if (command === 'italic') chain.toggleItalic().run();
+      if (command === 'strike') chain.toggleStrike().run();
+      if (command === 'code') chain.toggleCode().run();
       if (command === 'heading') chain.toggleHeading({ level: 2 }).run();
+      if (command === 'subheading') chain.toggleHeading({ level: 3 }).run();
       if (command === 'bullet') chain.toggleBulletList().run();
       if (command === 'numbered') chain.toggleOrderedList().run();
       if (command === 'task') chain.toggleTaskList().run();
-      if (command === 'link') {
-        const old = editor.getAttributes('link').href || 'https://';
-        const href = window.prompt('Link URL', old);
-        if (href === null) return;
-        if (!href.trim()) return chain.unsetLink().run();
-        try {
-          const parsed = new URL(href);
-          if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) return;
-        } catch { return; }
-        chain.extendMarkRange('link').setLink({ href }).run();
-      }
+      if (command === 'quote') chain.toggleBlockquote().run();
+      if (command === 'codeBlock') chain.toggleCodeBlock().run();
+      if (command === 'divider') chain.setHorizontalRule().run();
     },
   };
 }

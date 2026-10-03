@@ -33,6 +33,7 @@ Last updated: 2026-10-03
 
 ## Verification and open checks
 
+- Local rich text now adds Strikethrough and Inline code to the selected-text toolbar, plus Small heading, Quote, Code block, and Divider to `/`; Checklist is the first `/` option and also appears in the selection toolbar. Saved checklist boxes can be ticked directly in Recent notes and persist after reload, with failed saves rolled back. The Link control opens an in-app form for display text and address; saved links show the name, reveal the address on hover, and can be removed without losing their text. Focused 320px browser checks covered the new commands, menu fit, named-link saving/removal, and checkbox persistence/error rollback, including a task-looking line inside a code block. `go test ./...`, `go vet ./...`, and JavaScript syntax checks passed. This work has not been deployed.
 - The `v0.7.8` release workflow passed its Go, race, vet, ShellCheck, backup, restore, and application rehearsal checks. Kagoya made a validated pre-update backup; the deployed page hash matched the release and the public health endpoint passed.
 - Local 320px browser checks covered the header, Controls row, welcome dialog, new-account “Don’t show this again” behavior, and visible note-color updates.
 - Retest the deployed update on the Pixel 6a in Brave, Epic, Firefox, and Chrome. A prior Epic empty list was caused by a saved date filter; choosing Recent showed notes. No browser-specific storage failure was confirmed.
