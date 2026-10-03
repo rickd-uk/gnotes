@@ -426,6 +426,30 @@
       body.rich-mode .edit-content.force-source { display: block; }
       .rich-editor-container[hidden], .rich-context-menu[hidden] { display: none; }
       .rich-editor-container { position: relative; min-width: 0; }
+      .rich-format-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 10px;
+        padding: 4px 0 7px;
+        border-bottom: 1px solid var(--line);
+      }
+      .rich-format-toolbar button {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 5px 8px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        font: 600 0.82rem var(--note-body-font);
+      }
+      .rich-format-toolbar button:hover,
+      .rich-format-toolbar button:focus-visible {
+        background: #e9e4da;
+        outline: none;
+      }
       .rich-editor-container .tiptap {
         position: relative;
         min-height: 80px;
@@ -4434,6 +4458,38 @@
       }, true);
       window.addEventListener("resize", () => hideRichContext());
 
+      function mountRichToolbar(host, editor) {
+        host.querySelector(".rich-format-toolbar")?.remove();
+        const toolbar = document.createElement("div");
+        toolbar.className = "rich-format-toolbar";
+        toolbar.setAttribute("role", "toolbar");
+        toolbar.setAttribute("aria-label", "Format note content");
+        toolbar.innerHTML = `
+          <button type="button" data-rich-command="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
+          <button type="button" data-rich-command="italic" aria-label="Italic" title="Italic"><em>I</em></button>
+          <button type="button" data-rich-command="strike" aria-label="Strikethrough" title="Strikethrough"><s>S</s></button>
+          <button type="button" data-rich-command="code" aria-label="Inline code" title="Inline code"><code>&lt;/&gt;</code></button>
+          <button type="button" data-rich-command="link" aria-label="Link" title="Link">Link</button>
+          <button type="button" data-rich-command="normalText" aria-label="Normal text" title="Normal text">Text</button>
+          <button type="button" data-rich-command="heading" aria-label="Heading" title="Heading">H₂</button>
+          <button type="button" data-rich-command="subheading" aria-label="Small heading" title="Small heading">H₃</button>
+          <button type="button" data-rich-command="bullet" aria-label="Bulleted list" title="Bulleted list">•</button>
+          <button type="button" data-rich-command="numbered" aria-label="Numbered list" title="Numbered list">1.</button>
+          <button type="button" data-rich-command="task" aria-label="Checklist" title="Checklist">☐</button>
+          <button type="button" data-rich-command="quote" aria-label="Quote" title="Quote">“</button>
+          <button type="button" data-rich-command="codeBlock" aria-label="Code block" title="Code block">{ }</button>
+          <button type="button" data-rich-command="divider" aria-label="Divider" title="Divider">―</button>`;
+        toolbar.addEventListener("pointerdown", (event) => {
+          if (event.target.closest("button")) event.preventDefault();
+        });
+        toolbar.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-rich-command]");
+          if (!button) return;
+          editor.format(button.dataset.richCommand);
+        });
+        host.prepend(toolbar);
+      }
+
       function mountDraftRichEditor() {
         if (richDraft || markdownSource || !window.GnotesRichEditor) return;
         const host = document.getElementById("new-rich-editor");
@@ -4453,6 +4509,7 @@
         input.classList.remove("force-source");
         richDraftFallback = false;
         richDraft = editor;
+        mountRichToolbar(host, editor);
       }
 
       function destroyDraftRichEditor() {
@@ -4461,7 +4518,9 @@
           richDraft.destroy();
           richDraft = null;
         }
-        document.getElementById("new-rich-editor").hidden = true;
+        const host = document.getElementById("new-rich-editor");
+        host.querySelector(".rich-format-toolbar")?.remove();
+        host.hidden = true;
         document.getElementById("content").classList.remove("force-source");
         richDraftFallback = false;
       }
@@ -4486,6 +4545,7 @@
         }
         input.classList.remove("force-source");
         richEdit = editor;
+        mountRichToolbar(host, editor);
       }
 
       function destroyEditRichEditor() {
@@ -4496,7 +4556,10 @@
         richEdit.destroy();
         richEdit = null;
         const host = id === null ? null : document.getElementById(`rich-editor-${id}`);
-        if (host) host.hidden = true;
+        if (host) {
+          host.querySelector(".rich-format-toolbar")?.remove();
+          host.hidden = true;
+        }
       }
 
       function applyEditorMode(enabled) {
