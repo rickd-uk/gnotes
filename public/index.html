@@ -5568,7 +5568,9 @@
         fromInput.value = "2025-01-01";
         toInput.defaultValue = localToday;
         toInput.value = localToday;
-        document.getElementById("calendar-date").value = "";
+        const calendarInput = document.getElementById("calendar-date");
+        calendarInput.defaultValue = localToday;
+        calendarInput.value = localToday;
       }
 
       function observeNoteCards() {
