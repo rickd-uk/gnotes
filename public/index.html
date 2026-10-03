@@ -426,14 +426,29 @@
       body.rich-mode .edit-content.force-source { display: block; }
       .rich-editor-container[hidden], .rich-context-menu[hidden] { display: none; }
       .rich-editor-container { position: relative; min-width: 0; }
+      .rich-format-control { margin-top: 8px; }
+      .rich-format-toggle {
+        min-height: 32px;
+        padding: 4px 10px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        font: 600 0.8rem var(--note-body-font);
+      }
+      .rich-format-toggle[aria-expanded="true"],
+      .rich-format-toggle:hover,
+      .rich-format-toggle:focus-visible { background: #e9e4da; }
       .rich-format-toolbar {
         display: flex;
         flex-wrap: wrap;
         gap: 4px;
-        margin-top: 10px;
+        margin-top: 4px;
         padding: 4px 0 7px;
         border-bottom: 1px solid var(--line);
       }
+      .rich-format-toolbar[hidden] { display: none; }
       .rich-format-toolbar button {
         min-width: 40px;
         min-height: 40px;
@@ -4322,6 +4337,7 @@
       let richDraft = null;
       let richEdit = null;
       let richDraftFallback = false;
+      let richToolbarVisible = false;
 
       function sameMarkdown(left, right) {
         return left.replace(/\r\n/g, "\n").trimEnd() === right.replace(/\r\n/g, "\n").trimEnd();
@@ -4458,10 +4474,36 @@
       }, true);
       window.addEventListener("resize", () => hideRichContext());
 
+      function setRichToolbarVisible(visible) {
+        richToolbarVisible = visible;
+        document.querySelectorAll(".rich-format-control").forEach((control) => {
+          const toolbar = control.querySelector(".rich-format-toolbar");
+          const toggle = control.querySelector(".rich-format-toggle");
+          toolbar.hidden = !visible;
+          toggle.setAttribute("aria-expanded", String(visible));
+          toggle.setAttribute("aria-label", visible ? "Hide formatting toolbar" : "Show formatting toolbar");
+          toggle.title = visible ? "Hide formatting" : "Show formatting";
+        });
+        saveUIState();
+      }
+
       function mountRichToolbar(host, editor) {
-        host.querySelector(".rich-format-toolbar")?.remove();
+        host.querySelector(".rich-format-control")?.remove();
+        const control = document.createElement("div");
+        control.className = "rich-format-control";
+        const toggle = document.createElement("button");
+        toggle.className = "rich-format-toggle";
+        toggle.type = "button";
+        toggle.textContent = "Aa";
+        toggle.setAttribute("aria-controls", `${host.id}-toolbar`);
+        toggle.setAttribute("aria-expanded", String(richToolbarVisible));
+        toggle.setAttribute("aria-label", richToolbarVisible ? "Hide formatting toolbar" : "Show formatting toolbar");
+        toggle.title = richToolbarVisible ? "Hide formatting" : "Show formatting";
+        toggle.addEventListener("click", () => setRichToolbarVisible(!richToolbarVisible));
         const toolbar = document.createElement("div");
         toolbar.className = "rich-format-toolbar";
+        toolbar.id = `${host.id}-toolbar`;
+        toolbar.hidden = !richToolbarVisible;
         toolbar.setAttribute("role", "toolbar");
         toolbar.setAttribute("aria-label", "Format note content");
         toolbar.innerHTML = `
@@ -4487,7 +4529,8 @@
           if (!button) return;
           editor.format(button.dataset.richCommand);
         });
-        host.prepend(toolbar);
+        control.append(toggle, toolbar);
+        host.prepend(control);
       }
 
       function mountDraftRichEditor() {
@@ -4519,7 +4562,7 @@
           richDraft = null;
         }
         const host = document.getElementById("new-rich-editor");
-        host.querySelector(".rich-format-toolbar")?.remove();
+        host.querySelector(".rich-format-control")?.remove();
         host.hidden = true;
         document.getElementById("content").classList.remove("force-source");
         richDraftFallback = false;
@@ -4557,7 +4600,7 @@
         richEdit = null;
         const host = id === null ? null : document.getElementById(`rich-editor-${id}`);
         if (host) {
-          host.querySelector(".rich-format-toolbar")?.remove();
+          host.querySelector(".rich-format-control")?.remove();
           host.hidden = true;
         }
       }
@@ -4625,6 +4668,7 @@
           bodySize,
           linkUnderlines,
           markdownSource,
+          richToolbarVisible,
           adminUserFilter,
           adminUserSort,
           searchActive,
@@ -4809,6 +4853,7 @@
         applyFontMode(state.fontMode);
         applyNoteSizes(state.titleSize, state.bodySize);
         applyLinkStyle(state.linkUnderlines);
+        richToolbarVisible = state.richToolbarVisible === true;
         applyEditorMode(Boolean(state.markdownSource));
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
           ? state.adminUserFilter
