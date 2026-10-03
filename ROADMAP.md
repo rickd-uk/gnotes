@@ -4,7 +4,7 @@ Last reviewed: 2026-10-04
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.15`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.16`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -45,7 +45,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.15 on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them, use the header Archive control, swipe actions, note colors, and the formatting toolbar. Check the code language picker when editing a saved note.
+1. Retest v0.7.16 on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them, use the header Archive control, swipe actions, note colors, and the Aa formatting toggle. Check the code language picker when editing a saved note.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 
