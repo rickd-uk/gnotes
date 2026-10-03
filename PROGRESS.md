@@ -4,12 +4,13 @@ Last updated: 2026-10-03
 
 ## Current production release
 
-`v0.7.12` is deployed on Kagoya at `https://gnotes.rickd.dev`.
+`v0.7.13` is deployed on Kagoya at `https://gnotes.rickd.dev`.
 
 - The release workflow passed Go tests, the race test, `go vet`, ShellCheck, backup and restore tests, and the application rehearsal.
 - The Kagoya updater verified the release checksum, created a pre-release SQLite backup, restarted the rootless Podman service, and verified application health.
 - The live container is healthy and SQLite is connected. The public page hash matches the packaged page, and the updater saved a validated pre-release backup.
 - The `v0.7.12` release adds more rich-text formatting, interactive saved checklists, and named links. Its release workflow passed, and the deployed page hash matches the local release page.
+- The `v0.7.13` release adds code-block language and normal-text controls in the rich editor. The public page and rich-editor asset hashes match the release files.
 - Search → Dates and options now defaults Jump to date to today, removes the duplicate calendar picker button, and gives the section toggle larger, more prominent text.
 
 ## Recently completed
@@ -34,7 +35,8 @@ Last updated: 2026-10-03
 
 ## Verification and open checks
 
-- Local rich-text code blocks now show a language picker at the cursor, including Plain and the existing source-editor language choices, plus a Normal text conversion. An existing custom language remains selectable. A 320px Chromium check covered picker fit, language changes, unknown-language preservation, plain code, saved highlighting, reopening, and persistence after editing an existing note. Go tests and vet passed. This work has not been deployed.
+- Local follow-up: opening a saved code block by clicking its preview no longer immediately closes the language picker. A 320px Chromium test reproduced the missing picker, then verified a real click shows the picker and a language change persists after saving. This correction has not been deployed.
+- Rich-text code blocks now show a language picker at the cursor, including Plain and the existing source-editor language choices, plus a Normal text conversion. An existing custom language remains selectable. A 320px Chromium check covered picker fit, language changes, unknown-language preservation, plain code, saved highlighting, reopening, and persistence after editing an existing note. Go tests and vet passed. Deployed in `v0.7.13`.
 - Rich text now adds Strikethrough and Inline code to the selected-text toolbar, plus Small heading, Quote, Code block, and Divider to `/`; Checklist is the first `/` option and also appears in the selection toolbar. Saved checklist boxes can be ticked directly in Recent notes and persist after reload, with failed saves rolled back. The Link control opens an in-app form for display text and address; saved links show the name, reveal the address on hover, and can be removed without losing their text. Focused 320px browser checks covered the new commands, menu fit, named-link saving/removal, and checkbox persistence/error rollback, including a task-looking line inside a code block. `go test ./...`, `go vet ./...`, and JavaScript syntax checks passed. Deployed in `v0.7.12`.
 - The `v0.7.8` release workflow passed its Go, race, vet, ShellCheck, backup, restore, and application rehearsal checks. Kagoya made a validated pre-update backup; the deployed page hash matched the release and the public health endpoint passed.
 - Local 320px browser checks covered the header, Controls row, welcome dialog, new-account “Don’t show this again” behavior, and visible note-color updates.
@@ -57,7 +59,7 @@ Priority order remains:
 
 1. Retest the mobile experience and note colors on the Pixel 6a, including Brave and Epic, and fix any reproducible issues.
 2. Replicate validated backups to encrypted storage outside Kagoya and alert on stale or failed backups, low disk space, service restarts, and TLS expiry.
-3. Retest the new export/import and rich text controls on the Pixel 6a after the v0.7.12 release.
+3. Retest the new export/import and rich text controls on the Pixel 6a after the v0.7.13 release.
 4. Move inline JavaScript and CSS into versioned assets and remove `unsafe-inline` from the Content Security Policy.
 5. Add privacy-conscious audit records for administration and authentication security events.
 6. Design password recovery and administrator MFA with recovery codes before implementation.

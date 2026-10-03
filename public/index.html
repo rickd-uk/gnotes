@@ -4525,6 +4525,9 @@
       }
 
       document.addEventListener("click", (event) => {
+        // The note-list handler opens the editor during this same click. Keep its
+        // code-block controls visible when the click originated in the old view.
+        if (event.target.closest(".note-view")?.closest(".note-card.is-editing")) return;
         if (!event.target.closest(".rich-editor-container, .rich-context-menu")) hideRichContext();
       });
 
