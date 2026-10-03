@@ -4,11 +4,12 @@ Last updated: 2026-10-03
 
 ## Current production release
 
-`v0.7.9` is deployed on Kagoya at `https://gnotes.rickd.dev`.
+`v0.7.11` is deployed on Kagoya at `https://gnotes.rickd.dev`.
 
 - The release workflow passed Go tests, the race test, `go vet`, ShellCheck, backup and restore tests, and the application rehearsal.
 - The Kagoya updater verified the release checksum, created a pre-release SQLite backup, restarted the rootless Podman service, and verified application health.
 - The live container is healthy and SQLite is connected. The public page hash matches the packaged page, and the updater saved a validated pre-release backup.
+- Search → Dates and options now defaults Jump to date to today, removes the duplicate calendar picker button, and gives the section toggle larger, more prominent text.
 
 ## Recently completed
 
@@ -53,7 +54,7 @@ Priority order remains:
 
 1. Retest the mobile experience and note colors on the Pixel 6a, including Brave and Epic, and fix any reproducible issues.
 2. Replicate validated backups to encrypted storage outside Kagoya and alert on stale or failed backups, low disk space, service restarts, and TLS expiry.
-3. Retest the new export/import and rich text controls on the Pixel 6a after the v0.7.9 release.
+3. Retest the new export/import and rich text controls on the Pixel 6a after the v0.7.11 release.
 4. Move inline JavaScript and CSS into versioned assets and remove `unsafe-inline` from the Content Security Policy.
 5. Add privacy-conscious audit records for administration and authentication security events.
 6. Design password recovery and administrator MFA with recovery codes before implementation.

@@ -1,10 +1,10 @@
 # gnotes roadmap
 
-Last reviewed: 2026-10-02
+Last reviewed: 2026-10-03
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.8`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.11`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -14,7 +14,8 @@ The current release includes:
 - Responsive density controls and persistent per-user interface state.
 - Mobile Save control, swipe-revealed note actions, direct Archived access in the header, and a welcome dialog after account creation.
 - A mobile Controls row for Full, Fold, and Notes; Hide remains in Controls. The welcome dismissal preference is browser-local.
-- Markdown formatting tools, fenced-code completion, brace pairing, and server-side syntax highlighting.
+- Rich text editing with Markdown source under Advanced, export and import, full Archived notes view, configurable quick actions, and archive feedback.
+- Markdown fenced-code completion, brace pairing, and server-side syntax highlighting.
 - A one-command release updater and operational checker.
 
 ## Recovery tooling
@@ -44,7 +45,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.8 on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them, use the header Archive control, swipe actions, and color swatches.
+1. Retest v0.7.11 on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them, use the header Archive control, swipe actions, and color swatches.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 
@@ -69,8 +70,8 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 
 ## Product backlog
 
-- **High priority: export notes.** Locally implemented after v0.7.8, pending device review and release. Account-menu export supports one, selected, or all notes as readable Markdown or plain text, or versioned gnotes JSON. Multi-note readable exports include a JSON manifest for lossless reimport. Import supports all three formats and the ZIP archive; duplicate handling is explicit.
-- **Rich text editing.** Locally implemented after v0.7.8, pending device review and release. Selecting text offers bold, italic, and link; typing `/` at the start of a paragraph offers headings, lists, and checklists. Markdown source is available through Account → Advanced. Existing global font and size settings remain available. Additional formatting tools can be considered after the initial editor is proven on mobile.
+- [x] Export and import notes. Account-menu export supports one, selected, or all notes as readable Markdown or plain text, or versioned gnotes JSON. Multi-note readable exports include a JSON manifest for lossless reimport. Import supports all three formats and the ZIP archive; duplicate handling is explicit. Device review remains open.
+- [x] Rich text editing. Selecting text offers bold, italic, and link; typing `/` at the start of a paragraph offers headings, lists, and checklists. Markdown source is available through Account → Advanced. Existing global font and size settings remain available. Device review remains open before expanding formatting tools.
 - [x] Add durable note archiving for one note or all active notes. Archived notes leave the main notes view but remain accessible in an Archived view, with individual restore. This is distinct from temporary Hide and from the recycle bin.
 - Opt-in encrypted offline reading and editing with explicit synchronization state.
 - Interactive task-checkbox toggling from rendered notes.
