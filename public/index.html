@@ -1335,21 +1335,24 @@
       }
 
       .search-more-toggle {
-        min-height: 36px;
+        min-height: 40px;
         padding: 0;
         border: 0;
         background: transparent;
-        color: var(--muted);
+        color: var(--accent);
         cursor: pointer;
-        font-size: 0.75rem;
+        font-size: 0.9rem;
+        font-weight: 700;
       }
 
       .search-more-toggle::before {
         content: "▸";
-        margin-right: 5px;
+        margin-right: 7px;
       }
 
       .search-more-toggle[aria-expanded="true"]::before { content: "▾"; }
+      .search-more-toggle:hover { color: var(--accent-hover); }
+      .search-more-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
       .search-more-panel { margin-top: 10px; }
 
