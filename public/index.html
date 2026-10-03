@@ -493,6 +493,17 @@
         max-height: min(70dvh, 360px);
         overflow-y: auto;
       }
+      .rich-context-menu.is-code-block { align-items: center; }
+      .rich-context-menu.is-code-block label { padding: 0 5px; font: 600 0.78rem var(--note-body-font); }
+      .rich-context-menu.is-code-block select {
+        max-width: 130px;
+        min-height: 34px;
+        border: 1px solid #c9c3b8;
+        border-radius: 6px;
+        background: #fffefa;
+        color: var(--ink);
+        font: 0.78rem var(--note-body-font);
+      }
       .rich-context-menu button {
         min-width: 34px;
         min-height: 34px;
@@ -4354,8 +4365,9 @@
         if (richContextMode !== context.mode) {
           richContextMode = context.mode;
           richContextMenu.classList.toggle("is-slash", context.mode === "slash");
+          richContextMenu.classList.toggle("is-code-block", context.mode === "codeBlock");
           richContextMenu.setAttribute("role", context.mode === "slash" ? "menu" : "toolbar");
-          richContextMenu.setAttribute("aria-label", context.mode === "slash" ? "Insert block" : "Format selected text");
+          richContextMenu.setAttribute("aria-label", context.mode === "slash" ? "Insert block" : context.mode === "codeBlock" ? "Code block options" : "Format selected text");
           richContextMenu.innerHTML = context.mode === "slash"
             ? `<button type="button" data-rich-command="task">Checklist</button>
                <button type="button" data-rich-command="heading">Heading</button>
@@ -4365,12 +4377,33 @@
                <button type="button" data-rich-command="quote">Quote</button>
                <button type="button" data-rich-command="codeBlock">Code block</button>
                <button type="button" data-rich-command="divider">Divider</button>`
+            : context.mode === "codeBlock"
+            ? `<label for="rich-code-language">Language</label>
+               <select id="rich-code-language" aria-label="Code block language">
+                 <option value="">Plain</option><option value="python">Python</option>
+                 <option value="javascript">JavaScript</option><option value="html">HTML</option>
+                 <option value="css">CSS</option><option value="go">Go</option>
+                 <option value="rust">Rust</option><option value="c">C</option>
+                 <option value="cpp">C++</option><option value="bash">Shell</option>
+                 <option value="sql">SQL</option>
+               </select>
+               <button type="button" data-rich-command="normalText" title="Change code block to normal text">Normal text</button>`
             : `<button type="button" data-rich-command="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
                <button type="button" data-rich-command="italic" aria-label="Italic" title="Italic"><em>I</em></button>
                <button type="button" data-rich-command="strike" aria-label="Strikethrough" title="Strikethrough"><s>S</s></button>
                <button type="button" data-rich-command="code" aria-label="Inline code" title="Inline code"><code>&lt;/&gt;</code></button>
                <button type="button" data-rich-command="task" aria-label="Checklist" title="Checklist">☐</button>
                <button type="button" data-rich-command="link" aria-label="Add link" title="Add link">Link</button>`;
+        }
+        if (context.mode === "codeBlock") {
+          const languageSelect = richContextMenu.querySelector("#rich-code-language");
+          if (languageSelect) {
+            const language = context.language || "";
+            if (language && ![...languageSelect.options].some((option) => option.value === language)) {
+              languageSelect.add(new Option(`Other: ${language}`, language));
+            }
+            languageSelect.value = language;
+          }
         }
         richContextMenu.hidden = false;
         const width = richContextMenu.offsetWidth;
@@ -4391,6 +4424,10 @@
         if (!button || !richContextOwner) return;
         richContextOwner.format(button.dataset.richCommand, richContextMode === "slash");
         hideRichContext();
+      });
+      richContextMenu.addEventListener("change", (event) => {
+        if (event.target.id !== "rich-code-language" || !richContextOwner) return;
+        richContextOwner.setCodeLanguage(event.target.value);
       });
       window.addEventListener("scroll", (event) => {
         if (!(event.target instanceof Node) || !richContextMenu.contains(event.target)) hideRichContext();

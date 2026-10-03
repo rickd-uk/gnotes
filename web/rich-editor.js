@@ -43,14 +43,16 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
     const selection = editor.state.selection;
     const { from, to, empty, $from } = selection;
     let mode = null;
-    if (!empty) mode = 'selection';
+    if ($from.parent.type.name === 'codeBlock') mode = 'codeBlock';
+    else if (!empty) mode = 'selection';
     else if ($from.parent.type.name === 'paragraph' &&
       $from.parent.textBetween(0, $from.parentOffset) === '/') mode = 'slash';
     if (!mode) return onContext(null);
     try {
       const start = editor.view.coordsAtPos(from);
       const end = editor.view.coordsAtPos(to);
-      onContext({ mode, x: (start.left + end.right) / 2, y: Math.min(start.top, end.top) });
+      onContext({ mode, x: (start.left + end.right) / 2, y: Math.min(start.top, end.top),
+        language: mode === 'codeBlock' ? ($from.parent.attrs.language || '') : '' });
     } catch { onContext(null); }
   }
 
@@ -97,6 +99,11 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
       return editor.commands.focus('end');
     },
     destroy: () => { onContext(null); editor.destroy(); },
+    setCodeLanguage(language) {
+      if (editor.isDestroyed || editor.state.selection.$from.parent.type.name !== 'codeBlock') return;
+      editor.chain().focus().updateAttributes('codeBlock', { language: language || null }).run();
+      updateContext(editor);
+    },
     format(command, removeSlash = false) {
       if (command === 'link') {
         const href = editor.getAttributes('link').href || '';
@@ -134,6 +141,7 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
       if (command === 'task') chain.toggleTaskList().run();
       if (command === 'quote') chain.toggleBlockquote().run();
       if (command === 'codeBlock') chain.toggleCodeBlock().run();
+      if (command === 'normalText') chain.setParagraph().run();
       if (command === 'divider') chain.setHorizontalRule().run();
     },
   };
