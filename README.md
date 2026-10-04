@@ -21,6 +21,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Calendar jumps and monthly/weekly archive overviews for large collections
 - Server-backed per-user draft autosave and refresh recovery
 - Responsive layouts, three note-density modes, and per-user interface-state restoration
+- Up to three configurable quick actions per note, with the remaining actions in its menu
 - Rich text editing by default, with an **Aa** button that opens formatting controls for text styles, headings, lists, checklists, quotes, links, code, and dividers. Select text to format it or choose a style before typing; type `/` at the start of a paragraph for block options. Markdown source editing is opt-in under **Account → Advanced**
 - Global note font and 65–175% title/text size controls, including in the rich text editor; menu opacity ranges from 0–100%
 - User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion

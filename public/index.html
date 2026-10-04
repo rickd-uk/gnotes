@@ -168,8 +168,24 @@
         display: none;
       }
 
-      .view-menu > button,
-      .view-menu > .hidden-notes-control > button {
+      .controls-group {
+        padding: 7px 0 8px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .controls-group:last-child { border-bottom: 0; }
+
+      .controls-group-title {
+        margin: 0;
+        padding: 2px 12px 6px;
+        color: var(--muted);
+        font: 700 0.7rem var(--note-body-font);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .view-menu .controls-group > button,
+      .view-menu .controls-group > .hidden-notes-control > button {
         display: flex;
         width: 100%;
         min-height: 44px;
@@ -182,7 +198,7 @@
         text-align: left;
       }
 
-      .view-menu > button[hidden] {
+      .view-menu .controls-group > button[hidden] {
         display: none;
       }
 
@@ -193,7 +209,6 @@
 
       .font-control {
         padding: 8px 10px 6px;
-        border-top: 1px solid var(--line);
       }
 
       .font-control-label {
@@ -390,6 +405,8 @@
       }
 
       .form-actions .shortcut.is-error { color: var(--danger); }
+      .form-actions .rich-format-toggle { flex: 0 0 auto; }
+      .form-actions .note-save:not([hidden]) { margin-left: 4px; }
 
       .note-save:not([hidden]) {
         display: inline-flex;
@@ -427,6 +444,7 @@
       .rich-editor-container[hidden], .rich-context-menu[hidden] { display: none; }
       .rich-editor-container { position: relative; min-width: 0; }
       .rich-format-control { margin-top: 8px; }
+      #new-rich-editor .rich-format-control { margin-top: 0; }
       .rich-format-toggle {
         min-height: 32px;
         padding: 4px 10px;
@@ -993,6 +1011,7 @@
         padding: 5px 8px;
         color: var(--muted);
         font-size: 0.72rem;
+        white-space: nowrap;
       }
 
       .tool-visibility .tool-choice {
@@ -3419,6 +3438,14 @@
           padding-left: 12px;
         }
 
+        #notes-list.quick-three .newest-note .date-row {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 2px;
+        }
+
+        #notes-list.quick-three .newest-note .date { white-space: nowrap; }
+
         #notes-list:not(.density-titles) .note-card:not(.is-editing) .note-view {
           display: block;
         }
@@ -3837,28 +3864,9 @@
             <strong>Controls</strong>
             <button class="view-menu-close" id="view-menu-close" type="button" aria-label="Close controls menu">×</button>
           </div>
-          <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide all note tools" title="Hide all note tools">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="6" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="18" cy="12" r="1" />
-              <path class="tools-slash" d="m4 4 16 16" />
-            </svg>
-            <span>Tools</span>
-            <span class="tools-state" id="controls-state" aria-hidden="true">All shown</span>
-          </button>
-          <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Quick note actions">
-            <span>Quick actions · up to two; a third replaces the first</span>
-            <button class="tool-choice" type="button" data-tool="archive"><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
-            <button class="tool-choice" type="button" data-tool="delete"><span>Delete</span><span class="tool-state" aria-hidden="true"></span></button>
-            <button class="tool-choice" type="button" data-tool="pin"><span>Pin</span><span class="tool-state" aria-hidden="true"></span></button>
-            <button class="tool-choice" type="button" data-tool="hide"><span>Hide</span><span class="tool-state" aria-hidden="true"></span></button>
-            <button class="tool-choice" type="button" data-tool="color"><span>Color</span><span class="tool-state" aria-hidden="true"></span></button>
-            <button class="tool-choice" type="button" data-tool="copy"><span>Copy</span><span class="tool-state" aria-hidden="true"></span></button>
-          </div>
-          <div class="menu-opacity-control">
-            <label for="menu-opacity">Menu opacity <span id="menu-opacity-value">88%</span></label>
-            <input type="range" id="menu-opacity" min="0" max="100" value="88" aria-label="Menu opacity" />
-          </div>
-          <div class="view-menu-view-options">
+          <section class="controls-group" aria-label="View">
+            <h2 class="controls-group-title">View</h2>
+            <div class="view-menu-view-options">
             <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 7h14M5 12h14M5 17h14" />
@@ -3871,8 +3879,8 @@
               </svg>
               <span id="date-sections-toggle-label">Fold</span>
             </button>
-          </div>
-          <div class="hidden-notes-control" id="hidden-notes-control" hidden>
+            </div>
+            <div class="hidden-notes-control" id="hidden-notes-control" hidden>
             <button class="toolbar-button" id="hidden-notes-toggle" type="button" aria-controls="hidden-notes-panel" aria-expanded="false" aria-label="Open hidden notes" title="Hidden notes">
               <span id="hidden-notes-label">Hidden 0</span>
             </button>
@@ -3883,8 +3891,31 @@
                 <button id="show-all-hidden" type="button">Show all</button>
               </div>
             </section>
-          </div>
-          <div class="font-control" role="group" aria-label="Note appearance">
+            </div>
+          </section>
+          <section class="controls-group" aria-label="Note actions">
+            <h2 class="controls-group-title">Note actions</h2>
+            <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide all note tools" title="Hide all note tools">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="6" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="18" cy="12" r="1" />
+                <path class="tools-slash" d="m4 4 16 16" />
+              </svg>
+              <span>Tools</span>
+              <span class="tools-state" id="controls-state" aria-hidden="true">All shown</span>
+            </button>
+            <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Quick note actions">
+              <span title="Choosing a fourth quick action replaces the first">Quick actions · up to 3</span>
+              <button class="tool-choice" type="button" data-tool="archive"><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="pin"><span>Pin</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="hide"><span>Hide</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="color"><span>Color</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="copy"><span>Copy</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="delete"><span>Delete</span><span class="tool-state" aria-hidden="true"></span></button>
+            </div>
+          </section>
+          <section class="controls-group" aria-label="Appearance">
+            <h2 class="controls-group-title">Appearance</h2>
+            <div class="font-control" role="group" aria-label="Note appearance">
             <span class="font-control-label">Note font</span>
             <div class="font-choices" id="font-choices">
               <button type="button" data-font="writer" aria-pressed="false" title="Serif titles and text">Writer</button>
@@ -3912,7 +3943,12 @@
               <span>Link underlines</span>
               <span class="tool-state" id="link-style-state">On</span>
             </button>
-          </div>
+            </div>
+            <div class="menu-opacity-control">
+              <label for="menu-opacity">Menu opacity <span id="menu-opacity-value">88%</span></label>
+              <input type="range" id="menu-opacity" min="0" max="100" value="88" aria-label="Menu opacity" />
+            </div>
+          </section>
             </div>
           </div>
 
@@ -4060,6 +4096,7 @@
 
         <div class="form-actions">
           <span class="shortcut" id="draft-status" role="status" aria-live="polite">Drafts save automatically</span>
+          <button class="rich-format-toggle" id="draft-rich-format-toggle" type="button" aria-controls="new-rich-editor-toolbar" aria-expanded="false" aria-label="Show formatting toolbar" title="Show formatting" hidden>Aa</button>
           <button class="note-save" id="note-save" type="submit" hidden>Save</button>
         </div>
       </form>
@@ -4476,10 +4513,10 @@
 
       function setRichToolbarVisible(visible) {
         richToolbarVisible = visible;
-        document.querySelectorAll(".rich-format-control").forEach((control) => {
-          const toolbar = control.querySelector(".rich-format-toolbar");
-          const toggle = control.querySelector(".rich-format-toggle");
+        document.querySelectorAll(".rich-format-toolbar").forEach((toolbar) => {
           toolbar.hidden = !visible;
+        });
+        document.querySelectorAll(".rich-format-toggle").forEach((toggle) => {
           toggle.setAttribute("aria-expanded", String(visible));
           toggle.setAttribute("aria-label", visible ? "Hide formatting toolbar" : "Show formatting toolbar");
           toggle.title = visible ? "Hide formatting" : "Show formatting";
@@ -4491,15 +4528,18 @@
         host.querySelector(".rich-format-control")?.remove();
         const control = document.createElement("div");
         control.className = "rich-format-control";
-        const toggle = document.createElement("button");
-        toggle.className = "rich-format-toggle";
-        toggle.type = "button";
-        toggle.textContent = "Aa";
-        toggle.setAttribute("aria-controls", `${host.id}-toolbar`);
-        toggle.setAttribute("aria-expanded", String(richToolbarVisible));
-        toggle.setAttribute("aria-label", richToolbarVisible ? "Hide formatting toolbar" : "Show formatting toolbar");
-        toggle.title = richToolbarVisible ? "Hide formatting" : "Show formatting";
-        toggle.addEventListener("click", () => setRichToolbarVisible(!richToolbarVisible));
+        if (host.id !== "new-rich-editor") {
+          const toggle = document.createElement("button");
+          toggle.className = "rich-format-toggle";
+          toggle.type = "button";
+          toggle.textContent = "Aa";
+          toggle.setAttribute("aria-controls", `${host.id}-toolbar`);
+          toggle.setAttribute("aria-expanded", String(richToolbarVisible));
+          toggle.setAttribute("aria-label", richToolbarVisible ? "Hide formatting toolbar" : "Show formatting toolbar");
+          toggle.title = richToolbarVisible ? "Hide formatting" : "Show formatting";
+          toggle.addEventListener("click", () => setRichToolbarVisible(!richToolbarVisible));
+          control.append(toggle);
+        }
         const toolbar = document.createElement("div");
         toolbar.className = "rich-format-toolbar";
         toolbar.id = `${host.id}-toolbar`;
@@ -4529,12 +4569,19 @@
           if (!button) return;
           editor.format(button.dataset.richCommand);
         });
-        control.append(toggle, toolbar);
-        host.prepend(control);
+        control.append(toolbar);
+        if (host.id === "new-rich-editor") host.append(control);
+        else host.prepend(control);
       }
+
+      document.getElementById("draft-rich-format-toggle").addEventListener("click", () => {
+        setRichToolbarVisible(!richToolbarVisible);
+      });
 
       function mountDraftRichEditor() {
         if (richDraft || markdownSource || !window.GnotesRichEditor) return;
+        const toggle = document.getElementById("draft-rich-format-toggle");
+        toggle.hidden = true;
         const host = document.getElementById("new-rich-editor");
         host.hidden = false;
         const input = document.getElementById("content");
@@ -4553,6 +4600,7 @@
         richDraftFallback = false;
         richDraft = editor;
         mountRichToolbar(host, editor);
+        toggle.hidden = false;
       }
 
       function destroyDraftRichEditor() {
@@ -4564,6 +4612,7 @@
         const host = document.getElementById("new-rich-editor");
         host.querySelector(".rich-format-control")?.remove();
         host.hidden = true;
+        document.getElementById("draft-rich-format-toggle").hidden = true;
         document.getElementById("content").classList.remove("force-source");
         richDraftFallback = false;
       }
@@ -4690,10 +4739,11 @@
 
       function applyQuickActions(actions) {
         quickActions = Array.isArray(actions)
-          ? [...new Set(actions.filter((tool) => noteTools.includes(tool)))].slice(0, 2)
+          ? [...new Set(actions.filter((tool) => noteTools.includes(tool)))].slice(0, 3)
           : ["archive", "delete"];
         const notesList = document.getElementById("notes-list");
         notesList.style.setProperty("--quick-action-count", String(quickActions.length));
+        notesList.classList.toggle("quick-three", quickActions.length === 3);
         document.querySelectorAll("#tool-visibility .tool-choice").forEach((button) => {
           const selected = quickActions.includes(button.dataset.tool);
           button.setAttribute("aria-pressed", String(selected));
@@ -7419,7 +7469,7 @@
         if (!button) return;
         const next = quickActions.filter((key) => key !== button.dataset.tool);
         if (next.length === quickActions.length) {
-          if (next.length === 2) next.shift();
+          if (next.length === 3) next.shift();
           next.push(button.dataset.tool);
         }
         applyQuickActions(next);
