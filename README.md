@@ -13,7 +13,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Per-user accounts, sessions, CSRF protection, and note isolation
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
-- Create, autosave, and edit notes in a focused full-screen phone view or centered desktop panel; finish with the green check mark and return to the same list position. Pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
+- Create, autosave, and edit notes in a focused full-screen phone view or centered desktop panel; copy the current text from the lower left or finish with the green check mark and return to the same list position. Pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
 - Copy a note’s displayed text from its action menu; read-only page text does not select by dragging, while editors remain selectable
 - Archive notes for later reading and restore them without deleting them
 - Cursor-paginated note and recycle-bin loading with indexed full-text search

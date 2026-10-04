@@ -917,6 +917,7 @@
 
       .note-action:focus-visible,
       .note-save:focus-visible,
+      .edit-copy:focus-visible,
       .edit-done:focus-visible,
       .archived-quick-open:focus-visible,
       .delete-btn:focus-visible,
@@ -2149,10 +2150,28 @@
       }
 
       .edit-hint {
-        margin-right: auto;
+        min-width: 0;
+        flex: 1;
         color: var(--muted);
         font-size: 0.7rem;
       }
+
+      .edit-copy {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 auto;
+        padding: 0;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+      }
+
+      .edit-copy:hover { background: #e9e4da; }
+      .edit-copy .icon { width: 20px; height: 20px; }
 
       .edit-done {
         min-height: 38px;
@@ -4303,7 +4322,7 @@
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
-        <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Choose the green check mark to save and return to your notes.</p></div>
+        <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Copy the current text at the bottom left, or choose the green check mark to save and return to your notes.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
         <div><h3>Change the view</h3><p>Open Controls to choose quick actions, density, hidden notes, and date sections. You can change note font and size there too.</p></div>
       </div>
@@ -5746,6 +5765,10 @@
                   <textarea class="edit-content" id="edit-content-${n.id}" aria-label="Edit note content" oninput="handleEditInput(event, ${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
                   <div class="rich-editor-container" id="rich-editor-${n.id}" hidden></div>
                   <div class="editor-actions">
+                    <button class="edit-copy" type="button" onclick="copyEditedNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
+                      <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
+                    </button>
                     <span class="edit-hint" role="status" aria-live="polite"></span>
                     <button class="rich-format-toggle" id="edit-rich-format-toggle-${n.id}" type="button" aria-controls="rich-editor-${n.id}-toolbar" aria-expanded="${String(richToolbarVisible)}" aria-label="${richToolbarVisible ? "Hide" : "Show"} formatting toolbar" title="${richToolbarVisible ? "Hide" : "Show"} formatting" onclick="setRichToolbarVisible(!richToolbarVisible)" hidden>Aa</button>
                     <button class="edit-done" type="button" onclick="updateNote(${n.id})" aria-label="Save and close note editor" title="Save and close note editor">✓</button>
@@ -7192,9 +7215,9 @@
         if (shouldOpen) setNoteActionsOpen(card, true);
       }
 
-      async function copyNoteText(id, button) {
+      async function copyNoteText(id, button, textOverride = null) {
         const card = document.getElementById(`note-${id}`);
-        const text = card?.querySelector(".note-content")?.innerText.trim() || loadedNotes.get(id)?.title || "";
+        const text = textOverride ?? (card?.querySelector(".note-content")?.innerText.trim() || loadedNotes.get(id)?.title || "");
         if (!text) return;
         let copied = false;
         try {
@@ -7222,12 +7245,28 @@
         label.textContent = message;
         button.setAttribute("aria-label", message);
         button.title = message;
+        const editorHint = button.closest(".editor-actions")?.querySelector(".edit-hint");
+        if (editorHint) {
+          editorHint.textContent = message;
+          setTimeout(() => {
+            if (editorHint.isConnected && editorHint.textContent === message) editorHint.textContent = "";
+          }, 1800);
+        }
         setTimeout(() => {
           if (!button.isConnected) return;
           label.textContent = "Copy note text";
           button.setAttribute("aria-label", "Copy note text");
           button.title = "Copy note text";
         }, 1800);
+      }
+
+      function copyEditedNoteText(id, button) {
+        const card = document.getElementById(`note-${id}`);
+        if (!card || editingNoteId !== id) return;
+        const richText = card.querySelector(".rich-editor-container:not([hidden]) .tiptap")?.innerText.trim();
+        const sourceText = card.querySelector(".edit-content")?.value.trim() || "";
+        const title = card.querySelector(".edit-title")?.value.trim() || "";
+        copyNoteText(id, button, (richText ?? sourceText) || title);
       }
 
       let noteSwipeStart = null;
