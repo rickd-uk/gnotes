@@ -4,11 +4,12 @@ Last updated: 2026-10-04
 
 ## Current production release
 
-`v0.7.19` is deployed on Kagoya at `https://gnotes.rickd.dev`.
+`v0.7.20` is deployed on Kagoya at `https://gnotes.rickd.dev`.
 
 - The release workflow passed Go tests, the race test, `go vet`, ShellCheck, backup and restore tests, and the application rehearsal.
 - The Kagoya updater verified the release checksum, created a pre-release SQLite backup, restarted the rootless Podman service, and verified application health.
 - The live container is healthy and SQLite is connected. The public page hash matches the packaged page, and the updater saved a validated pre-release backup.
+- The `v0.7.20` release adds Copy to the bottom left of the expanded editor. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the public page hash matches the release archive. Local and public health checks passed after deployment.
 - The `v0.7.19` release expands saved-note editing into a focused viewport-sized phone view or centered desktop panel. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the public page hash matches the release archive. Local and public health checks passed after deployment.
 - The `v0.7.18` release moves the saved-note Aa toggle beside the completion check and replaces Save and Done with green checks. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the public page hash matches the release archive. Local and public health checks passed after deployment.
 - The `v0.7.12` release adds more rich-text formatting, interactive saved checklists, and named links. Its release workflow passed, and the deployed page hash matches the local release page.
@@ -41,7 +42,7 @@ Last updated: 2026-10-04
 
 ## Verification and open checks
 
-- The expanded editor now has a Copy button at the bottom left. It copies current rich-text content or Markdown source without saving first and gives visible feedback. A 320px/1024px Chromium check verified position, unsaved text copied in both modes, toolbar and completion controls, and no overflow. This change is awaiting deployment.
+- The expanded editor now has a Copy button at the bottom left. It copies current rich-text content or Markdown source without saving first and gives visible feedback. A 320px/1024px Chromium check verified position, unsaved text copied in both modes, toolbar and completion controls, and no overflow. Deployed in `v0.7.20`; the authenticated Pixel 6a browser check remains open.
 - Saved-note editing now opens a focused view that fills the phone viewport or centers a 760px panel on wider screens. The body scrolls within the panel, with Aa and the green check at the bottom; closing restores the notes-list scroll position. Local Chromium checks at 320px and 1024px covered save/reopen, toolbar visibility, Markdown source editing, viewport shrink, scroll restoration, and no horizontal overflow. Go tests, vet, and JavaScript syntax checks passed. Deployed in `v0.7.19`; the authenticated Pixel 6a browser check remains open.
 - The saved-note Aa toggle now shares the bottom action row with a green check mark; new notes also use a green check mark instead of Save. The buttons retain accessible save labels. A 320px Chromium check created a note, opened the saved-note toolbar below the editor, and saved an edited title without horizontal overflow. Local Go tests, vet, and JavaScript syntax checks passed; the authenticated Pixel 6a browser check remains open. Deployed in `v0.7.18`.
 - The new-note Aa formatting toggle now sits on the draft-status row before Save, with a separate gap. A 320px Chromium check verified its position with Save visible and hidden, toolbar formatting, and no page overflow. Deployed in `v0.7.17`.
