@@ -131,3 +131,83 @@ func TestArchiveAndColorKeepNoteRecoverable(t *testing.T) {
 		t.Fatalf("restored note = %+v", page)
 	}
 }
+
+func TestDeleteArchivedNotesScopesAndRecovery(t *testing.T) {
+	db.InitDB(filepath.Join(t.TempDir(), "archive-removal.db"))
+	t.Cleanup(func() { db.DB.Close() })
+	userID := insertPageTestUser(t, "archive-removal")
+	otherUserID := insertPageTestUser(t, "other-archive-removal")
+	insert := func(owner int, archivedAt *time.Time) int {
+		t.Helper()
+		result, err := db.DB.Exec("INSERT INTO notes (user_id, title, content, created_at, archived_at) VALUES (?, 'note', 'body', ?, ?)", owner, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), archivedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return int(id)
+	}
+	before := time.Date(2026, 10, 4, 14, 59, 0, 0, time.UTC) // October 4 in Tokyo.
+	after := before.Add(time.Minute)                         // October 5 in Tokyo.
+	earlierID := insert(userID, &before)
+	laterID := insert(userID, &after)
+	lastDay := after.Add(24 * time.Hour)
+	lastID := insert(userID, &lastDay)
+	otherID := insert(otherUserID, &after)
+	activeID := insert(userID, nil)
+	request := func(path string) *httptest.ResponseRecorder {
+		t.Helper()
+		r := httptest.NewRequest(http.MethodPost, path, nil)
+		r = r.WithContext(context.WithValue(r.Context(), authContextKey{}, authSession{UserID: userID, CSRFToken: "csrf"}))
+		w := httptest.NewRecorder()
+		deleteArchivedNotesHandler(w, r)
+		return w
+	}
+	assertState := func(id int, deleted, archived bool) {
+		t.Helper()
+		var hasDeleted, hasArchived bool
+		if err := db.DB.QueryRow("SELECT deleted_at IS NOT NULL, archived_at IS NOT NULL FROM notes WHERE id = ?", id).Scan(&hasDeleted, &hasArchived); err != nil {
+			t.Fatal(err)
+		}
+		if hasDeleted != deleted || hasArchived != archived {
+			t.Fatalf("note %d state = deleted %v archived %v, want %v %v", id, hasDeleted, hasArchived, deleted, archived)
+		}
+	}
+	if got := request("/api/notes/delete-archived?id=" + strconv.Itoa(otherID)); got.Code != http.StatusNotFound {
+		t.Fatalf("other user's note status = %d", got.Code)
+	}
+	if got := request("/api/notes/delete-archived?date=2026-10-05&timezone=Invalid"); got.Code != http.StatusBadRequest {
+		t.Fatalf("invalid timezone status = %d", got.Code)
+	}
+	if got := request("/api/notes/delete-archived?id=all&date=2026-10-05"); got.Code != http.StatusBadRequest {
+		t.Fatalf("ambiguous scope status = %d", got.Code)
+	}
+	if got := request("/api/notes/delete-archived?id=" + strconv.Itoa(earlierID)); got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"removed":1`) {
+		t.Fatalf("one note status = %d: %s", got.Code, got.Body.String())
+	}
+	assertState(earlierID, true, false)
+
+	restoreRequest := httptest.NewRequest(http.MethodPost, "/api/notes/restore?id="+strconv.Itoa(earlierID), nil)
+	restoreRequest = restoreRequest.WithContext(context.WithValue(restoreRequest.Context(), authContextKey{}, authSession{UserID: userID}))
+	restoreResponse := httptest.NewRecorder()
+	restoreNotesHandler(restoreResponse, restoreRequest)
+	if restoreResponse.Code != http.StatusNoContent {
+		t.Fatalf("restore status = %d: %s", restoreResponse.Code, restoreResponse.Body.String())
+	}
+	assertState(earlierID, false, false)
+
+	if got := request("/api/notes/delete-archived?date=2026-10-05&timezone=Asia%2FTokyo"); got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"removed":1`) {
+		t.Fatalf("date status = %d: %s", got.Code, got.Body.String())
+	}
+	assertState(laterID, true, false)
+	assertState(otherID, false, true)
+	assertState(activeID, false, false)
+	if got := request("/api/notes/delete-archived?id=all"); got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"removed":1`) {
+		t.Fatalf("all status = %d: %s", got.Code, got.Body.String())
+	}
+	assertState(lastID, true, false)
+	assertState(otherID, false, true)
+	assertState(activeID, false, false)
+}

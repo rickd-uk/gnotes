@@ -15,7 +15,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
 - Create, autosave, and edit notes in a focused full-screen phone view or centered desktop panel; copy the current text from the lower left or finish with the green check mark and return to the same list position. Pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
 - Copy a note’s displayed text from its action menu; read-only page text does not select by dragging, while editors remain selectable
-- Archive notes for later reading and restore them without deleting them
+- Archive notes for later reading and restore them without deleting them; move one archived note, all notes archived on a displayed date, or the full archive to the recycle bin
 - Cursor-paginated note and recycle-bin loading with indexed full-text search
 - Live title/content search with note and occurrence counts, highlighting, date ranges, scope, and case controls
 - Calendar jumps and monthly/weekly archive overviews for large collections

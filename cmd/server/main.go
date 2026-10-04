@@ -93,6 +93,7 @@ func run() error {
 	mux.HandleFunc("/api/notes/unpin-all", protect(unpinAllNotesHandler, true))
 	mux.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
 	mux.HandleFunc("/api/notes/delete-all", protect(deleteAllNotesHandler, true))
+	mux.HandleFunc("/api/notes/delete-archived", protect(deleteArchivedNotesHandler, true))
 	mux.HandleFunc("/api/notes/trash", protect(trashNotesHandler, false))
 	mux.HandleFunc("/api/notes/trash-page", protect(pagedTrashNotesHandler, false))
 	mux.HandleFunc("/api/notes/archive", protect(noteArchiveHandler, false))

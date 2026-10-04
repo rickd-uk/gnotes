@@ -136,6 +136,69 @@ func unarchiveNoteHandler(w http.ResponseWriter, r *http.Request) {
 	archiveOneOrAllNotes(w, r, false)
 }
 
+func deleteArchivedNotesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Use POST", http.StatusMethodNotAllowed)
+		return
+	}
+	params := r.URL.Query()
+	idValue, dateValue := params.Get("id"), params.Get("date")
+	if (idValue == "") == (dateValue == "") {
+		http.Error(w, "Choose one note, one archive date, or all archived notes", http.StatusBadRequest)
+		return
+	}
+
+	query := "UPDATE notes SET deleted_at = ?, archived_at = NULL WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NOT NULL"
+	args := []any{time.Now(), userIDFromRequest(r)}
+	if dateValue != "" {
+		timezone := params.Get("timezone")
+		if timezone == "" || len(timezone) > 64 {
+			http.Error(w, "Invalid time zone", http.StatusBadRequest)
+			return
+		}
+		location, err := time.LoadLocation(timezone)
+		if err != nil {
+			http.Error(w, "Invalid time zone", http.StatusBadRequest)
+			return
+		}
+		date, err := time.Parse("2006-01-02", dateValue)
+		if err != nil {
+			http.Error(w, "Invalid archive date", http.StatusBadRequest)
+			return
+		}
+		start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, location)
+		end := start.AddDate(0, 0, 1)
+		query += " AND unixepoch(archived_at) >= ? AND unixepoch(archived_at) < ?"
+		args = append(args, start.Unix(), end.Unix())
+	} else if idValue != "all" {
+		id, err := strconv.Atoi(idValue)
+		if err != nil || id < 1 {
+			http.Error(w, "Invalid note id", http.StatusBadRequest)
+			return
+		}
+		query += " AND id = ?"
+		args = append(args, id)
+	}
+
+	result, err := db.DB.Exec(query, args...)
+	if err != nil {
+		http.Error(w, "Could not move archived notes to recycle bin", http.StatusInternalServerError)
+		return
+	}
+	removed, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Could not count moved notes", http.StatusInternalServerError)
+		return
+	}
+	if idValue != "" && idValue != "all" && removed == 0 {
+		http.Error(w, "Archived note not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int64{"removed": removed})
+}
+
 func archiveOneOrAllNotes(w http.ResponseWriter, r *http.Request, archive bool) {
 	value := r.URL.Query().Get("id")
 	userID := userIDFromRequest(r)

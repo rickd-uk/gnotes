@@ -920,6 +920,8 @@
       .edit-copy:focus-visible,
       .edit-done:focus-visible,
       .archived-quick-open:focus-visible,
+      .archive-remove-all:focus-visible,
+      .archive-date-remove:focus-visible,
       .delete-btn:focus-visible,
       .toolbar-button:focus-visible,
       .view-toggle:focus-visible,
@@ -976,6 +978,19 @@
 
       .archive-mode-banner strong { display: block; font-size: 1rem; }
       .archive-mode-banner span { display: block; margin-top: 2px; font-size: 0.78rem; }
+      .archive-mode-banner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+      .archive-mode-banner[hidden] { display: none; }
+      .archive-remove-all {
+        min-height: 38px;
+        padding: 7px 10px;
+        border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));
+        border-radius: 7px;
+        background: transparent;
+        color: var(--danger);
+        cursor: pointer;
+        font: 650 0.76rem var(--note-body-font);
+      }
+      .archive-remove-all:hover { background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
       #app-shell.archive-mode #note-form { display: none; }
       #app-shell.archive-mode #hidden-notes-toggle,
       #app-shell.archive-mode #archive-open { display: none; }
@@ -1147,6 +1162,23 @@
       .date-section-toggle:hover {
         background: rgba(49, 91, 76, 0.065);
       }
+
+      .archive-date-heading { display: flex; align-items: center; }
+      .archive-date-heading .date-section-toggle { width: auto; min-width: 0; flex: 1; }
+      .archive-date-remove {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--danger);
+        cursor: pointer;
+      }
+      .archive-date-remove:hover { background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
+      .archive-date-remove .icon { width: 18px; height: 18px; }
 
       .date-section-chevron {
         width: 16px;
@@ -2039,6 +2071,11 @@
       }
 
       .note-action-dialog button:hover { background: var(--accent-hover); }
+      .archive-remove-dialog .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+      .archive-remove-dialog .dialog-actions button { margin: 0; }
+      .archive-remove-dialog .archive-remove-cancel { background: transparent; color: var(--accent); }
+      .archive-remove-dialog .archive-remove-confirm { background: var(--danger); }
+      .archive-remove-dialog .archive-remove-confirm:hover { background: #832c25; }
 
       .rich-link-dialog label {
         display: block;
@@ -4198,7 +4235,10 @@
         </form>
       </section>
 
-      <div class="archive-mode-banner" id="archive-mode-banner" hidden><strong>Archived notes</strong><span>Saved for later · select the archive icon to return to recent notes</span></div>
+      <div class="archive-mode-banner" id="archive-mode-banner" hidden>
+        <div><strong>Archived notes</strong><span>Saved for later · select the archive icon to return to recent notes</span></div>
+        <button class="archive-remove-all" type="button" onclick="promptArchiveRemoval('all')">Move all to recycle bin</button>
+      </div>
 
       <form class="form-container" id="note-form" aria-label="Create a note">
         <input type="text" id="title" placeholder="Note title" aria-label="Note title" />
@@ -4233,6 +4273,14 @@
       <h2 id="note-action-dialog-title"></h2>
       <p id="note-action-dialog-message"></p>
       <button type="button" id="note-action-dialog-close">Got it</button>
+    </dialog>
+    <dialog class="note-action-dialog archive-remove-dialog" id="archive-remove-dialog" aria-labelledby="archive-remove-title" aria-describedby="archive-remove-message">
+      <h2 id="archive-remove-title">Move archived notes?</h2>
+      <p id="archive-remove-message"></p>
+      <div class="dialog-actions">
+        <button class="archive-remove-cancel" id="archive-remove-cancel" type="button">Cancel</button>
+        <button class="archive-remove-confirm" id="archive-remove-confirm" type="button">Move to recycle bin</button>
+      </div>
     </dialog>
     <dialog class="note-action-dialog rich-link-dialog" id="rich-link-dialog" aria-labelledby="rich-link-dialog-title">
       <form id="rich-link-form" novalidate>
@@ -4865,7 +4913,7 @@
           const actions = new Map([...card.querySelectorAll("[data-note-action]")]
             .map((element) => [element.dataset.noteAction, element]));
           if (archiveMode) {
-            quick.append(actions.get("archive"), actions.get("copy"));
+            quick.append(actions.get("archive"), actions.get("copy"), actions.get("delete"));
             menu.hidden = true;
             card.querySelector(".note-actions-toggle").hidden = true;
             return;
@@ -5080,6 +5128,7 @@
         clearTimeout(noteActionToastTimer);
         document.getElementById("note-action-toast").hidden = true;
         document.getElementById("note-action-dialog").close();
+        document.getElementById("archive-remove-dialog").close();
         document.getElementById("rich-link-dialog").close();
         deletedNoteUndoId = null;
         document.getElementById("note-undo-toast").hidden = true;
@@ -5683,11 +5732,12 @@
               const sectionCollapsed = !searchActive && collapsedDateSections.has(dateSectionKey);
               renderedNotes += `
                 <section class="date-group ${dateSection === "Pinned" ? "pinned-section" : ""} ${sectionCollapsed ? "is-collapsed" : ""}" aria-labelledby="date-section-${dateSectionIndex}">
-                  <h3 class="date-section-heading" id="date-section-${dateSectionIndex}">
+                  <h3 class="date-section-heading ${archiveMode ? "archive-date-heading" : ""}" id="date-section-${dateSectionIndex}">
                     <button class="date-section-toggle" type="button" data-section-key="${dateSectionKey}" aria-expanded="${String(!sectionCollapsed)}" onclick="toggleDateSection(this)">
                       <span>${escapeHTML(dateSection)}</span>
                       <svg class="date-section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                     </button>
+                    ${archiveMode ? `<button class="archive-date-remove" type="button" data-archive-date="${formatLocalDateKey(noteDate)}" onclick="promptArchiveDateRemoval(this)" aria-label="Move notes archived on ${formatLocalDateKey(noteDate)} to recycle bin" title="Move this archive date to recycle bin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>` : ""}
                   </h3>`;
             }
 
@@ -5747,7 +5797,7 @@
                   </button>
                   </div>
                   <span class="note-action-divider" aria-hidden="true"></span>
-                  <button class="note-action delete-btn" data-note-action="delete" onclick="deleteNote(${n.id})" aria-label="Delete note" title="Delete note">
+                  <button class="note-action delete-btn" data-note-action="delete" onclick="${archiveMode ? "removeArchivedNote" : "deleteNote"}(${n.id})" aria-label="${archiveMode ? "Move archived note to recycle bin" : "Delete note"}" title="${archiveMode ? "Move to recycle bin" : "Delete note"}">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" />
                     </svg>
@@ -6390,7 +6440,7 @@
         toggle.setAttribute("aria-label", archiveMode ? "Show recent notes" : "Show archived notes");
         toggle.title = archiveMode ? "Show recent notes" : "Show archived notes";
         document.getElementById("search-all").textContent = archiveMode ? "All archived" : "All notes";
-        document.getElementById("notes-list").style.setProperty("--quick-action-count", String(archiveMode ? 2 : quickActions.length));
+        document.getElementById("notes-list").style.setProperty("--quick-action-count", String(archiveMode ? 3 : quickActions.length));
         await showRecentNotes();
       }
 
@@ -6413,6 +6463,59 @@
         showNoteActionToast("Note returned to Recent");
         await loadNotes();
       }
+
+      function promptArchiveRemoval(scope, date = "") {
+        if (!archiveMode) return;
+        const dialog = document.getElementById("archive-remove-dialog");
+        dialog.dataset.scope = scope;
+        dialog.dataset.date = date;
+        document.getElementById("archive-remove-message").textContent = scope === "all"
+          ? "Move every archived note to the recycle bin, including notes outside the current page or filter? You can recover them from the recycle bin."
+          : `Move every note archived on ${date} to the recycle bin, including notes outside the current page or filter? You can recover them from the recycle bin.`;
+        dialog.showModal();
+        document.getElementById("archive-remove-cancel").focus();
+      }
+
+      function promptArchiveDateRemoval(button) {
+        promptArchiveRemoval("date", button.dataset.archiveDate);
+      }
+
+      async function moveArchivedNotesToTrash(params) {
+        let response;
+        try {
+          response = await apiFetch(`/api/notes/delete-archived?${params}`, { method: "POST" });
+        } catch {
+          showNoteActionDialog("Could not move archived notes", "Could not reach the server. Please try again.");
+          return;
+        }
+        if (!response.ok) {
+          if (response.status !== 401) showNoteActionDialog("Could not move archived notes", "These notes could not be moved to the recycle bin. Please try again.");
+          return;
+        }
+        const result = await response.json();
+        await Promise.all([loadNotes(), loadTrash()]);
+        if (result.removed) showNoteActionToast(`${result.removed} archived ${result.removed === 1 ? "note" : "notes"} moved to recycle bin`);
+      }
+
+      function removeArchivedNote(id) {
+        if (!archiveMode) return;
+        moveArchivedNotesToTrash(new URLSearchParams({ id: String(id) }));
+      }
+
+      document.getElementById("archive-remove-cancel").addEventListener("click", () => {
+        document.getElementById("archive-remove-dialog").close();
+      });
+      document.getElementById("archive-remove-confirm").addEventListener("click", () => {
+        const dialog = document.getElementById("archive-remove-dialog");
+        const params = dialog.dataset.scope === "all"
+          ? new URLSearchParams({ id: "all" })
+          : new URLSearchParams({
+            date: dialog.dataset.date,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          });
+        dialog.close();
+        moveArchivedNotesToTrash(params);
+      });
 
       async function deleteAllNotes() {
         document.getElementById("account-control").open = false;
