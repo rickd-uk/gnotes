@@ -4,7 +4,7 @@ Last updated: 2026-10-04
 
 ## Current production release
 
-`v0.7.16` is deployed on Kagoya at `https://gnotes.rickd.dev`.
+`v0.7.17` is deployed on Kagoya at `https://gnotes.rickd.dev`.
 
 - The release workflow passed Go tests, the race test, `go vet`, ShellCheck, backup and restore tests, and the application rehearsal.
 - The Kagoya updater verified the release checksum, created a pre-release SQLite backup, restarted the rootless Podman service, and verified application health.
@@ -14,6 +14,7 @@ Last updated: 2026-10-04
 - The `v0.7.14` release keeps the code language picker open when entering a saved note. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and browser asset hashes match the release archive. Local and public health checks passed after deployment.
 - The `v0.7.15` release adds a persistent rich-text formatting toolbar to new and saved notes. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and public page hashes match the release archive. Local and public health checks passed after deployment.
 - The `v0.7.16` release puts the formatting toolbar behind an Aa button and remembers its visibility per account in the browser. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and public page hashes match the release archive. Local and public health checks passed after deployment.
+- The `v0.7.17` release moves the new-note Aa toggle beside draft status and Save, groups Controls into View, Note actions, and Appearance, and allows three quick actions. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and public page hashes match the release archive. Local and public health checks passed after deployment.
 - Search → Dates and options now defaults Jump to date to today, removes the duplicate calendar picker button, and gives the section toggle larger, more prominent text.
 
 ## Recently completed
@@ -38,8 +39,8 @@ Last updated: 2026-10-04
 
 ## Verification and open checks
 
-- The new-note Aa formatting toggle now sits on the draft-status row before Save, with a separate gap. A 320px Chromium check verified its position with Save visible and hidden, toolbar formatting, and no page overflow. This placement change is not yet deployed.
-- Controls now groups View, Note actions, and Appearance in that order. Quick actions allow three choices, with Delete last in the chooser; the one-line description states the limit. Chromium checks at 320px and 1024px covered menu layout, three note actions, fourth-choice replacement, persistence after reload, and Full and Titles layouts. This change is not yet deployed.
+- The new-note Aa formatting toggle now sits on the draft-status row before Save, with a separate gap. A 320px Chromium check verified its position with Save visible and hidden, toolbar formatting, and no page overflow. Deployed in `v0.7.17`.
+- Controls now groups View, Note actions, and Appearance in that order. Quick actions allow three choices, with Delete last in the chooser; the one-line description states the limit. Chromium checks at 320px and 1024px covered menu layout, three note actions, fourth-choice replacement, persistence after reload, and Full and Titles layouts. Deployed in `v0.7.17`; an authenticated live browser check remains open.
 - The rich-text formatting toolbar now starts collapsed behind an Aa button. Its visibility choice is saved per account in the current browser. A 320px Chromium check covered the initial collapsed state, showing and hiding the toolbar across new and saved notes, formatting before typing and on selected text, no horizontal page overflow, and restoration after reload. Deployed in `v0.7.16`; an authenticated live browser check remains open.
 - The rich editor gained a 14-command formatting toolbar in new and saved notes in `v0.7.15`. An authenticated live browser check remains open.
 - Opening a saved code block by clicking its preview no longer immediately closes the language picker. A 320px Chromium test reproduced the missing picker, then verified a real click shows the picker and a language change persists after saving. The correction is deployed in `v0.7.14`; an authenticated live browser check remains open.
