@@ -411,17 +411,19 @@
       .note-save:not([hidden]) {
         display: inline-flex;
         min-height: 38px;
+        min-width: 38px;
         align-items: center;
         justify-content: center;
-        padding: 5px 11px;
+        padding: 3px 8px;
         border: 1px solid #bad0c2;
         border-radius: 6px;
         background: #e1ebe5;
-        color: var(--accent);
+        color: #167344;
         cursor: pointer;
         font: inherit;
-        font-size: 0.74rem;
+        font-size: 1.3rem;
         font-weight: 650;
+        line-height: 1;
       }
 
       .note-save:not([hidden]):hover { background: #d6e5dc; }
@@ -2154,17 +2156,20 @@
 
       .edit-done {
         min-height: 38px;
-        padding: 5px 12px;
+        min-width: 38px;
+        padding: 3px 8px;
         border: 1px solid #bad0c2;
         border-radius: 6px;
         background: #e1ebe5;
-        color: var(--accent);
+        color: #167344;
         cursor: pointer;
-        font-size: 0.74rem;
+        font-size: 1.3rem;
         font-weight: 650;
+        line-height: 1;
       }
 
       .edit-done:hover { background: #d6e5dc; }
+      .editor-actions .edit-done { margin-left: 4px; }
 
       .date {
         display: block;
@@ -4097,7 +4102,7 @@
         <div class="form-actions">
           <span class="shortcut" id="draft-status" role="status" aria-live="polite">Drafts save automatically</span>
           <button class="rich-format-toggle" id="draft-rich-format-toggle" type="button" aria-controls="new-rich-editor-toolbar" aria-expanded="false" aria-label="Show formatting toolbar" title="Show formatting" hidden>Aa</button>
-          <button class="note-save" id="note-save" type="submit" hidden>Save</button>
+          <button class="note-save" id="note-save" type="submit" aria-label="Save note" title="Save note" hidden>✓</button>
         </div>
       </form>
 
@@ -4211,7 +4216,7 @@
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
-        <div><h3>Edit a note</h3><p>Tap or click a note to edit it. Choose Done to close the editor.</p></div>
+        <div><h3>Edit a note</h3><p>Tap or click a note to edit it. Choose the green check mark to save and close the editor.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
         <div><h3>Change the view</h3><p>Open Controls to choose quick actions, density, hidden notes, and date sections. You can change note font and size there too.</p></div>
       </div>
@@ -4221,7 +4226,7 @@
       <section class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-heading">
         <h2 id="welcome-heading">Welcome to gnotes</h2>
         <ol class="welcome-steps">
-          <li><strong>Write your first note</strong><span>Type a title or some text in the writing area. Your draft saves as you type. Tap Save on a phone, or click outside the writing area on a larger screen.</span></li>
+          <li><strong>Write your first note</strong><span>Type a title or some text in the writing area. Your draft saves as you type. Tap the green check mark to finish the note.</span></li>
           <li><strong>Find it again</strong><span>Saved notes appear below the writing area. Use Search in the header to find a note later.</span></li>
         </ol>
         <label class="welcome-remember"><input id="welcome-dont-show" type="checkbox" />Don’t show this again</label>
@@ -4528,18 +4533,6 @@
         host.querySelector(".rich-format-control")?.remove();
         const control = document.createElement("div");
         control.className = "rich-format-control";
-        if (host.id !== "new-rich-editor") {
-          const toggle = document.createElement("button");
-          toggle.className = "rich-format-toggle";
-          toggle.type = "button";
-          toggle.textContent = "Aa";
-          toggle.setAttribute("aria-controls", `${host.id}-toolbar`);
-          toggle.setAttribute("aria-expanded", String(richToolbarVisible));
-          toggle.setAttribute("aria-label", richToolbarVisible ? "Hide formatting toolbar" : "Show formatting toolbar");
-          toggle.title = richToolbarVisible ? "Hide formatting" : "Show formatting";
-          toggle.addEventListener("click", () => setRichToolbarVisible(!richToolbarVisible));
-          control.append(toggle);
-        }
         const toolbar = document.createElement("div");
         toolbar.className = "rich-format-toolbar";
         toolbar.id = `${host.id}-toolbar`;
@@ -4570,8 +4563,7 @@
           editor.format(button.dataset.richCommand);
         });
         control.append(toolbar);
-        if (host.id === "new-rich-editor") host.append(control);
-        else host.prepend(control);
+        host.append(control);
       }
 
       document.getElementById("draft-rich-format-toggle").addEventListener("click", () => {
@@ -4638,6 +4630,7 @@
         input.classList.remove("force-source");
         richEdit = editor;
         mountRichToolbar(host, editor);
+        document.getElementById(`edit-rich-format-toggle-${id}`).hidden = false;
       }
 
       function destroyEditRichEditor() {
@@ -4652,6 +4645,8 @@
           host.querySelector(".rich-format-control")?.remove();
           host.hidden = true;
         }
+        const toggle = document.getElementById(`edit-rich-format-toggle-${id}`);
+        if (toggle) toggle.hidden = true;
       }
 
       function applyEditorMode(enabled) {
@@ -5662,7 +5657,8 @@
                   <div class="rich-editor-container" id="rich-editor-${n.id}" hidden></div>
                   <div class="editor-actions">
                     <span class="edit-hint" role="status" aria-live="polite"></span>
-                    <button class="edit-done" type="button" onclick="updateNote(${n.id})">Done</button>
+                    <button class="rich-format-toggle" id="edit-rich-format-toggle-${n.id}" type="button" aria-controls="rich-editor-${n.id}-toolbar" aria-expanded="${String(richToolbarVisible)}" aria-label="${richToolbarVisible ? "Hide" : "Show"} formatting toolbar" title="${richToolbarVisible ? "Hide" : "Show"} formatting" onclick="setRichToolbarVisible(!richToolbarVisible)" hidden>Aa</button>
+                    <button class="edit-done" type="button" onclick="updateNote(${n.id})" aria-label="Save and close note editor" title="Save and close note editor">✓</button>
                   </div>
                 </div>
             </article>`;

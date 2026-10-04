@@ -13,7 +13,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Per-user accounts, sessions, CSRF protection, and note isolation
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
-- Create, autosave, resume editing by clicking near the desired text position in a note, finish with Done, pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
+- Create, autosave, resume editing by clicking near the desired text position in a note, finish with the green check mark, pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
 - Copy a note’s displayed text from its action menu; read-only page text does not select by dragging, while editors remain selectable
 - Archive notes for later reading and restore them without deleting them
 - Cursor-paginated note and recycle-bin loading with indexed full-text search
@@ -22,7 +22,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Server-backed per-user draft autosave and refresh recovery
 - Responsive layouts, three note-density modes, and per-user interface-state restoration
 - Up to three configurable quick actions per note, with the remaining actions in its menu
-- Rich text editing by default, with an **Aa** button that opens formatting controls for text styles, headings, lists, checklists, quotes, links, code, and dividers. Select text to format it or choose a style before typing; type `/` at the start of a paragraph for block options. Markdown source editing is opt-in under **Account → Advanced**
+- Rich text editing by default, with an **Aa** button beside the green check mark that opens formatting controls for text styles, headings, lists, checklists, quotes, links, code, and dividers. Select text to format it or choose a style before typing; type `/` at the start of a paragraph for block options. Markdown source editing is opt-in under **Account → Advanced**
 - Global note font and 65–175% title/text size controls, including in the rich text editor; menu opacity ranges from 0–100%
 - User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion
 - Account-menu export of all or selected notes and import of gnotes JSON, Markdown, plain text, or a gnotes export ZIP
