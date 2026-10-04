@@ -77,4 +77,11 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 - Interactive task-checkbox toggling from rendered notes.
 - Carefully scoped formatting improvements that keep the writing interface uncluttered.
 
+### Distant ideas
+
+- Add editable tables in the rich editor, including row, column, and cell controls, while preserving readable Markdown storage and exports.
+- Explore grids after defining whether they should arrange note cards or provide spreadsheet-style cells.
+- Explore graphs and charts generated from note data, with a clear source format and safe rendering.
+- Explore attaching documents to notes and previewing supported files in place. Define per-account access, file size and type limits, private storage, export behavior, and backup coverage before implementation.
+
 Security requirements and operating procedures remain authoritative in [SECURITY.md](SECURITY.md) and [OPERATIONS.md](OPERATIONS.md).
