@@ -2171,6 +2171,82 @@
       .edit-done:hover { background: #d6e5dc; }
       .editor-actions .edit-done { margin-left: 4px; }
 
+      html.note-edit-focus,
+      body.note-edit-focus { overflow: hidden; }
+
+      .note-edit-backdrop {
+        position: fixed;
+        z-index: 65;
+        inset: 0;
+        background: rgba(36, 35, 31, 0.54);
+      }
+
+      .note-edit-backdrop[hidden] { display: none; }
+
+      .note-card.is-editing {
+        position: fixed;
+        z-index: 70;
+        top: calc(var(--edit-viewport-top, 0px) + 24px);
+        left: 50%;
+        display: flex;
+        width: min(760px, calc(100vw - 32px));
+        height: min(900px, calc(var(--edit-viewport-height, 100dvh) - 48px));
+        flex-direction: column;
+        padding: 20px 24px 18px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--note-surface, #f8f6f0);
+        box-shadow: 0 24px 65px rgba(36, 35, 31, 0.24);
+        opacity: 1;
+        transform: translateX(-50%);
+        transition: none;
+      }
+
+      .date-group.is-collapsed .note-card.is-editing { display: flex; }
+
+      .note-card.is-editing .note-top-row { flex: 0 0 auto; }
+      .note-card.is-editing .note-editor {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        flex-direction: column;
+      }
+      .note-card.is-editing .edit-title { flex: 0 0 auto; }
+      .note-card.is-editing .edit-content {
+        min-height: 0;
+        max-height: none;
+        flex: 1;
+        overflow: auto;
+      }
+      .note-card.is-editing .rich-editor-container:not([hidden]) {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        flex-direction: column;
+      }
+      .note-card.is-editing .rich-editor-container .tiptap {
+        min-height: 0;
+        max-height: none;
+        flex: 1;
+        overflow: auto;
+      }
+      .note-card.is-editing .rich-format-control,
+      .note-card.is-editing .editor-actions { flex: 0 0 auto; }
+
+      @media (max-width: 560px) {
+        .note-card.is-editing {
+          top: var(--edit-viewport-top, 0px);
+          left: var(--edit-viewport-left, 0px);
+          width: var(--edit-viewport-width, 100vw);
+          height: var(--edit-viewport-height, 100dvh);
+          padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+          border: 0;
+          border-radius: 0;
+          transform: none;
+        }
+      }
+
       .date {
         display: block;
         color: var(--muted);
@@ -2419,6 +2495,11 @@
       }
 
       #notes-list.density-titles.tool-all-hidden .note-card h2 { right: 12px; }
+
+      #notes-list.density-compact .note-card.is-editing,
+      #notes-list.density-titles .note-card.is-editing { padding: 20px 24px 18px; }
+      #notes-list.density-titles .note-card.is-editing .note-top-row { justify-content: flex-start; }
+      #notes-list.density-titles .note-card.is-editing .date-row { display: flex; }
 
       .fallback-title {
         color: var(--muted);
@@ -3433,6 +3514,11 @@
           overflow: hidden;
         }
 
+        #notes-list.density-compact .note-card.is-editing,
+        #notes-list.density-titles .note-card.is-editing {
+          padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+        }
+
         .shell {
           width: min(100% - 32px, 880px);
           padding-top: 0;
@@ -3820,6 +3906,7 @@
     </style>
   </head>
   <body>
+    <div class="note-edit-backdrop" id="note-edit-backdrop" hidden></div>
     <section class="startup-screen" id="startup-screen" aria-label="Loading gnotes">
       <span class="startup-brand">gnotes</span>
       <span class="startup-status">Opening notes…</span>
@@ -4216,7 +4303,7 @@
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
-        <div><h3>Edit a note</h3><p>Tap or click a note to edit it. Choose the green check mark to save and close the editor.</p></div>
+        <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Choose the green check mark to save and return to your notes.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
         <div><h3>Change the view</h3><p>Open Controls to choose quick actions, density, hidden notes, and date sections. You can change note font and size there too.</p></div>
       </div>
@@ -4372,6 +4459,7 @@
       let policySaveVersion = 0;
       let policySaveChain = Promise.resolve();
       let editingNoteId = null;
+      let editReturnScrollY = 0;
       let editSaveTimer;
       let editSaveChain = Promise.resolve();
       let collapsedDateSections = new Set();
@@ -4979,6 +5067,8 @@
         clearTimeout(liveSearchTimer);
         closeFormattingToolbars();
         destroyEditRichEditor();
+        closeFocusedNote();
+        editingNoteId = null;
         destroyDraftRichEditor();
         document.body.classList.remove("rich-mode");
         document.getElementById("account-control").open = false;
@@ -7002,6 +7092,36 @@
         }
       }
 
+      function syncFocusedEditViewport() {
+        if (editingNoteId === null) return;
+        const viewport = window.visualViewport;
+        document.documentElement.style.setProperty("--edit-viewport-top", `${viewport?.offsetTop || 0}px`);
+        document.documentElement.style.setProperty("--edit-viewport-left", `${viewport?.offsetLeft || 0}px`);
+        document.documentElement.style.setProperty("--edit-viewport-width", `${viewport?.width || innerWidth}px`);
+        document.documentElement.style.setProperty("--edit-viewport-height", `${viewport?.height || innerHeight}px`);
+      }
+
+      function closeFocusedNote() {
+        document.getElementById("note-edit-backdrop").hidden = true;
+        document.documentElement.classList.remove("note-edit-focus");
+        document.body.classList.remove("note-edit-focus");
+        if (editingNoteId === null) return;
+        const card = document.getElementById(`note-${editingNoteId}`);
+        if (!card) return;
+        card.classList.remove("is-editing");
+        card.removeAttribute("role");
+        card.removeAttribute("aria-modal");
+        card.removeAttribute("aria-label");
+        const view = document.getElementById(`note-view-${editingNoteId}`);
+        const editor = document.getElementById(`note-editor-${editingNoteId}`);
+        if (view) view.hidden = false;
+        if (editor) editor.hidden = true;
+      }
+
+      window.visualViewport?.addEventListener("resize", syncFocusedEditViewport);
+      window.visualViewport?.addEventListener("scroll", syncFocusedEditViewport);
+      window.addEventListener("resize", syncFocusedEditViewport);
+
       function openNoteEditor(id, selectTitle = true, focusBody = false, textOffset = null) {
         const note = loadedNotes.get(id);
         const view = document.getElementById(`note-view-${id}`);
@@ -7014,9 +7134,17 @@
         view.hidden = true;
         editor.hidden = false;
         const card = document.getElementById(`note-${id}`);
+        editReturnScrollY = window.scrollY;
         card.classList.add("is-editing");
+        card.setAttribute("role", "dialog");
+        card.setAttribute("aria-modal", "true");
+        card.setAttribute("aria-label", "Edit note");
         resizeTextareaToContent(contentInput);
         editingNoteId = id;
+        document.getElementById("note-edit-backdrop").hidden = false;
+        document.documentElement.classList.add("note-edit-focus");
+        document.body.classList.add("note-edit-focus");
+        syncFocusedEditViewport();
         rememberEditingNote(id);
         if (!markdownSource) mountEditRichEditor(id);
         if (focusBody) {
@@ -7365,9 +7493,11 @@
         }
 
         destroyEditRichEditor();
+        closeFocusedNote();
         editingNoteId = null;
         forgetEditingNote();
         await loadNotes();
+        window.scrollTo(0, editReturnScrollY);
         return true;
       }
 
@@ -7840,8 +7970,8 @@
         if (!document.getElementById("welcome-overlay").hidden) return;
         if (richContextMenu.contains(event.target)) return;
         if (editingNoteId !== null) {
-          const editor = document.getElementById(`note-editor-${editingNoteId}`);
-          if (editor && !editor.contains(event.target)) updateNote(editingNoteId);
+          const card = document.getElementById(`note-${editingNoteId}`);
+          if (card && !card.contains(event.target) && !event.target.closest(".rich-link-dialog")) updateNote(editingNoteId);
         }
         if (
           !noteForm.contains(event.target) &&
@@ -7885,6 +8015,20 @@
       });
 
       document.addEventListener("keydown", (event) => {
+        if (event.key === "Tab" && editingNoteId !== null && richContextMenu.hidden && !document.getElementById("rich-link-dialog").open) {
+          const card = document.getElementById(`note-${editingNoteId}`);
+          const controls = [...card.querySelectorAll("input, textarea, button, select, [contenteditable='true']")]
+            .filter((control) => control.getClientRects().length && !control.disabled);
+          const first = controls[0];
+          const last = controls[controls.length - 1];
+          if (first && event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (last && !event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
         if (event.key === "Tab" && document.body.classList.contains("controls-drawer-open")) {
           const buttons = [...document.querySelectorAll("#view-menu button")]
             .filter((button) => button.getClientRects().length && !button.disabled);
