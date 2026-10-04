@@ -73,12 +73,9 @@ Last updated: 2026-10-04
 
 Priority order remains:
 
-1. Retest the mobile experience and note colors on the Pixel 6a, including Brave and Epic, and fix any reproducible issues.
-2. Replicate validated backups to encrypted storage outside Kagoya and alert on stale or failed backups, low disk space, service restarts, and TLS expiry.
-3. Retest the new export/import and rich text controls on the Pixel 6a after the v0.7.13 release.
-4. Move inline JavaScript and CSS into versioned assets and remove `unsafe-inline` from the Content Security Policy.
-5. Add privacy-conscious audit records for administration and authentication security events.
-6. Design password recovery and administrator MFA with recovery codes before implementation.
-7. Add bulk archive and restore controls, then consider encrypted offline access and task-checkbox interaction.
+1. Retest `v0.7.21` with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome. Cover new-note save, the focused editor and Copy button, Aa and the green completion checks, three quick actions, the saved code-block language picker, and archive removal for one note, one displayed date, and all notes. Recover a removed note from the recycle bin. Fix reproducible issues.
+2. Choose encrypted off-server backup storage and an alert provider, then replicate the validated daily backups. Alert on stale or failed backups, low disk space, repeated service restarts, TLS expiry, and public health failures. Daily validated backups currently remain on Kagoya.
+3. Continue the security work in `ROADMAP.md`: move inline JavaScript and CSS into versioned assets to remove `unsafe-inline` from the Content Security Policy, add privacy-conscious audit records, and design password recovery and administrator MFA with recovery codes.
+4. Consider bulk unarchive controls, encrypted offline access, and rendered task-checkbox interaction after the mobile and reliability work.
 
 End-to-end encryption, horizontal scaling, and a PostgreSQL migration remain later design projects. SQLite remains appropriate for the current single-instance deployment.
