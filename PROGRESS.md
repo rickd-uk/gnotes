@@ -4,11 +4,12 @@ Last updated: 2026-10-04
 
 ## Current production release
 
-`v0.7.17` is deployed on Kagoya at `https://gnotes.rickd.dev`.
+`v0.7.18` is deployed on Kagoya at `https://gnotes.rickd.dev`.
 
 - The release workflow passed Go tests, the race test, `go vet`, ShellCheck, backup and restore tests, and the application rehearsal.
 - The Kagoya updater verified the release checksum, created a pre-release SQLite backup, restarted the rootless Podman service, and verified application health.
 - The live container is healthy and SQLite is connected. The public page hash matches the packaged page, and the updater saved a validated pre-release backup.
+- The `v0.7.18` release moves the saved-note Aa toggle beside the completion check and replaces Save and Done with green checks. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the public page hash matches the release archive. Local and public health checks passed after deployment.
 - The `v0.7.12` release adds more rich-text formatting, interactive saved checklists, and named links. Its release workflow passed, and the deployed page hash matches the local release page.
 - The `v0.7.13` release adds code-block language and normal-text controls in the rich editor. The public page and rich-editor asset hashes match the release files.
 - The `v0.7.14` release keeps the code language picker open when entering a saved note. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and browser asset hashes match the release archive. Local and public health checks passed after deployment.
@@ -39,7 +40,7 @@ Last updated: 2026-10-04
 
 ## Verification and open checks
 
-- The saved-note Aa toggle now shares the bottom action row with a green check mark; new notes also use a green check mark instead of Save. The buttons retain accessible save labels. A 320px Chromium check created a note, opened the saved-note toolbar below the editor, and saved an edited title without horizontal overflow. Local Go tests, vet, and JavaScript syntax checks passed; the authenticated Pixel 6a browser check remains open. This change is awaiting deployment.
+- The saved-note Aa toggle now shares the bottom action row with a green check mark; new notes also use a green check mark instead of Save. The buttons retain accessible save labels. A 320px Chromium check created a note, opened the saved-note toolbar below the editor, and saved an edited title without horizontal overflow. Local Go tests, vet, and JavaScript syntax checks passed; the authenticated Pixel 6a browser check remains open. Deployed in `v0.7.18`.
 - The new-note Aa formatting toggle now sits on the draft-status row before Save, with a separate gap. A 320px Chromium check verified its position with Save visible and hidden, toolbar formatting, and no page overflow. Deployed in `v0.7.17`.
 - Controls now groups View, Note actions, and Appearance in that order. Quick actions allow three choices, with Delete last in the chooser; the one-line description states the limit. Chromium checks at 320px and 1024px covered menu layout, three note actions, fourth-choice replacement, persistence after reload, and Full and Titles layouts. Deployed in `v0.7.17`; an authenticated live browser check remains open.
 - The rich-text formatting toolbar now starts collapsed behind an Aa button. Its visibility choice is saved per account in the current browser. A 320px Chromium check covered the initial collapsed state, showing and hiding the toolbar across new and saved notes, formatting before typing and on selected text, no horizontal page overflow, and restoration after reload. Deployed in `v0.7.16`; an authenticated live browser check remains open.
