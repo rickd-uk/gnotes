@@ -266,6 +266,8 @@ func cleanupAbuseData(now time.Time) error {
 		query string
 		args  []any
 	}{
+		{"DELETE FROM password_reset_tokens WHERE expires_at <= ?", []any{now.UTC()}},
+		{"DELETE FROM email_verification_tokens WHERE expires_at <= ?", []any{now.UTC()}},
 		{"DELETE FROM rate_limits WHERE updated_at < ?", []any{now.UTC().Add(-48 * time.Hour)}},
 		{"DELETE FROM login_cooldowns WHERE last_failed_at < ?", []any{now.UTC().Add(-30 * 24 * time.Hour)}},
 		{"DELETE FROM signup_events WHERE created_at < ?", []any{now.UTC().Add(-31 * 24 * time.Hour)}},

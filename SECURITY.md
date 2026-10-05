@@ -8,6 +8,7 @@ This document defines the deployment baseline for gnotes. No internet-facing ser
 - Session tokens and CSRF tokens use 256 bits of operating-system randomness. Only a SHA-256 hash of each session token is stored.
 - Session cookies are `HttpOnly` and `SameSite=Strict`; the production environment enables `Secure` cookies and HSTS.
 - Passwords use bcrypt cost 12. Older bcrypt hashes are upgraded after a successful login.
+- Optional Brevo recovery requires a verified email and uses hashed, single-use links: verification expires in one hour and reset in 30 minutes. Requests have persistent rate limits and generic replies; resets revoke sessions and other links. Password confirmation is required to set a recovery email. Email links use a configured origin and fragments so tokens stay out of access logs.
 - Login and registration limits persist in SQLite across restarts. Login failures trigger an account-level exponential cooldown, and forwarded client addresses are accepted only from a loopback reverse proxy.
 - Registration supports hashed single-use invitation codes plus configurable global and per-IP daily caps.
 - New installations allow creation of the first `rick` administrator, then leave further signups closed until the administrator enables them.
@@ -52,7 +53,7 @@ If compromise is suspected:
 
 Notes are not yet end-to-end encrypted. Filesystem permissions and host encryption protect a lost disk, but an attacker who obtains the live database or compromises the running server can read note titles and contents. Backups contain the same plaintext and must be encrypted before being copied off-server.
 
-The current rate limiter is suitable for one SQLite-backed instance, not a horizontally scaled deployment. Hashed IP identifiers still count as sensitive operational data and are retained only for limiting registrations. There is no MFA or password-reset flow, and JavaScript/CSS remain inline under the Content Security Policy. These are recorded in the README roadmap. End-to-end encryption requires a deliberate recovery-key and multi-device design; adding only server-side database encryption would not protect against an attacker controlling the running server.
+The current rate limiter is suitable for one SQLite-backed instance, not a horizontally scaled deployment. Hashed IP identifiers still count as sensitive operational data and are retained for request limits and signup policy. There is no MFA, and JavaScript/CSS remain inline under the Content Security Policy. Email recovery depends on access to the verified mailbox and on Brevo; it is unavailable without server configuration. End-to-end encryption requires a deliberate recovery-key and multi-device design; adding only server-side database encryption would not protect against an attacker controlling the running server.
 
 ## Reporting a vulnerability
 

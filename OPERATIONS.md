@@ -41,6 +41,14 @@ curl -fsS https://gnotes.rickd.dev/api/health
 
 Sign in and inspect notes, drafts, recycle-bin entries, and administrator settings in the browser. The health endpoint checks service and database connectivity, not note completeness.
 
+## Brevo password recovery
+
+Enable transactional email and verify the sender/domain in Brevo. Configure `BREVO_API_KEY`, `GNOTES_EMAIL_FROM`, and `GNOTES_PUBLIC_URL=https://gnotes.rickd.dev` in the private server environment, following `deploy/gnotes.env.example`. Use an API key, not an SMTP key. Never store it in browser assets or Git.
+
+For systemd, use `/etc/gnotes/gnotes.env`. For rootless Podman, pass a private environment file through the container unit with `EnvironmentFile=` (Quadlet) or `--env-file` (podman run). Restart the service after configuration; the container image includes CA certificates for HTTPS to Brevo. A missing API key disables recovery; an invalid configured sender or origin prevents startup.
+
+Sign in, open the account profile, enter a recovery email and current password, then confirm the emailed link. Existing registration emails are not automatically trusted. Test **Forgot password?** with the username and verified email, reset the password, and confirm old sessions and reused links fail. Provider acceptance is tested locally with mocked Brevo responses; real delivery needs a configured key and inbox test. Reset requests are queued in memory, so retry after a minute if a restart interrupted delivery.
+
 ## Restore
 
 The Kagoya restore command accepts a raw `.db` or compressed `.db.gz` backup. Verification does not stop the service:

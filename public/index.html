@@ -89,7 +89,8 @@
         box-shadow: 0 8px 20px rgba(51, 45, 35, 0.06);
       }
 
-      .site-header h1 {
+      .site-header h1,
+      .auth-card h1 {
         flex-shrink: 0;
         margin: 0;
         color: #3b3d3a;
@@ -105,8 +106,7 @@
       }
 
       @supports ((background-clip: text) or (-webkit-background-clip: text)) {
-        .startup-brand,
-        .auth-card h1 {
+        .startup-brand {
           background: linear-gradient(165deg, #244a3d 12%, #587467 54%, #29483e 88%);
           background-clip: text;
           -webkit-background-clip: text;
@@ -205,6 +205,25 @@
       .view-menu .icon {
         width: 20px;
         height: 20px;
+      }
+
+      .time-zone-control {
+        display: grid;
+        gap: 5px;
+        padding: 7px 12px 12px;
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+
+      .time-zone-control select {
+        width: 100%;
+        min-height: 36px;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
       }
 
       .font-control {
@@ -528,6 +547,7 @@
         cursor: pointer;
       }
       .note-content input[type="checkbox"] {
+        display: inline-block;
         width: 24px;
         height: 24px;
         margin-right: 6px;
@@ -535,6 +555,8 @@
         accent-color: var(--accent);
       }
       .note-content input[type="checkbox"]:not(:disabled) { cursor: pointer; }
+      .note-content li:has(> input[type="checkbox"]),
+      .note-content li:has(> p > input[type="checkbox"]) { list-style: none; }
       .rich-context-menu {
         position: fixed;
         z-index: 85;
@@ -807,6 +829,8 @@
 
       body { user-select: none; }
       input, textarea, [contenteditable="true"] { user-select: text; }
+      .note-view h2, .note-content { -webkit-user-select: text; user-select: text; }
+      .note-content button { -webkit-user-select: none; user-select: none; }
 
       .icon {
         display: block;
@@ -937,9 +961,41 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 0;
+        gap: 6px;
+        margin-bottom: 4px;
       }
+
+      .notes-view-controls {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
+
+      .notes-view-controls .toolbar-button {
+        display: inline-flex;
+        min-height: 30px;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 4px 7px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        white-space: nowrap;
+        font-size: 0.72rem;
+        line-height: 1;
+      }
+
+      .notes-view-controls .toolbar-button:hover,
+      .notes-view-controls .toolbar-button:focus-visible { background: #e9e5dc; color: var(--accent); }
+      .notes-view-controls .toolbar-button[hidden] { display: none; }
+      .notes-view-controls .icon { width: 15px; height: 15px; }
+      .notes-view-controls #controls-toggle[aria-pressed="true"] { background: #f1e9e3; color: #79513f; }
+      .notes-view-controls #controls-toggle .tools-state { margin-left: 0; font-size: inherit; color: inherit; }
+      .notes-toolbar .calendar-clear { margin-bottom: 0; }
 
       .archived-quick-open {
         display: grid;
@@ -992,6 +1048,7 @@
       }
       .archive-remove-all:hover { background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
       #app-shell.archive-mode #note-form { display: none; }
+      #app-shell.archive-mode #view-controls-group { display: none; }
       #app-shell.archive-mode #hidden-notes-toggle,
       #app-shell.archive-mode #archive-open { display: none; }
       #app-shell.archive-mode #notes-list .note-card { cursor: default; }
@@ -1823,6 +1880,30 @@
         margin-top: 12px;
       }
 
+      .note-card.has-roll-control:not(.is-editing) .note-view h2 { left: 132px; }
+
+      .note-roll-toggle {
+        flex-shrink: 0;
+        display: grid;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .note-roll-toggle:hover,
+      .note-roll-toggle:focus-visible { background: rgba(49, 91, 76, 0.1); color: var(--accent); }
+      .note-roll-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      .note-card.is-rolled-up .note-roll-toggle svg { transform: rotate(-90deg); }
+      .note-card.is-rolled-up .note-view .note-content { display: none; }
+      .note-card.is-editing .note-roll-toggle,
+      #notes-list.density-titles .note-roll-toggle { display: none; }
+
       .note-top-row {
         display: flex;
         min-height: 32px;
@@ -2318,6 +2399,8 @@
         gap: 8px;
       }
 
+      .note-time-controls { display: inline-flex; align-items: center; gap: 5px; }
+
       .pinned-note .date-row { padding-left: 10px; }
 
       .latest-marker {
@@ -2406,6 +2489,24 @@
         line-height: 1.55;
         tab-size: 4;
       }
+
+      .note-code-block { position: relative; margin: 1rem 0; }
+      .note-code-block pre,
+      .note-code-block pre[style] { margin: 0; padding-top: 42px; }
+      .note-code-language {
+        position: absolute;
+        top: 7px;
+        right: 10px;
+        padding: 3px 7px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--paper);
+        color: var(--muted);
+        font: 0.75rem var(--note-body-font);
+        cursor: pointer;
+      }
+      .note-code-language:hover,
+      .note-code-language:focus-visible { color: var(--accent); border-color: var(--accent); }
 
       code {
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -2616,17 +2717,11 @@
 
       .auth-card h1 {
         margin: 0 0 6px;
-        color: #315b4c;
-        font-family: "Snell Roundhand", "Segoe Script", "Apple Chancery",
-          "URW Chancery L", Z003, "Brush Script MT", cursive;
-        font-size: 2.35rem;
-        font-weight: 500;
-        letter-spacing: 0.01em;
-        line-height: 0.95;
-        text-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.72),
-          0 2px 3px rgba(55, 47, 36, 0.2);
       }
+
+      .auth-link { padding: 8px 0; border: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 0.82rem; text-align: left; text-decoration: underline; }
+      .recovery-email-form { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+      .auth-form label { display: grid; gap: 4px; color: var(--muted); font-size: 0.82rem; }
 
       .auth-intro,
       .auth-help,
@@ -3595,6 +3690,7 @@
 
         #notes-list:not(.density-titles) .note-card:not(.is-editing) .note-view {
           display: block;
+          position: relative;
         }
 
         #notes-list:not(.density-titles) .note-card:not(.is-editing) .note-view h2 {
@@ -3606,6 +3702,7 @@
           text-overflow: clip;
           white-space: normal;
         }
+
 
         .note-card .date {
           text-align: left;
@@ -3984,11 +4081,35 @@
           <details class="optional-email" id="optional-email" hidden>
             <summary>Add email (optional)</summary>
             <input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="Email address" aria-label="Email address" />
-            <p>Email is not used to sign in. Password recovery by email is not available yet.</p>
+            <p>Email is not used to sign in. Verify it from your profile to enable password recovery when email recovery is available.</p>
           </details>
           <p class="auth-help" id="auth-help" hidden>Use 12–72 characters. Usernames are not case-sensitive.</p>
           <button class="primary-action" id="auth-submit" type="submit">Sign in</button>
           <p class="auth-status" id="auth-status" aria-live="polite"></p>
+        </form>
+        <button class="auth-link" id="forgot-password" type="button" hidden>Forgot password?</button>
+        <form class="auth-form" id="recovery-request-form" hidden>
+          <p class="auth-intro">Enter your username and verified recovery email. Reset links expire in 30 minutes.</p>
+          <label>Username<input id="recovery-username" autocomplete="username" maxlength="32" required /></label>
+          <label>Recovery email<input id="recovery-email" type="email" autocomplete="email" maxlength="254" required /></label>
+          <button class="primary-action" type="submit">Send reset link</button>
+          <p class="auth-status" id="recovery-request-status" role="status"></p>
+          <button class="auth-link" id="recovery-request-back" type="button">Back to sign in</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="auth-screen" id="account-link-screen" aria-labelledby="account-link-heading" hidden>
+      <div class="auth-card">
+        <h1>gnotes</h1>
+        <h2 id="account-link-heading">Reset password</h2>
+        <form class="auth-form" id="account-link-form">
+          <p class="auth-intro" id="account-link-intro"></p>
+          <label id="reset-password-label">New password<input id="reset-password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required /></label>
+          <label id="reset-password-confirm-label">Confirm new password<input id="reset-password-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="72" required /></label>
+          <button class="primary-action" id="account-link-submit" type="submit">Change password</button>
+          <p class="auth-status" id="account-link-status" role="status"></p>
+          <button class="auth-link" id="account-link-back" type="button">Back to sign in</button>
         </form>
       </div>
     </section>
@@ -4012,22 +4133,8 @@
             <strong>Controls</strong>
             <button class="view-menu-close" id="view-menu-close" type="button" aria-label="Close controls menu">×</button>
           </div>
-          <section class="controls-group" aria-label="View">
+          <section class="controls-group" id="view-controls-group" aria-label="View" hidden>
             <h2 class="controls-group-title">View</h2>
-            <div class="view-menu-view-options">
-            <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 7h14M5 12h14M5 17h14" />
-              </svg>
-              <span id="density-toggle-label">Full</span>
-            </button>
-            <button class="toolbar-button" id="date-sections-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Collapse all date sections" title="Collapse all date sections" hidden>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m7 9 5-5 5 5M7 15l5 5 5-5" />
-              </svg>
-              <span id="date-sections-toggle-label">Fold</span>
-            </button>
-            </div>
             <div class="hidden-notes-control" id="hidden-notes-control" hidden>
             <button class="toolbar-button" id="hidden-notes-toggle" type="button" aria-controls="hidden-notes-panel" aria-expanded="false" aria-label="Open hidden notes" title="Hidden notes">
               <span id="hidden-notes-label">Hidden 0</span>
@@ -4043,14 +4150,6 @@
           </section>
           <section class="controls-group" aria-label="Note actions">
             <h2 class="controls-group-title">Note actions</h2>
-            <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide all note tools" title="Hide all note tools">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="6" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="18" cy="12" r="1" />
-                <path class="tools-slash" d="m4 4 16 16" />
-              </svg>
-              <span>Tools</span>
-              <span class="tools-state" id="controls-state" aria-hidden="true">All shown</span>
-            </button>
             <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Quick note actions">
               <span title="Choosing a fourth quick action replaces the first">Quick actions · up to 3</span>
               <button class="tool-choice" type="button" data-tool="archive"><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
@@ -4063,6 +4162,10 @@
           </section>
           <section class="controls-group" aria-label="Appearance">
             <h2 class="controls-group-title">Appearance</h2>
+            <div class="time-zone-control">
+              <label for="note-time-zone">Time zone</label>
+              <select id="note-time-zone" aria-label="Time zone for notes and dates"></select>
+            </div>
             <div class="font-control" role="group" aria-label="Note appearance">
             <span class="font-control-label">Note font</span>
             <div class="font-choices" id="font-choices">
@@ -4139,7 +4242,7 @@
               <span class="account-name-text" id="account-name">Account</span>
             </summary>
             <div class="account-menu">
-              <button class="account-menu-username" id="account-menu-username" type="button" title="Your profile"></button>
+              <button class="account-menu-username" id="account-menu-username" type="button" title="Your profile">Profile</button>
               <div class="account-menu-section">
                 <button id="help-open" type="button">Help</button>
                 <details class="markdown-help" id="markdown-help">
@@ -4256,6 +4359,20 @@
         <div class="notes-toolbar">
           <h2 class="visually-hidden" id="notes-heading">Recent notes</h2>
           <button class="calendar-clear" id="calendar-clear" type="button" hidden>Recent</button>
+          <div class="notes-view-controls" role="group" aria-label="Note view controls">
+            <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" /></svg>
+              <span id="density-toggle-label">Full</span>
+            </button>
+            <button class="toolbar-button" id="date-sections-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Collapse all date sections" title="Collapse all date sections" hidden>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5-5 5 5M7 15l5 5 5-5" /></svg>
+              <span id="date-sections-toggle-label">Fold</span>
+            </button>
+            <button class="toolbar-button" id="controls-toggle" type="button" aria-controls="notes-list" aria-pressed="false" aria-label="Hide note tools" title="Hide note tools">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="18" cy="12" r="1" /><path class="tools-slash" d="m4 4 16 16" /></svg>
+              <span>Tools</span><span class="tools-state" id="controls-state" aria-hidden="true">On</span>
+            </button>
+          </div>
         </div>
         <p class="search-status" id="notes-load-status" role="status" hidden></p>
         <div id="notes-list"></div>
@@ -4327,6 +4444,13 @@
         <div><dt>Active notes</dt><dd id="profile-active-notes"></dd></div>
         <div><dt>Recycled notes</dt><dd id="profile-recycled-notes"></dd></div>
       </dl>
+      <form class="auth-form recovery-email-form" id="recovery-email-form" hidden>
+        <p class="auth-intro">Set or verify your password recovery email. A replacement takes effect only after you confirm the link.</p>
+        <label>Recovery email<input id="profile-recovery-email" type="email" autocomplete="email" maxlength="254" required /></label>
+        <label>Current password<input id="profile-recovery-password" type="password" autocomplete="current-password" maxlength="72" required /></label>
+        <button class="primary-action" type="submit">Send verification link</button>
+        <p class="auth-status" id="profile-recovery-status" role="status"></p>
+      </form>
     </section>
 
     <section class="info-panel" id="transfer-panel" role="dialog" aria-labelledby="transfer-heading" hidden>
@@ -4466,6 +4590,20 @@
       let csrfToken = "";
       let currentUser = null;
       let authMode = "login";
+      let recoveryEnabled = false;
+      const accountLinkParams = new URLSearchParams(location.hash.slice(1));
+      const accountLinkAction = accountLinkParams.has("reset-password") ? "reset-password" : accountLinkParams.has("verify-email") ? "verify-email" : "";
+      let accountLinkToken = accountLinkAction ? accountLinkParams.get(accountLinkAction) : "";
+      // Fragments never reach server logs. Remove the token from browser history
+      // immediately and keep it only in memory until the user submits the form.
+      if (accountLinkAction) {
+        history.replaceState(null, "", location.pathname + location.search);
+        accountLinkParams.delete(accountLinkAction);
+      }
+      window.addEventListener("hashchange", () => {
+        const params = new URLSearchParams(location.hash.slice(1));
+        if (params.has("reset-password") || params.has("verify-email")) location.reload();
+      });
       let inviteRequired = false;
       let activeNoteCount = 0;
       let pinnedNoteCount = 0;
@@ -4495,6 +4633,7 @@
       let titleSize = 100;
       let bodySize = 100;
       let linkUnderlines = true;
+      let timeZoneChoice = "";
       const noteColorOptions = [
         ["", "No color"],
         ["mist", "Mist blue"],
@@ -4530,6 +4669,7 @@
       let editSaveTimer;
       let editSaveChain = Promise.resolve();
       let collapsedDateSections = new Set();
+      let rolledNoteIds = new Set();
       let markdownSource = false;
       let richDraft = null;
       let richEdit = null;
@@ -4840,6 +4980,38 @@
         return currentUser ? `gnotes-ui:${currentUser.username.toLowerCase()}` : "";
       }
 
+      function browserTimeZone() {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      }
+
+      function noteTimeZone() {
+        return timeZoneChoice || browserTimeZone();
+      }
+
+      function validTimeZone(value) {
+        if (typeof value !== "string" || !value || value.length > 100) return false;
+        try { new Intl.DateTimeFormat(undefined, { timeZone: value }); return true; } catch { return false; }
+      }
+
+      function populateTimeZoneChoices() {
+        const select = document.getElementById("note-time-zone");
+        const zones = new Set(["Asia/Tokyo", "UTC", browserTimeZone()]);
+        try { Intl.supportedValuesOf("timeZone").forEach((zone) => zones.add(zone)); } catch {}
+        select.add(new Option(`Browser (${browserTimeZone()})`, ""));
+        for (const zone of zones) {
+          select.add(new Option(zone === "Asia/Tokyo" ? "Japan (Asia/Tokyo)" : zone, zone));
+        }
+      }
+
+      function applyTimeZoneChoice(value) {
+        timeZoneChoice = validTimeZone(value) ? value : "";
+        const select = document.getElementById("note-time-zone");
+        if (timeZoneChoice && ![...select.options].some((option) => option.value === timeZoneChoice)) {
+          select.add(new Option(timeZoneChoice, timeZoneChoice));
+        }
+        select.value = timeZoneChoice;
+      }
+
       function updateSearchToggleState() {
         const toggle = document.getElementById("search-toggle");
         toggle.classList.toggle("has-filter", searchActive);
@@ -4866,6 +5038,7 @@
           titleSize,
           bodySize,
           linkUnderlines,
+          timeZoneChoice,
           markdownSource,
           richToolbarVisible,
           adminUserFilter,
@@ -4942,7 +5115,7 @@
         toggle.setAttribute("aria-pressed", String(!shown));
         toggle.setAttribute("aria-label", `${shown ? "Hide" : "Show"} note tools`);
         toggle.title = `${shown ? "Hide" : "Show"} note tools`;
-        document.getElementById("controls-state").textContent = shown ? "Shown" : "Hidden";
+        document.getElementById("controls-state").textContent = shown ? "On" : "Off";
       }
 
       function applyMenuOpacity(value) {
@@ -5016,6 +5189,8 @@
         if (!key) return {};
         let state;
         try { state = JSON.parse(localStorage.getItem(key) || "{}"); } catch { state = {}; }
+        applyTimeZoneChoice(state.timeZoneChoice);
+        setDefaultSearchDates();
         const search = state.search || {};
         document.getElementById("search-query").value = typeof search.query === "string" ? search.query : "";
         syncSearchClear();
@@ -5092,6 +5267,7 @@
         inviteCode.hidden = !registering || !inviteRequired;
         inviteCode.required = registering && inviteRequired;
         document.getElementById("auth-status").textContent = "";
+        document.getElementById("forgot-password").hidden = registering || !recoveryEnabled;
       }
 
       async function loadAuthConfig() {
@@ -5099,6 +5275,8 @@
           const response = await fetch("/api/auth/config");
           if (!response.ok) return;
           const config = await response.json();
+          recoveryEnabled = Boolean(config.recovery_enabled);
+          document.getElementById("forgot-password").hidden = authMode !== "login" || !recoveryEnabled;
           const registerTab = document.getElementById("register-tab");
           const setupToken = document.getElementById("setup-token");
           inviteRequired = Boolean(config.invite_required);
@@ -5168,6 +5346,7 @@
         loadedTrash.clear();
         hiddenNoteIds.clear();
         hiddenNotes.clear();
+        rolledNoteIds.clear();
         document.getElementById("startup-screen").hidden = true;
         document.getElementById("app-shell").hidden = true;
         document.getElementById("admin-panel").hidden = true;
@@ -5177,6 +5356,11 @@
         document.getElementById("help-panel").hidden = true;
         document.getElementById("welcome-overlay").hidden = true;
         document.getElementById("auth-screen").hidden = false;
+        document.getElementById("account-link-screen").hidden = true;
+        document.getElementById("recovery-request-form").hidden = true;
+        document.getElementById("auth-form").hidden = false;
+        document.querySelector(".auth-tabs").hidden = false;
+        document.getElementById("recovery-email-form").reset();
         document.getElementById("auth-status").textContent = message;
         loadAuthConfig().then(() => {
           if (message) document.getElementById("auth-status").textContent = message;
@@ -5204,10 +5388,10 @@
         csrfToken = session.csrf_token;
         currentUser = session;
         loadCollapsedDateSections();
+        loadRolledNotes();
         loadHiddenNoteIds();
         const restoredUI = loadUIState();
         document.getElementById("account-name").textContent = session.username;
-        document.getElementById("account-menu-username").textContent = session.username;
         document.getElementById("account-admin-section").hidden = session.role !== "admin";
         document.getElementById("auth-screen").hidden = true;
         document.getElementById("app-shell").hidden = true;
@@ -5234,6 +5418,22 @@
       }
 
       async function initializeAuth() {
+        if (accountLinkAction) {
+          document.getElementById("startup-screen").hidden = true;
+          document.getElementById("account-link-screen").hidden = false;
+          const verifying = accountLinkAction === "verify-email";
+          document.getElementById("account-link-heading").textContent = verifying ? "Verify recovery email" : "Reset password";
+          document.getElementById("account-link-intro").textContent = verifying
+            ? "Confirm this address for password recovery. If you did not request this, return to sign in."
+            : "Choose a new password. This will sign out all existing sessions.";
+          document.getElementById("account-link-submit").textContent = verifying ? "Verify email" : "Change password";
+          for (const id of ["reset-password", "reset-password-confirm"]) {
+            document.getElementById(id).required = !verifying;
+            document.getElementById(id).disabled = verifying;
+            document.getElementById(`${id}-label`).hidden = verifying;
+          }
+          return;
+        }
         try {
           const response = await fetch("/api/auth/me");
           if (response.ok) {
@@ -5272,7 +5472,7 @@
                   ? `Used by ${escapeHTML(invitation.used_by)}`
                   : expired
                     ? "Expired"
-                    : `Expires ${escapeHTML(new Date(invitation.expires_at).toLocaleString())}`;
+                    : `Expires ${escapeHTML(formatAdminTime(invitation.expires_at))}`;
                 return `<div class="admin-invitation">
                   <span>Invitation ${invitation.id} · ${state}</span>
                   ${invitation.used_by ? "" : `<button type="button" onclick="revokeInvitation(${invitation.id})">Revoke</button>`}
@@ -5294,12 +5494,12 @@
         if (!value) return "Never";
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return "Unknown";
-        return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+        return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone: noteTimeZone() });
       }
 
       function formatAdminDate(value) {
         const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleDateString([], { dateStyle: "medium" });
+        return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleDateString([], { dateStyle: "medium", timeZone: noteTimeZone() });
       }
 
       function renderAdminUsers() {
@@ -5747,13 +5947,18 @@
             const displayTitle = getDisplayTitle(n);
             const isNewest = n.id === newestNoteId;
             const noteColor = noteColorKeys.has(n.background_color) ? n.background_color : "";
+            const canRoll = Boolean(n.content.trim());
+            const isRolledUp = canRoll && rolledNoteIds.has(n.id);
 
             renderedNotes += `
-            <article class="note-card ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""}" id="note-${n.id}">
+            <article class="note-card ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
               <div class="note-top-row">
                 <div class="date-row">
                   ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
+                  <span class="note-time-controls">
+                  ${canRoll ? `<button class="note-roll-toggle" type="button" onclick="toggleNoteRoll(${n.id})" aria-controls="note-content-${n.id}" aria-expanded="${String(!isRolledUp)}" aria-label="${isRolledUp ? "Expand" : "Roll up"} note" title="${isRolledUp ? "Expand" : "Roll up"} note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>` : ""}
                   <time class="date" datetime="${escapeHTML(noteDate)}">${!archiveMode && n.pinned ? `${formatDateSection(n.created_at, now)} · ` : ""}${formatNoteTime(noteDate)}</time>
+                  </span>
                 </div>
                 <div class="note-actions">
                   <div class="note-quick-actions"></div>
@@ -5830,6 +6035,7 @@
         renderedNotes += "</section>";
         document.getElementById("notes-list").innerHTML = renderedNotes;
         enableNoteTaskCheckboxes();
+        decorateNoteCodeBlocks();
         document.querySelectorAll("#notes-list .note-content a[href]").forEach((link) => {
           link.title = link.getAttribute("href");
         });
@@ -5868,6 +6074,7 @@
         params.set("scope", scope);
         if (from) params.set("from", from);
         if (to) params.set("to", to);
+        params.set("timezone", noteTimeZone());
         if (document.getElementById("search-match-case").checked) {
           params.set("match_case", "true");
         }
@@ -5993,39 +6200,35 @@
       function buildCalendarURL(dateValue) {
         const parts = dateValue.split("-").map(Number);
         if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part))) return null;
-        const start = new Date(parts[0], parts[1] - 1, parts[2]);
+        const start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
         if (
-          start.getFullYear() !== parts[0] ||
-          start.getMonth() !== parts[1] - 1 ||
-          start.getDate() !== parts[2]
+          start.getUTCFullYear() !== parts[0] ||
+          start.getUTCMonth() !== parts[1] - 1 ||
+          start.getUTCDate() !== parts[2]
         ) return null;
-        const end = new Date(parts[0], parts[1] - 1, parts[2] + 1);
         const params = new URLSearchParams({
           scope: "all",
-          from_time: start.toISOString(),
-          to_time: end.toISOString(),
+          from: dateValue,
+          to: dateValue,
+          timezone: noteTimeZone(),
         });
         return `/api/notes/search-page?${params.toString()}`;
       }
 
       function formatCalendarDate(dateValue) {
         const [year, month, day] = dateValue.split("-").map(Number);
-        const date = new Date(year, month - 1, day);
+        const date = new Date(Date.UTC(year, month - 1, day, 12));
         return new Intl.DateTimeFormat(undefined, {
           weekday: "long",
           year: "numeric",
           month: "long",
           day: "numeric",
+          timeZone: "UTC",
         }).format(date);
       }
 
       function setDefaultSearchDates() {
-        const today = new Date();
-        const localToday = [
-          today.getFullYear(),
-          String(today.getMonth() + 1).padStart(2, "0"),
-          String(today.getDate()).padStart(2, "0"),
-        ].join("-");
+        const localToday = formatLocalDateKey(new Date());
         const fromInput = document.getElementById("search-from");
         const toInput = document.getElementById("search-to");
         fromInput.defaultValue = "2025-01-01";
@@ -6065,6 +6268,41 @@
         const element = document.createElement("div");
         element.textContent = value;
         return element.innerHTML;
+      }
+
+      function rolledNotesStorageKey() {
+        if (!currentUser?.username) return "";
+        return `gnotes:rolled-notes:${currentUser.username.toLowerCase()}`;
+      }
+
+      function loadRolledNotes() {
+        rolledNoteIds = new Set();
+        const storageKey = rolledNotesStorageKey();
+        if (!storageKey) return;
+        try {
+          const savedIds = JSON.parse(localStorage.getItem(storageKey) || "[]");
+          if (Array.isArray(savedIds)) {
+            rolledNoteIds = new Set(savedIds.filter((id) => Number.isSafeInteger(id) && id > 0).slice(0, 5000));
+          }
+        } catch {
+          // Notes still open normally if browser storage is unavailable.
+        }
+      }
+
+      function toggleNoteRoll(id) {
+        const card = document.getElementById(`note-${id}`);
+        const button = card?.querySelector(".note-roll-toggle");
+        if (!card || !button) return;
+        const rolledUp = card.classList.toggle("is-rolled-up");
+        button.setAttribute("aria-expanded", String(!rolledUp));
+        button.setAttribute("aria-label", `${rolledUp ? "Expand" : "Roll up"} note`);
+        button.title = `${rolledUp ? "Expand" : "Roll up"} note`;
+        if (rolledUp) rolledNoteIds.add(id);
+        else rolledNoteIds.delete(id);
+        const storageKey = rolledNotesStorageKey();
+        if (storageKey) {
+          try { localStorage.setItem(storageKey, JSON.stringify([...rolledNoteIds])); } catch {}
+        }
       }
 
       function collapsedDateSectionsStorageKey() {
@@ -6139,10 +6377,12 @@
 
       function formatLocalDateKey(value) {
         const date = new Date(value);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
+        if (Number.isNaN(date.getTime())) return "";
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone: noteTimeZone(), year: "numeric", month: "2-digit", day: "2-digit",
+        }).formatToParts(date);
+        const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+        return `${values.year}-${values.month}-${values.day}`;
       }
 
       function setActiveNoteCount(count) {
@@ -6160,10 +6400,17 @@
         const title = note.title.trim();
         if (title) return title;
 
-        const firstLine = note.content
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .find(Boolean);
+        let firstLine = "";
+        let fence = null;
+        for (const line of note.content.split(/\r?\n/)) {
+          const marker = line.match(/^\s*(?:>\s*)*(`{3,}|~{3,})(.*)$/);
+          if (marker) {
+            if (!fence) fence = marker[1];
+            else if (marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim()) fence = null;
+            continue;
+          }
+          if (!fence && line.trim()) { firstLine = line.trim(); break; }
+        }
         if (!firstLine) return "Untitled note";
 
         return (
@@ -6181,17 +6428,14 @@
       function formatDateSection(value, now = new Date()) {
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return "Unknown date";
-
-        const startOfDay = (day) =>
-          new Date(day.getFullYear(), day.getMonth(), day.getDate());
-        const today = startOfDay(now);
-        const noteDay = startOfDay(date);
-        const daysAgo = Math.round((today - noteDay) / 86400000);
-        const mondayOffset = (today.getDay() + 6) % 7;
-        const startOfThisWeek = new Date(today);
-        startOfThisWeek.setDate(today.getDate() - mondayOffset);
-        const startOfLastWeek = new Date(startOfThisWeek);
-        startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+        const todayKey = formatLocalDateKey(now);
+        const noteKey = formatLocalDateKey(date);
+        const dayNumber = (key) => Date.parse(`${key}T00:00:00Z`) / 86400000;
+        const today = dayNumber(todayKey);
+        const noteDay = dayNumber(noteKey);
+        const daysAgo = today - noteDay;
+        const mondayOffset = (new Date(today * 86400000).getUTCDay() + 6) % 7;
+        const weekday = () => date.toLocaleDateString([], { weekday: "long", timeZone: noteTimeZone() });
 
         if (daysAgo === 0) {
           return "Today";
@@ -6199,16 +6443,17 @@
           return "Yesterday";
         } else if (daysAgo === 2) {
           return "Two days ago";
-        } else if (noteDay >= startOfThisWeek) {
-          return date.toLocaleDateString([], { weekday: "long" });
-        } else if (noteDay >= startOfLastWeek) {
-          return `Last ${date.toLocaleDateString([], { weekday: "long" })}`;
+        } else if (noteDay >= today - mondayOffset) {
+          return weekday();
+        } else if (noteDay >= today - mondayOffset - 7) {
+          return `Last ${weekday()}`;
         }
 
         return date.toLocaleDateString([], {
           month: "short",
           day: "numeric",
-          year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
+          year: noteKey.slice(0, 4) === todayKey.slice(0, 4) ? undefined : "2-digit",
+          timeZone: noteTimeZone(),
         });
       }
 
@@ -6216,10 +6461,12 @@
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return "";
 
-        return date.toLocaleTimeString([], {
-          hour: "numeric",
-          minute: "2-digit",
-        });
+        const parts = new Intl.DateTimeFormat([], {
+          hour: "numeric", minute: "2-digit", hourCycle: "h23", timeZone: noteTimeZone(),
+        }).formatToParts(date);
+        const hour = parts.find((part) => part.type === "hour").value;
+        const minute = parts.find((part) => part.type === "minute").value;
+        return `${Number(hour)}:${minute}`;
       }
 
       function currentDraft() {
@@ -6511,7 +6758,7 @@
           ? new URLSearchParams({ id: "all" })
           : new URLSearchParams({
             date: dialog.dataset.date,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+            timezone: noteTimeZone(),
           });
         dialog.close();
         moveArchivedNotesToTrash(params);
@@ -6720,6 +6967,7 @@
         const control = document.getElementById("hidden-notes-control");
         const count = hiddenNoteIds.size;
         control.hidden = count === 0;
+        document.getElementById("view-controls-group").hidden = count === 0;
         document.getElementById("hidden-notes-label").textContent = `Hidden ${count}`;
         document.getElementById("hidden-notes-list").innerHTML = [...hiddenNoteIds]
           .map((id) => {
@@ -7228,6 +7476,7 @@
       }
 
       function closeFocusedNote() {
+        document.title = "gnotes";
         document.getElementById("note-edit-backdrop").hidden = true;
         document.documentElement.classList.remove("note-edit-focus");
         document.body.classList.remove("note-edit-focus");
@@ -7267,6 +7516,7 @@
         card.setAttribute("aria-label", "Edit note");
         resizeTextareaToContent(contentInput);
         editingNoteId = id;
+        updateNoteTabTitle(id);
         document.getElementById("note-edit-backdrop").hidden = false;
         document.documentElement.classList.add("note-edit-focus");
         document.body.classList.add("note-edit-focus");
@@ -7410,6 +7660,37 @@
             checkbox.dataset.taskIndex = String(index);
             checkbox.setAttribute("aria-label", checkbox.closest("li")?.textContent.trim().slice(0, 80) || "Checklist item");
           });
+        });
+      }
+
+      function decorateNoteCodeBlocks() {
+        notesList.querySelectorAll('.note-content pre[data-code-language]').forEach((pre) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'note-code-block';
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'note-code-language';
+          button.textContent = pre.dataset.codeLanguage || 'Plain text';
+          button.title = 'Edit code block and language';
+          button.setAttribute('aria-label', `Edit ${button.textContent} code block`);
+          button.disabled = archiveMode;
+          button.addEventListener('click', async () => {
+            const body = wrapper.closest('.note-content');
+            const blockIndex = [...body.children].findIndex((block) => block.contains(wrapper));
+            const id = Number(wrapper.closest('.note-card').id.slice(5));
+            await editNote(id, true, { blockIndex, offset: 0, globalOffset: 0 });
+            if (editingNoteId === id && !richEdit) {
+              const input = document.getElementById(`edit-content-${id}`);
+              const code = pre.textContent.replace(/\n$/, '');
+              const start = input.value.indexOf(code);
+              if (start >= 0) {
+                input.focus();
+                input.setSelectionRange(start, start + code.length);
+              }
+            }
+          });
+          pre.replaceWith(wrapper);
+          wrapper.append(pre, button);
         });
       }
 
@@ -7578,6 +7859,7 @@
 
       function scheduleEditAutosave(id) {
         if (editingNoteId !== id) return;
+        updateNoteTabTitle(id);
         rememberEditingNote(id);
         const editor = document.getElementById(`note-editor-${id}`);
         const hint = editor?.querySelector(".edit-hint");
@@ -7589,6 +7871,11 @@
       function handleEditInput(event, id) {
         resizeTextareaToContent(event.target);
         scheduleEditAutosave(id);
+      }
+
+      function updateNoteTabTitle(id) {
+        const title = document.getElementById(`edit-title-${id}`)?.value.trim() || "Untitled note";
+        document.title = `gnotes - ${title}`;
       }
 
       function queueEditAutosave(id) {
@@ -7764,6 +8051,28 @@
         saveUIState();
       });
 
+      document.getElementById("note-time-zone").addEventListener("change", async (event) => {
+        if (editingNoteId !== null && !await updateNote(editingNoteId)) {
+          event.target.value = timeZoneChoice;
+          return;
+        }
+        applyTimeZoneChoice(event.target.value);
+        if (!searchActive) setDefaultSearchDates();
+        closeArchiveOverview();
+        if (searchActive && calendarActive && selectedCalendarDate) {
+          activeSearchURL = buildCalendarURL(selectedCalendarDate);
+          saveUIState();
+          await loadNotes();
+        } else if (searchActive && !calendarActive) {
+          const searchURL = buildSearchURL();
+          activeSearchURL = `${searchURL.pathname}${searchURL.search}`;
+          saveUIState();
+          await loadNotes();
+        } else {
+          await showRecentNotes();
+        }
+      });
+
       document.getElementById("density-toggle").addEventListener("click", () => {
         applyDensityMode((densityIndex + 1) % densityModes.length);
         saveUIState();
@@ -7919,12 +8228,13 @@
       function archiveBucketLabel(bucket, type) {
         const start = new Date(bucket.start);
         if (type === "month") {
-          return start.toLocaleDateString([], { month: "long", year: "numeric" });
+          return start.toLocaleDateString([], { month: "long", year: "2-digit", timeZone: noteTimeZone() });
         }
         return `Week of ${start.toLocaleDateString([], {
           month: "short",
           day: "numeric",
-          year: "numeric",
+          year: "2-digit",
+          timeZone: noteTimeZone(),
         })}`;
       }
 
@@ -7952,7 +8262,7 @@
         document.getElementById("archive-total").textContent = "Loading…";
         document.getElementById("archive-months").innerHTML = "";
         document.getElementById("archive-weeks").innerHTML = "";
-        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+        const timezone = noteTimeZone();
         let response;
         try {
           response = await apiFetch(`/api/notes/archive?timezone=${encodeURIComponent(timezone)}`);
@@ -8237,6 +8547,96 @@
       document.getElementById("login-tab").addEventListener("click", () => switchAuthMode("login"));
       document.getElementById("register-tab").addEventListener("click", () => switchAuthMode("register"));
 
+      async function submitAccountRequest(endpoint, input, authenticated = false) {
+        const response = await (authenticated ? apiFetch : fetch)(endpoint, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+        });
+        if (!response.ok) throw new Error((await response.text()).trim() || "Could not complete request.");
+        return (await response.json()).message;
+      }
+
+      document.getElementById("forgot-password").addEventListener("click", () => {
+        document.getElementById("auth-form").hidden = true;
+        document.querySelector(".auth-tabs").hidden = true;
+        document.getElementById("forgot-password").hidden = true;
+        document.getElementById("auth-password").value = "";
+        document.getElementById("recovery-request-form").hidden = false;
+        document.getElementById("recovery-username").value = document.getElementById("auth-username").value;
+        document.getElementById("recovery-request-status").textContent = "";
+        document.getElementById("recovery-email").focus();
+      });
+
+      document.getElementById("recovery-request-back").addEventListener("click", () => {
+        switchAuthMode("login");
+        showAuth();
+      });
+
+      for (const id of ["recovery-username", "recovery-email"]) {
+        document.getElementById(id).addEventListener("input", () => {
+          document.getElementById("recovery-request-status").textContent = "";
+        });
+      }
+
+      document.getElementById("recovery-request-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = event.target.querySelector("button[type='submit']");
+        const status = document.getElementById("recovery-request-status");
+        button.disabled = true;
+        status.textContent = "Requesting reset link…";
+        try {
+          status.textContent = await submitAccountRequest("/api/auth/recovery/request", {
+            username: document.getElementById("recovery-username").value,
+            email: document.getElementById("recovery-email").value.trim(),
+          });
+        } catch (error) { status.textContent = error.message || "Could not reach the server."; }
+        finally { button.disabled = false; }
+      });
+
+      document.getElementById("account-link-back").addEventListener("click", () => {
+        accountLinkToken = "";
+        document.getElementById("account-link-form").reset();
+        switchAuthMode("login");
+        showAuth();
+      });
+
+      document.getElementById("account-link-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const status = document.getElementById("account-link-status");
+        const verifying = accountLinkAction === "verify-email";
+        const password = document.getElementById("reset-password").value;
+        if (!verifying && password !== document.getElementById("reset-password-confirm").value) {
+          status.textContent = "Passwords do not match.";
+          return;
+        }
+        const button = document.getElementById("account-link-submit");
+        button.disabled = true;
+        status.textContent = verifying ? "Verifying email…" : "Changing password…";
+        try {
+          const message = await submitAccountRequest(verifying ? "/api/auth/email/verify" : "/api/auth/recovery/reset",
+            verifying ? { token: accountLinkToken } : { token: accountLinkToken, password });
+          accountLinkToken = "";
+          event.target.reset();
+          switchAuthMode("login");
+          showAuth(message);
+        } catch (error) { status.textContent = error.message || "Could not reach the server."; }
+        finally { button.disabled = false; }
+      });
+
+      document.getElementById("recovery-email-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = event.target.querySelector("button[type='submit']");
+        const status = document.getElementById("profile-recovery-status");
+        button.disabled = true;
+        status.textContent = "Sending verification link…";
+        try {
+          status.textContent = await submitAccountRequest("/api/auth/email/request", {
+            email: document.getElementById("profile-recovery-email").value.trim(),
+            password: document.getElementById("profile-recovery-password").value,
+          }, true);
+        } catch (error) { status.textContent = error.message || "Could not reach the server."; }
+        finally { button.disabled = false; document.getElementById("profile-recovery-password").value = ""; }
+      });
+
       document.getElementById("auth-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const status = document.getElementById("auth-status");
@@ -8406,6 +8806,8 @@
         document.getElementById("profile-panel").hidden = false;
         document.getElementById("profile-heading").textContent = currentUser.username;
         document.getElementById("profile-role").textContent = `${currentUser.role === "admin" ? "Admin" : "User"} · Signed in`;
+        document.getElementById("recovery-email-form").hidden = true;
+        document.getElementById("profile-recovery-status").textContent = "";
         for (const id of ["profile-email", "profile-joined", "profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
           document.getElementById(id).textContent = "Loading…";
         }
@@ -8413,7 +8815,10 @@
           const response = await apiFetch("/api/auth/me");
           if (!response.ok) throw new Error("Profile unavailable");
           const profile = await response.json();
-          document.getElementById("profile-email").textContent = profile.email || "Not provided";
+          document.getElementById("profile-email").textContent = profile.email
+            ? `${profile.email} · ${profile.email_verified ? "Verified for recovery" : "Not verified"}` : "Not provided";
+          document.getElementById("recovery-email-form").hidden = !profile.recovery_enabled;
+          document.getElementById("profile-recovery-email").value = profile.email || "";
           document.getElementById("profile-joined").textContent = formatAdminTime(profile.created_at);
           document.getElementById("profile-last-signin").textContent = formatAdminTime(profile.last_login_at);
           document.getElementById("profile-active-notes").textContent = String(profile.active_note_count ?? 0);
@@ -8426,7 +8831,10 @@
         }
       }
 
-      function closeProfilePanel() { document.getElementById("profile-panel").hidden = true; }
+      function closeProfilePanel() {
+        document.getElementById("profile-panel").hidden = true;
+        document.getElementById("profile-recovery-password").value = "";
+      }
 
       function openHelpPanel() {
         closeAdminPanel();
@@ -8536,6 +8944,7 @@
       });
       document.getElementById("create-invitation").addEventListener("click", createInvitation);
 
+      populateTimeZoneChoices();
       setDefaultSearchDates();
       initializeAuth();
     </script>

@@ -14,13 +14,18 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
 - Create, autosave, and edit notes in a focused full-screen phone view or centered desktop panel; copy the current text from the lower left or finish with the green check mark and return to the same list position. Pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
-- Copy a note’s displayed text from its action menu; read-only page text does not select by dragging, while editors remain selectable
+- Select note titles and text by dragging, then copy normally; selection does not open the editor. Copy whole notes from their action menu
 - Archive notes for later reading and restore them without deleting them; move one archived note, all notes archived on a displayed date, or the full archive to the recycle bin
 - Cursor-paginated note and recycle-bin loading with indexed full-text search
 - Live title/content search with note and occurrence counts, highlighting, date ranges, scope, and case controls
 - Calendar jumps and monthly/weekly archive overviews for large collections
 - Server-backed per-user draft autosave and refresh recovery
-- Responsive layouts, three note-density modes, and per-user interface-state restoration
+- Optional Brevo password recovery: verify an email from your profile, then use **Forgot password?** to receive an expiring reset link. A reset signs out existing sessions
+- Responsive layouts, three note-density modes, and per-user interface-state restoration. A small chevron beside each note timestamp rolls up that note's body without hiding its title or actions; its state is remembered per account in this browser
+- Compact Density, Fold/Open, and Tools On/Off controls sit above the notes on the right. **Controls → Appearance → Time zone** defaults to the browser's zone; choose a specific zone such as Japan (Asia/Tokyo) when the browser reports the wrong one. This choice is remembered per account in the current browser and applies to note times, date groups, date search, and archive date actions
+- Browser tabs show `gnotes - NOTE_TITLE` while a note is open. Note times omit AM/PM, and displayed note years use two digits
+- Code blocks show a clickable language label in the top right; clicking opens the block for editing. Checklists display inline checkboxes without extra bullets
+- Space after a bold word or Enter ends bold formatting; spaces inside an existing bold phrase retain it
 - Up to three configurable quick actions per note, with the remaining actions in its menu
 - Rich text editing by default, with an **Aa** button beside the green check mark that opens formatting controls for text styles, headings, lists, checklists, quotes, links, code, and dividers. Select text to format it or choose a style before typing; type `/` at the start of a paragraph for block options. Markdown source editing is opt-in under **Account → Advanced**
 - Global note font and 65–175% title/text size controls, including in the rich text editor; menu opacity ranges from 0–100%
@@ -57,6 +62,12 @@ Supported environment variables:
 | `BACKUP_DIRECTORY` | `/var/backups/gnotes` | Destination used by the backup script |
 | `GNOTES_SECURE_COOKIES` | `false` | Set to `true` behind production HTTPS |
 | `GNOTES_SETUP_TOKEN` | none | Required for first-admin setup when accessed remotely |
+| `BREVO_API_KEY` | none | Server-only Brevo API key; enables email recovery when configured |
+| `GNOTES_EMAIL_FROM` | none | Verified sender email address in Brevo |
+| `GNOTES_EMAIL_FROM_NAME` | `gnotes` | Sender display name |
+| `GNOTES_PUBLIC_URL` | none | Application origin for email links; HTTPS required except on localhost |
+
+See [OPERATIONS.md](OPERATIONS.md#brevo-password-recovery) for email setup. Existing account emails require verification before they can recover a password.
 
 Run validation with:
 
@@ -215,4 +226,4 @@ The updater downloads the requested versioned release, verifies its SHA-256 chec
 
 ## Security and production roadmap
 
-The prioritized plan is maintained in [ROADMAP.md](ROADMAP.md). Database restore tooling covers both systemd and the production Podman deployment. Encrypted off-server backups and operational monitoring follow. Encryption, offline access, account recovery, and horizontal scaling require explicit design decisions documented there before implementation.
+The prioritized plan is maintained in [ROADMAP.md](ROADMAP.md). Database restore tooling covers both systemd and the production Podman deployment. Encrypted off-server backups and operational monitoring follow. Encryption, offline access, and horizontal scaling require explicit design decisions documented there before implementation.

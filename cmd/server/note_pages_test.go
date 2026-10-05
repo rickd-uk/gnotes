@@ -231,7 +231,7 @@ func TestCursorValidation(t *testing.T) {
 	}
 }
 
-func TestCalendarSearchUsesBrowserTimeBoundaries(t *testing.T) {
+func TestCalendarSearchUsesSelectedTimeZone(t *testing.T) {
 	db.InitDB(filepath.Join(t.TempDir(), "calendar.db"))
 	t.Cleanup(func() { db.DB.Close() })
 	userID := insertPageTestUser(t, "calendar")
@@ -248,13 +248,19 @@ func TestCalendarSearchUsesBrowserTimeBoundaries(t *testing.T) {
 		}
 	}
 	params := url.Values{
-		"scope":     {"all"},
-		"from_time": {"2026-09-21T00:00:00+09:00"},
-		"to_time":   {"2026-09-22T00:00:00+09:00"},
+		"scope":    {"all"},
+		"from":     {"2026-09-21"},
+		"to":       {"2026-09-21"},
+		"timezone": {"Asia/Tokyo"},
 	}
 	page := requestNotePage(t, pagedSearchNotesHandler, "/api/notes/search-page?"+params.Encode(), userID)
 	if page.Total != 1 || len(page.Notes) != 1 || page.Notes[0].Title != "boundary 1" {
 		t.Fatalf("calendar result = %+v, want the note inside the Tokyo local day", page)
+	}
+	params.Set("timezone", "UTC")
+	page = requestNotePage(t, pagedSearchNotesHandler, "/api/notes/search-page?"+params.Encode(), userID)
+	if page.Total != 1 || len(page.Notes) != 1 || page.Notes[0].Title != "boundary 2" {
+		t.Fatalf("UTC calendar result = %+v, want the note inside the UTC day", page)
 	}
 }
 

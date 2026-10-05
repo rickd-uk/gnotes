@@ -30,8 +30,16 @@ const MarkdownLinkShortcut = Extension.create({
   },
 });
 
+const WritingStarterKit = StarterKit.extend({
+  addExtensions() {
+    return this.parent().map((extension) => extension.name === 'bold'
+      ? extension.extend({ keepOnSplit: false })
+      : extension);
+  },
+});
+
 const extensions = [
-  StarterKit.configure({ heading: { levels: [2, 3] } }),
+  WritingStarterKit.configure({ heading: { levels: [2, 3] } }),
   TaskList,
   TaskItem.configure({ nested: true }),
   Markdown.configure({ markedOptions: { gfm: true, breaks: false } }),
@@ -61,7 +69,21 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
     extensions,
     content: markdown || '',
     contentType: 'markdown',
-    editorProps: { attributes: { 'aria-label': 'Note content', spellcheck: 'true' } },
+    editorProps: {
+      attributes: { 'aria-label': 'Note content', spellcheck: 'true' },
+      handleTextInput(view, from, to, text) {
+        if (from !== to || !/^[ \t]+$/.test(text)) return false;
+        const { $from } = view.state.selection;
+        const bold = view.state.schema.marks.bold;
+        const marks = view.state.storedMarks || $from.marks();
+        if (!bold.isInSet(marks) || bold.isInSet($from.nodeAfter?.marks || [])) return false;
+        // A space after a bold word starts ordinary text. Spaces inside an
+        // existing bold phrase retain its formatting.
+        view.dispatch(view.state.tr.insertText(text, from, to)
+          .removeMark(from, from + text.length, bold).removeStoredMark(bold));
+        return true;
+      },
+    },
     onUpdate: ({ editor: current }) => {
       current.view.dom.dataset.empty = String(current.isEmpty);
       onChange(current.getMarkdown());

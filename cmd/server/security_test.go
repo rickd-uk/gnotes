@@ -46,6 +46,18 @@ func TestMarkdownRendererEscapesHighlightedHTML(t *testing.T) {
 	}
 }
 
+func TestMarkdownCodeLanguageLabels(t *testing.T) {
+	rendered := mdToHTML("    indented\n\n```go\nfunc main() {}\n```\n\n```\nplain\n```\n\n~~~unknown\ncustom\n~~~\n\n```bad\"onclick=evil\nx\n```")
+	for _, attribute := range []string{`data-code-language="go"`, `data-code-language="unknown"`, `data-code-language="bad&#34;onclick=evil"`} {
+		if !strings.Contains(rendered, attribute) {
+			t.Fatalf("missing escaped language attribute %s: %s", attribute, rendered)
+		}
+	}
+	if strings.Count(rendered, `data-code-language=""`) != 2 {
+		t.Fatalf("plain and indented code should retain empty language: %s", rendered)
+	}
+}
+
 func TestMarkdownRendererSupportsToolbarFormatting(t *testing.T) {
 	rendered := mdToHTML(`~~finished~~
 

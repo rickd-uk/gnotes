@@ -1,81 +1,27 @@
-# gnotes progress
+# gnotes status
 
-Last updated: 2026-10-04
+Updated: 2026-10-05
 
-## Current production release
+## Production
 
-`v0.7.21` is deployed on Kagoya at `https://gnotes.rickd.dev`.
+`v0.7.21` is deployed at https://gnotes.rickd.dev on Kagoya with rootless Podman and SQLite. It adds archive removal for one note, one displayed date, or all archived notes.
 
-- The release workflow passed Go tests, the race test, `go vet`, ShellCheck, backup and restore tests, and the application rehearsal.
-- The Kagoya updater verified the release checksum, created a pre-release SQLite backup, restarted the rootless Podman service, and verified application health.
-- The live container is healthy and SQLite is connected. The public page hash matches the packaged page, and the updater saved a validated pre-release backup.
-- The `v0.7.21` release lets users move archived notes to the recycle bin individually, by displayed archive date, or all at once. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the public page hash matches the release archive. Local and public health checks passed after deployment.
-- The `v0.7.20` release adds Copy to the bottom left of the expanded editor. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the public page hash matches the release archive. Local and public health checks passed after deployment.
-- The `v0.7.19` release expands saved-note editing into a focused viewport-sized phone view or centered desktop panel. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the public page hash matches the release archive. Local and public health checks passed after deployment.
-- The `v0.7.18` release moves the saved-note Aa toggle beside the completion check and replaces Save and Done with green checks. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the public page hash matches the release archive. Local and public health checks passed after deployment.
-- The `v0.7.12` release adds more rich-text formatting, interactive saved checklists, and named links. Its release workflow passed, and the deployed page hash matches the local release page.
-- The `v0.7.13` release adds code-block language and normal-text controls in the rich editor. The public page and rich-editor asset hashes match the release files.
-- The `v0.7.14` release keeps the code language picker open when entering a saved note. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and browser asset hashes match the release archive. Local and public health checks passed after deployment.
-- The `v0.7.15` release adds a persistent rich-text formatting toolbar to new and saved notes. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and public page hashes match the release archive. Local and public health checks passed after deployment.
-- The `v0.7.16` release puts the formatting toolbar behind an Aa button and remembers its visibility per account in the browser. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and public page hashes match the release archive. Local and public health checks passed after deployment.
-- The `v0.7.17` release moves the new-note Aa toggle beside draft status and Save, groups Controls into View, Note actions, and Appearance, and allows three quick actions. Its release workflow passed; the Kagoya updater made a validated pre-update backup, and the running binary and public page hashes match the release archive. Local and public health checks passed after deployment.
-- Search → Dates and options now defaults Jump to date to today, removes the duplicate calendar picker button, and gives the section toggle larger, more prominent text.
+Release checks passed, including Go/race/vet, ShellCheck, backup/restore tests, and the application rehearsal. Deployment verified checksums, a validated pre-update backup, application health, and the public page hash.
 
-## Recently completed
+## Local work awaiting release
 
-- Full, Fold, and Notes share a row in the wide-screen Tools menu.
-- Note titles share their row with the note time and action menu.
-- Title and text controls now range from 75% to 150%.
-- Note font choices include Writer, Balanced, Clean, Cursive, Technical, and Playful.
-- Menu opacity can be lowered to 15%.
-- Notes support persistent subtle background colors with readable contrasting text.
-- Notes can be archived for later reading and restored from Archived notes without deletion.
-- Link underlines can be turned on or off; color-only links underline on hover and focus.
-- The administration menu label is shorter: Users & signups.
-- Small-screen notes have side padding and titles below the timestamp and actions row.
-- The mobile composer has a compact, pale-green **Save** button and subtle visual confirmation after a note is saved. Drafts still autosave.
-- Swipe left on a mobile note to reveal its actions, then tap an action; swipe right to close them.
-- Archived notes is directly accessible from the header. Hide remains a browser-local control in the Controls drawer; Archive persists with the account.
-- Full, Fold, and Notes share one row in the mobile Controls drawer.
-- New accounts see a brief welcome dialog with first-note instructions and Help and Markdown guide links. Its “Don’t show this again” choice is stored per account in the current browser.
-- Note color swatches are larger. A selected color updates the card after the server confirms it, and the newest-note highlight no longer masks the chosen background.
-- Empty filtered results offer a return to Recent, and note and draft load or save errors are clearer.
+- Per-note body roll-up, remembered per account in this browser.
+- Density, Fold/Open, and Tools On/Off controls above the notes.
+- Selectable time zone for note times, date groups, searches, and archive date actions; active date and text searches survive zone changes.
+- Brevo recovery is enabled locally. Verification mail arrived and the admin recovery email is confirmed; real reset-mail testing and production configuration remain open. Sign-in/main-screen branding matches.
+- Browser tab titles, clickable code-language labels, corrected checklist layout, text selection, shorter timestamps, and bold formatting boundaries.
+- Release candidate `v0.7.22`: Go/race/vet, ShellCheck, backup/restore tests, and restore rehearsal passed. Chromium at 320px/1024px verified recovery, branding, roll-up, density, time-zone persistence, tab titles, code editing, and mouse selection; keyboard checks verified bold boundaries.
+- Local server: http://127.0.0.1:8080, using the existing local database.
 
-## Verification and open checks
+## Next steps
 
-- Archived notes can now be moved to the recycle bin individually, by the displayed archive date, or all at once. Bulk actions confirm their scope, include notes beyond the loaded page, and leave Recent notes untouched. Go tests cover account isolation, Tokyo date boundaries, recycling, and recovery; Chromium checks at 320px and 1024px covered the three scopes, cancellation, 52 notes across pages, count updates, and no horizontal overflow. Deployed in `v0.7.21`; the authenticated Pixel 6a browser check remains open.
-- The expanded editor now has a Copy button at the bottom left. It copies current rich-text content or Markdown source without saving first and gives visible feedback. A 320px/1024px Chromium check verified position, unsaved text copied in both modes, toolbar and completion controls, and no overflow. Deployed in `v0.7.20`; the authenticated Pixel 6a browser check remains open.
-- Saved-note editing now opens a focused view that fills the phone viewport or centers a 760px panel on wider screens. The body scrolls within the panel, with Aa and the green check at the bottom; closing restores the notes-list scroll position. Local Chromium checks at 320px and 1024px covered save/reopen, toolbar visibility, Markdown source editing, viewport shrink, scroll restoration, and no horizontal overflow. Go tests, vet, and JavaScript syntax checks passed. Deployed in `v0.7.19`; the authenticated Pixel 6a browser check remains open.
-- The saved-note Aa toggle now shares the bottom action row with a green check mark; new notes also use a green check mark instead of Save. The buttons retain accessible save labels. A 320px Chromium check created a note, opened the saved-note toolbar below the editor, and saved an edited title without horizontal overflow. Local Go tests, vet, and JavaScript syntax checks passed; the authenticated Pixel 6a browser check remains open. Deployed in `v0.7.18`.
-- The new-note Aa formatting toggle now sits on the draft-status row before Save, with a separate gap. A 320px Chromium check verified its position with Save visible and hidden, toolbar formatting, and no page overflow. Deployed in `v0.7.17`.
-- Controls now groups View, Note actions, and Appearance in that order. Quick actions allow three choices, with Delete last in the chooser; the one-line description states the limit. Chromium checks at 320px and 1024px covered menu layout, three note actions, fourth-choice replacement, persistence after reload, and Full and Titles layouts. Deployed in `v0.7.17`; an authenticated live browser check remains open.
-- The rich-text formatting toolbar now starts collapsed behind an Aa button. Its visibility choice is saved per account in the current browser. A 320px Chromium check covered the initial collapsed state, showing and hiding the toolbar across new and saved notes, formatting before typing and on selected text, no horizontal page overflow, and restoration after reload. Deployed in `v0.7.16`; an authenticated live browser check remains open.
-- The rich editor gained a 14-command formatting toolbar in new and saved notes in `v0.7.15`. An authenticated live browser check remains open.
-- Opening a saved code block by clicking its preview no longer immediately closes the language picker. A 320px Chromium test reproduced the missing picker, then verified a real click shows the picker and a language change persists after saving. The correction is deployed in `v0.7.14`; an authenticated live browser check remains open.
-- Rich-text code blocks now show a language picker at the cursor, including Plain and the existing source-editor language choices, plus a Normal text conversion. An existing custom language remains selectable. A 320px Chromium check covered picker fit, language changes, unknown-language preservation, plain code, saved highlighting, reopening, and persistence after editing an existing note. Go tests and vet passed. Deployed in `v0.7.13`.
-- Rich text now adds Strikethrough and Inline code to the selected-text toolbar, plus Small heading, Quote, Code block, and Divider to `/`; Checklist is the first `/` option and also appears in the selection toolbar. Saved checklist boxes can be ticked directly in Recent notes and persist after reload, with failed saves rolled back. The Link control opens an in-app form for display text and address; saved links show the name, reveal the address on hover, and can be removed without losing their text. Focused 320px browser checks covered the new commands, menu fit, named-link saving/removal, and checkbox persistence/error rollback, including a task-looking line inside a code block. `go test ./...`, `go vet ./...`, and JavaScript syntax checks passed. Deployed in `v0.7.12`.
-- The `v0.7.8` release workflow passed its Go, race, vet, ShellCheck, backup, restore, and application rehearsal checks. Kagoya made a validated pre-update backup; the deployed page hash matched the release and the public health endpoint passed.
-- Local 320px browser checks covered the header, Controls row, welcome dialog, new-account “Don’t show this again” behavior, and visible note-color updates.
-- Retest the deployed update on the Pixel 6a in Brave, Epic, Firefox, and Chrome. A prior Epic empty list was caused by a saved date filter; choosing Recent showed notes. No browser-specific storage failure was confirmed.
-- Wasabi or other encrypted off-server backup storage is not configured. Daily validated backups currently remain on the Kagoya VPS.
-- Export and import are included in v0.7.9. The new account panel supports all or selected notes, three export formats, and JSON, ZIP, Markdown, and text import. Round-trip and account-isolation tests pass.
-- Rich text editing is included in v0.7.9 with a small toolbar for selected text, `/` block options, visible paragraph breaks, and Markdown source editing under Account → Advanced. The global font and size controls still apply. Older Markdown that cannot round-trip through the rich editor opens in source mode to preserve it. The global Hide eye was removed; per-note Hide and the Hidden notes panel remain. The controls allow 0–100% menu opacity and 65–175% title and text sizes. The same Save button appears on mobile and wider screens, note action buttons and icons are larger, and pinned note dates have left padding. Clicking a note opens editing near the clicked text position; Done closes the editor. The Edit icon is removed, and Copy is an icon in the same single-row note menu as the other actions. Page and displayed note text no longer select by dragging; text fields and rich editors still allow selection.
-- The account menu now closes on sign-out and is never restored from saved appearance state. Existing browsers with the old saved open flag also start with the menu closed after sign-in.
-- Local Chromium checks covered export and import, rich text typing and saving, paragraph breaks, checklists, selected-text and slash commands, editing existing notes, Advanced preference restoration, old Markdown preservation, appearance range endpoints, Save on 320px and 1024px screens, pinned date spacing, action menu fit without horizontal overflow, click-to-edit from title and body, link clicks that do not open editing, note text copy, and editor selection. In 320px Chromium touch emulation, a swipe did not open editing and the following tap did. `go test ./...`, `go vet ./...`, and JavaScript syntax validation passed. The Pixel 6a was not connected, so the four-browser device retest remains open.
-- A 320px Chromium sign-out/sign-in check confirmed the account menu stays closed, including with a legacy saved `accountOpen: true` value and after reloading while the menu was open.
-- A 320px Chromium check confirmed the six action icons stay on one row without horizontal overflow, the Copy icon copies note text, and title and multi-paragraph body clicks place the editing caret in the clicked text and paragraph.
-- Rich-text links turn typed or pasted `[label](URL)` into a labeled hyperlink. Untitled note previews use the label rather than showing the Markdown syntax. Chromium checks covered typing, pasting one or two links, text after a link, invalid URLs, saving, and reopening a saved link.
-- The earlier quick-action implementation allowed two chosen actions beside More, defaulting to Archive and Delete. Controls offered Archive, Delete, Pin, Hide, Color, and Copy; all remaining actions stayed in More. Delete offers an eight-second Undo button. Chromium checks at 320px, 375px, and 1024px covered Full, Compact, and Titles layouts, action selection and persistence, menu fit, color, delete, undo, and archive.
-- The header archive icon toggles between Recent and a full Archived notes view, with a tinted active icon, a distinct banner, and the same note cards and density choices. Archived cards show their rendered content and archive date, with Unarchive and Copy actions; editing remains in Recent after unarchiving. The archive view uses 50-note pages, an archive paging index, and archive-aware search/date filters. Chromium checks at 320px and 1024px covered mode switching, card rendering, Titles layout, search, and unarchive. A Go test traversed 125 archived notes, checked same-time cursor ties, user isolation, search paging, and archive-date filtering.
-- Archive and unarchive show a brief in-app success toast and a styled dialog for failures. Page responses identify Recent or Archived; the client rejects an archive response from a stale local server (or a missing archive date) with a restart message instead of showing "Unknown date" and offering invalid unarchive actions. Go tests, vet, JavaScript syntax checks, the 320px/1024px archive browser run, and a focused browser check of success, failure, and a simulated stale server response passed.
+1. Configure Brevo in production and deploy `v0.7.22`, then confirm real reset-email delivery. Retest on the Pixel 6a in Brave, Epic, Firefox, and Chrome: recovery, save/reopen, focused editor and Copy, Aa/formatting, quick actions, code language picker, archive removal/recovery, export/import, and welcome behavior. Epic previously showed an empty list because of a saved date filter; no browser storage failure was confirmed.
+2. Choose encrypted off-server backup storage and an alert provider. Validated daily backups currently remain on Kagoya; add replication and alerts for backup failures, disk space, restarts, TLS expiry, and public health.
+3. Continue security work: remove inline assets from CSP, add audit records, and design administrator MFA.
 
-## Future plans
-
-Priority order remains:
-
-1. Retest `v0.7.21` with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome. Cover new-note save, the focused editor and Copy button, Aa and the green completion checks, three quick actions, the saved code-block language picker, and archive removal for one note, one displayed date, and all notes. Recover a removed note from the recycle bin. Fix reproducible issues.
-2. Choose encrypted off-server backup storage and an alert provider, then replicate the validated daily backups. Alert on stale or failed backups, low disk space, repeated service restarts, TLS expiry, and public health failures. Daily validated backups currently remain on Kagoya.
-3. Continue the security work in `ROADMAP.md`: move inline JavaScript and CSS into versioned assets to remove `unsafe-inline` from the Content Security Policy, add privacy-conscious audit records, and design password recovery and administrator MFA with recovery codes.
-4. Consider bulk unarchive controls, encrypted offline access, and rendered task-checkbox interaction after the mobile and reliability work.
-
-End-to-end encryption, horizontal scaling, and a PostgreSQL migration remain later design projects. SQLite remains appropriate for the current single-instance deployment.
+Feature documentation: [README.md](README.md). Backlog: [ROADMAP.md](ROADMAP.md). Operations: [OPERATIONS.md](OPERATIONS.md). Earlier release and verification details remain in Git history.

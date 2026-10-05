@@ -78,6 +78,7 @@ func authConfigHandler(w http.ResponseWriter, r *http.Request) {
 		"setup_token_required": userCount == 0 && setupTokenRequired(r),
 		"signups_enabled":      userCount == 0 || policy.Enabled,
 		"invite_required":      userCount > 0 && policy.Enabled && policy.InvitationNeeded,
+		"recovery_enabled":     recoveryEnabled(),
 	})
 }
 
@@ -231,7 +232,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	finishAuthentication(w, r, int(userID), creds.Username, role)
+	finishAuthentication(w, r, int(userID), creds.Username, role, passwordHash)
 }
 
 func writeRegistrationError(w http.ResponseWriter, err error) {
@@ -318,14 +319,23 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	if cost, err := bcrypt.Cost(passwordHash); err == nil && cost < passwordHashCost {
 		if upgradedHash, err := hashPassword(creds.Password); err == nil {
-			db.DB.Exec("UPDATE users SET password_hash = ? WHERE id = ?", upgradedHash, userID)
+			result, err := db.DB.Exec("UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = ?", upgradedHash, userID, passwordHash)
+			if err != nil {
+				http.Error(w, "Could not sign in", http.StatusInternalServerError)
+				return
+			}
+			if count, _ := result.RowsAffected(); count != 1 {
+				http.Error(w, "Password changed. Please sign in again", http.StatusUnauthorized)
+				return
+			}
+			passwordHash = upgradedHash
 		}
 	}
 	if err := clearLoginCooldown(creds.Username); err != nil {
 		http.Error(w, "Could not sign in", http.StatusInternalServerError)
 		return
 	}
-	finishAuthentication(w, r, userID, username, role)
+	finishAuthentication(w, r, userID, username, role, passwordHash)
 }
 
 func loginWaitMessage(wait time.Duration) string {
@@ -387,13 +397,14 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 	var joinedAt string
 	var lastLogin sql.NullString
 	var email sql.NullString
+	var emailVerified sql.NullTime
 	var activeNotes, recycledNotes int
 	err := db.DB.QueryRow(`
-		SELECT users.created_at, users.last_login_at, users.email,
+		SELECT users.created_at, users.last_login_at, users.email, users.email_verified_at,
 			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NULL AND archived_at IS NULL),
 			(SELECT COUNT(*) FROM notes WHERE user_id = users.id AND deleted_at IS NOT NULL)
 		FROM users WHERE users.id = ?`, session.UserID,
-	).Scan(&joinedAt, &lastLogin, &email, &activeNotes, &recycledNotes)
+	).Scan(&joinedAt, &lastLogin, &email, &emailVerified, &activeNotes, &recycledNotes)
 	if err != nil {
 		http.Error(w, "Could not load profile", http.StatusInternalServerError)
 		return
@@ -406,6 +417,8 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 		"csrf_token":          session.CSRFToken,
 		"created_at":          joinedAt,
 		"email":               email.String,
+		"email_verified":      emailVerified.Valid,
+		"recovery_enabled":    recoveryEnabled(),
 		"active_note_count":   activeNotes,
 		"recycled_note_count": recycledNotes,
 	}
@@ -422,7 +435,7 @@ func nullableEmail(email string) any {
 	return email
 }
 
-func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, username, role string) {
+func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, username, role string, expectedHash ...[]byte) {
 	sessionToken, err := randomToken()
 	if err != nil {
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
@@ -436,21 +449,35 @@ func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, us
 
 	now := time.Now()
 	expiresAt := now.Add(sessionLifetime)
-	if cookie, err := r.Cookie(sessionCookieName); err == nil {
-		db.DB.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(cookie.Value))
-	}
-	if _, err := db.DB.Exec(
-		"INSERT INTO sessions (token_hash, user_id, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
-		hashToken(sessionToken),
-		userID,
-		csrfToken,
-		now,
-		expiresAt,
-	); err != nil {
+	tx, err := db.DB.Begin()
+	if err != nil {
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
 		return
 	}
-	if _, err := db.DB.Exec(`
+	defer tx.Rollback()
+	if cookie, err := r.Cookie(sessionCookieName); err == nil {
+		if _, err := tx.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(cookie.Value)); err != nil {
+			http.Error(w, "Could not start session", http.StatusInternalServerError)
+			return
+		}
+	}
+	query := `INSERT INTO sessions (token_hash, user_id, csrf_token, created_at, expires_at)
+		SELECT ?, id, ?, ?, ? FROM users WHERE id = ? AND active = 1`
+	args := []any{hashToken(sessionToken), csrfToken, now, expiresAt, userID}
+	if len(expectedHash) > 0 {
+		query += " AND password_hash = ?"
+		args = append(args, expectedHash[0])
+	}
+	result, err := tx.Exec(query, args...)
+	if err != nil {
+		http.Error(w, "Could not start session", http.StatusInternalServerError)
+		return
+	}
+	if count, _ := result.RowsAffected(); count != 1 {
+		http.Error(w, "Account changed. Please sign in again", http.StatusUnauthorized)
+		return
+	}
+	if _, err := tx.Exec(`
 		DELETE FROM sessions
 		 WHERE user_id = ?
 		   AND token_hash NOT IN (
@@ -459,17 +486,22 @@ func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, us
 		        ORDER BY created_at DESC
 		        LIMIT ?
 		   )`, userID, userID, maxUserSessions); err != nil {
-		db.DB.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(sessionToken))
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
 		return
 	}
-	if _, err := db.DB.Exec("UPDATE users SET last_login_at = ? WHERE id = ?", now, userID); err != nil {
-		db.DB.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(sessionToken))
+	if _, err := tx.Exec("UPDATE users SET last_login_at = ? WHERE id = ?", now, userID); err != nil {
 		http.Error(w, "Could not finish sign in", http.StatusInternalServerError)
 		return
 	}
 
-	db.DB.Exec("DELETE FROM sessions WHERE expires_at <= ?", now)
+	if _, err := tx.Exec("DELETE FROM sessions WHERE expires_at <= ?", now); err != nil {
+		http.Error(w, "Could not finish sign in", http.StatusInternalServerError)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Could not finish sign in", http.StatusInternalServerError)
+		return
+	}
 	setSessionCookie(w, r, sessionToken, expiresAt)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")

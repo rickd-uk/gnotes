@@ -11,7 +11,7 @@ import (
 
 var DB *sql.DB
 
-const renderedContentCacheVersion = "2"
+const renderedContentCacheVersion = "3"
 
 func InitDB(filepath string) {
 	var err error
@@ -82,6 +82,22 @@ func InitDB(filepath string) {
     updated_at DATETIME NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    password_hash BLOB NOT NULL,
+    expires_at DATETIME NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    password_hash BLOB NOT NULL,
+    expires_at DATETIME NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -149,6 +165,7 @@ func InitDB(filepath string) {
 	ensureTableColumn("users", "active", "INTEGER NOT NULL DEFAULT 1")
 	ensureTableColumn("users", "last_login_at", "DATETIME")
 	ensureTableColumn("users", "email", "TEXT")
+	ensureTableColumn("users", "email_verified_at", "DATETIME")
 	ensureRenderedContentCacheVersion()
 	ensureNotesFTS()
 

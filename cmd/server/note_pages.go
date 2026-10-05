@@ -409,11 +409,15 @@ func pagedSearchTimes(r *http.Request) (time.Time, time.Time, error) {
 		return fromTime, toTime, nil
 	}
 
-	fromDate, err := parseSearchDate(r.URL.Query().Get("from"))
+	location, err := searchTimeZone(r)
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("invalid time zone")
+	}
+	fromDate, err := parseSearchDateInLocation(r.URL.Query().Get("from"), location)
 	if err != nil {
 		return time.Time{}, time.Time{}, errors.New("invalid start date")
 	}
-	toDate, err := parseSearchDate(r.URL.Query().Get("to"))
+	toDate, err := parseSearchDateInLocation(r.URL.Query().Get("to"), location)
 	if err != nil {
 		return time.Time{}, time.Time{}, errors.New("invalid end date")
 	}

@@ -53,7 +53,7 @@ The notification provider and off-server storage destination require an explicit
 
 1. Move inline JavaScript and CSS into versioned static files, then remove `unsafe-inline` from the Content Security Policy.
 2. Add user data export and complete self-service account deletion.
-3. Design password recovery without weakening note privacy.
+3. Configure and verify the implemented Brevo password recovery in production; require verified recovery emails and keep the API key private.
 4. Add administrator MFA and recovery codes.
 
 ## Offline access and encryption
@@ -83,5 +83,6 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 - Explore grids after defining whether they should arrange note cards or provide spreadsheet-style cells.
 - Explore graphs and charts generated from note data, with a clear source format and safe rendering.
 - Explore attaching documents to notes and previewing supported files in place. Define per-account access, file size and type limits, private storage, export behavior, and backup coverage before implementation.
+- Explore a personal dictionary: right-click a word in a note to save it to an account-specific word list, view definitions, and manage saved entries. Choose a freely licensed dictionary dataset that can be stored and searched on the server with no runtime online lookups; review its license, update process, and backup size before implementation.
 
 Security requirements and operating procedures remain authoritative in [SECURITY.md](SECURITY.md) and [OPERATIONS.md](OPERATIONS.md).

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"html/template"
 	"io"
 	"log"
@@ -14,14 +15,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/text"
 	"gnotes/internal/db"
 	"gnotes/internal/models"
 )
@@ -45,12 +50,36 @@ var markdownRenderer = goldmark.New(
 
 // mdToHTML renders Markdown and highlights fenced code blocks that name a
 // recognized language. Unlabelled and unknown languages remain plain code.
+var codeBlockOpening = regexp.MustCompile(`<pre(?:\s[^>]*)?>`)
+
 func mdToHTML(raw string) string {
+	source := []byte(raw)
+	document := markdownRenderer.Parser().Parse(text.NewReader(source))
+	var languages []string
+	ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering {
+			switch block := node.(type) {
+			case *ast.FencedCodeBlock:
+				languages = append(languages, string(block.Language(source)))
+			case *ast.CodeBlock:
+				languages = append(languages, "")
+			}
+		}
+		return ast.WalkContinue, nil
+	})
 	var buf bytes.Buffer
-	if err := markdownRenderer.Convert([]byte(raw), &buf); err != nil {
+	if err := markdownRenderer.Renderer().Render(&buf, source, document); err != nil {
 		return raw // Fallback to raw text if it fails
 	}
-	return buf.String()
+	index := 0
+	return codeBlockOpening.ReplaceAllStringFunc(buf.String(), func(opening string) string {
+		if index >= len(languages) {
+			return opening
+		}
+		language := languages[index]
+		index++
+		return strings.TrimSuffix(opening, ">") + ` data-code-language="` + html.EscapeString(language) + `">`
+	})
 }
 
 func main() {
@@ -67,6 +96,14 @@ func run() error {
 	}
 	db.InitDB(databasePath)
 	defer db.DB.Close()
+	recoverySettings, err := loadRecoveryConfig()
+	if err != nil {
+		return fmt.Errorf("password recovery configuration: %w", err)
+	}
+	recovery := newRecoveryService(db.DB, recoverySettings)
+	recoveryContext, stopRecovery := context.WithCancel(context.Background())
+	recovery.start(recoveryContext)
+	defer func() { stopRecovery(); recovery.wg.Wait() }()
 	if err := cleanupAbuseData(time.Now()); err != nil {
 		return fmt.Errorf("could not clean expired security data: %w", err)
 	}
@@ -77,6 +114,10 @@ func run() error {
 	mux.HandleFunc("/api/auth/login", loginHandler)
 	mux.HandleFunc("/api/auth/config", authConfigHandler)
 	mux.HandleFunc("/api/auth/me", protect(meHandler, false))
+	mux.HandleFunc("/api/auth/recovery/request", recovery.requestReset)
+	mux.HandleFunc("/api/auth/recovery/reset", recovery.resetPassword)
+	mux.HandleFunc("/api/auth/email/request", protect(recovery.requestVerification, true))
+	mux.HandleFunc("/api/auth/email/verify", recovery.verifyEmail)
 	mux.HandleFunc("/api/auth/logout", protect(logoutHandler, true))
 	mux.HandleFunc("/api/draft", protect(getDraftHandler, false))
 	mux.HandleFunc("/api/draft/update", protect(updateDraftHandler, true))
@@ -285,13 +326,18 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 
 	conditions := []string{"user_id = ?", "deleted_at IS NULL", "archived_at IS NULL"}
 	args := []any{userIDFromRequest(r)}
+	location, err := searchTimeZone(r)
+	if err != nil {
+		http.Error(w, "Invalid time zone", http.StatusBadRequest)
+		return
+	}
 
-	fromDate, err := parseSearchDate(r.URL.Query().Get("from"))
+	fromDate, err := parseSearchDateInLocation(r.URL.Query().Get("from"), location)
 	if err != nil {
 		http.Error(w, "Invalid start date", http.StatusBadRequest)
 		return
 	}
-	toDate, err := parseSearchDate(r.URL.Query().Get("to"))
+	toDate, err := parseSearchDateInLocation(r.URL.Query().Get("to"), location)
 	if err != nil {
 		http.Error(w, "Invalid end date", http.StatusBadRequest)
 		return
@@ -361,11 +407,22 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(matches)
 }
 
-func parseSearchDate(value string) (time.Time, error) {
+func parseSearchDateInLocation(value string, location *time.Location) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, nil
 	}
-	return time.ParseInLocation("2006-01-02", value, time.Local)
+	return time.ParseInLocation("2006-01-02", value, location)
+}
+
+func searchTimeZone(r *http.Request) (*time.Location, error) {
+	value := r.URL.Query().Get("timezone")
+	if value == "" {
+		return time.Local, nil
+	}
+	if len(value) > 100 {
+		return nil, errors.New("time zone is too long")
+	}
+	return time.LoadLocation(value)
 }
 
 func pinNoteHandler(w http.ResponseWriter, r *http.Request) {
