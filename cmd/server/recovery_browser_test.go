@@ -119,12 +119,15 @@ func TestRecoveryBrowser(t *testing.T) {
 			browser.script(`updateNote(window.tabTitleNoteID);`)
 			browser.wait(`document.title==='gnotes' && !document.documentElement.classList.contains('note-edit-focus')`)
 			browser.wait(`document.querySelectorAll('.note-code-language').length===2 && [...document.querySelectorAll('.note-code-language')].map(b=>b.textContent).join(',')==='go,Plain text'`)
-			browser.script(`document.querySelector('.note-code-language').click();`)
+			// Exercise source selection explicitly; representable notes now stay
+			// in rich text instead of falling back for harmless source changes.
+			browser.script(`applyEditorMode(true); document.querySelector('.note-code-language').click();`)
 			browser.wait(`document.documentElement.classList.contains('note-edit-focus') && document.getElementById('edit-content-'+window.tabTitleNoteID).value.slice(document.getElementById('edit-content-'+window.tabTitleNoteID).selectionStart, document.getElementById('edit-content-'+window.tabTitleNoteID).selectionEnd)==='func main() {}'`)
 			browser.script(`const input=document.getElementById('edit-content-'+window.tabTitleNoteID); input.value=input.value.replace('` + "```go" + `','` + "```python" + `'); input.dispatchEvent(new Event('input',{bubbles:true})); updateNote(window.tabTitleNoteID);`)
 			browser.wait(`!document.documentElement.classList.contains('note-edit-focus') && document.querySelector('.note-code-language')?.textContent==='python'`)
 			browser.script(`document.querySelector('.note-code-language').click(); const input=document.getElementById('edit-content-'+window.tabTitleNoteID); input.value='` + "```go\\nfunc main() {}\\n```" + `'; updateNote(window.tabTitleNoteID);`)
 			browser.wait(`!document.documentElement.classList.contains('note-edit-focus') && document.querySelector('.note-code-language')?.textContent==='go'`)
+			browser.script(`applyEditorMode(false);`)
 			browser.script(`document.querySelector('.note-code-language').click();`)
 			browser.wait(`document.documentElement.classList.contains('note-edit-focus') && !document.querySelector('.rich-context-menu').hidden && document.getElementById('rich-code-language')?.value==='go'`)
 			browser.script(`const select=document.getElementById('rich-code-language'); select.value='rust'; select.dispatchEvent(new Event('change', {bubbles:true})); updateNote(window.tabTitleNoteID);`)
@@ -179,6 +182,24 @@ func TestRecoveryBrowser(t *testing.T) {
 			browser.wait(`document.getElementById('account-link-status').textContent.includes('already used') && document.documentElement.scrollWidth<=innerWidth`)
 		})
 	}
+}
+
+func TestRichLineBreaksBrowser(t *testing.T) {
+	if os.Getenv("GNOTES_BROWSER_CHECK") != "1" {
+		t.Skip("optional local Chromium check")
+	}
+	server := httptest.NewServer(http.FileServer(http.Dir("../../public")))
+	defer server.Close()
+	browser := newRecoveryBrowser(t)
+	browser.navigate(server.URL)
+	browser.wait(`Boolean(window.GnotesRichEditor)`)
+	browser.script(`const host=document.createElement('div'); document.body.prepend(host); window.linkLines='[Sriniously](https://www.youtube.com/@sriniously)  *System Engineering\n[Zachary Huang](https://www.youtube.com/@ZacharyLLM/videos)  *AI Dives'; window.lineCheck=GnotesRichEditor.mount(host,linkLines,()=>{});`)
+	browser.script(`if(!lineCheck.preservesContent(linkLines)) throw new Error('Linked lines incorrectly require source mode'); const root=lineCheck.editor.view.dom; if(root.querySelectorAll('a').length!==2 || root.querySelectorAll('br').length!==1 || root.textContent.includes('[Sriniously]')) throw new Error('Expected formatted links on separate lines');`)
+	serialized := browser.script(`return lineCheck.getMarkdown();`).(string)
+	if got := mdToHTML(serialized); strings.Count(got, "<br>") != 1 || strings.Count(got, "<a href=") != 2 {
+		t.Fatalf("saved rich text lost its line break or links: %s", got)
+	}
+	browser.script(`lineCheck.setMarkdown(lineCheck.getMarkdown()); if(lineCheck.editor.view.dom.querySelectorAll('br').length!==1) throw new Error('Reopening lost the break'); const table='| One | Two |\n| --- | --- |\n| A | B |'; lineCheck.setMarkdown(table); if(lineCheck.preservesContent(table)) throw new Error('Unsupported tables must retain source fallback'); lineCheck.setMarkdown('first\n\nsecond'); if(!lineCheck.preservesContent('first\n\nsecond') || lineCheck.editor.view.dom.querySelectorAll('p').length!==2) throw new Error('Paragraphs lost');`)
 }
 
 func TestRichBoldBoundariesBrowser(t *testing.T) {

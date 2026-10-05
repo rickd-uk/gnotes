@@ -2,6 +2,10 @@ import { Editor, Extension, InputRule, PasteRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Markdown } from '@tiptap/markdown';
+import { Marked } from 'marked';
+
+// Keep comparison rendering separate from Tiptap's custom tokenizers.
+const comparisonMarkdown = new Marked({ gfm: true, breaks: true });
 
 const markdownLinkPattern = /(?<!\\)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g;
 
@@ -42,7 +46,7 @@ const extensions = [
   WritingStarterKit.configure({ heading: { levels: [2, 3] } }),
   TaskList,
   TaskItem.configure({ nested: true }),
-  Markdown.configure({ markedOptions: { gfm: true, breaks: false } }),
+  Markdown.configure({ markedOptions: { gfm: true, breaks: true } }),
   MarkdownLinkShortcut,
 ];
 
@@ -94,6 +98,30 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
   editor.view.dom.dataset.empty = String(editor.isEmpty);
   return {
     editor,
+    preservesContent(markdown) {
+      // Compare rendered content, not source spelling: the serializer escapes
+      // literal asterisks and writes explicit breaks for ordinary newlines.
+      // Unsupported content (for example tables) must still use the fallback.
+      const render = (value) => {
+        const template = document.createElement('template');
+        template.innerHTML = comparisonMarkdown.parse(value);
+        function canonical(node, verbatim = false) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            if (verbatim) return node.textContent;
+            let text = node.textContent.replace(/\s+/g, ' ');
+            if (!node.previousSibling || node.previousSibling.nodeName === 'BR') text = text.trimStart();
+            if (!node.nextSibling || node.nextSibling.nodeName === 'BR') text = text.trimEnd();
+            return text || null;
+          }
+          const attributes = Array.from(node.attributes || [], (attr) => [attr.name, attr.value]).sort();
+          return [node.nodeName, attributes, Array.from(node.childNodes,
+            (child) => canonical(child, verbatim || node.nodeName === 'PRE' || node.nodeName === 'CODE'))
+            .filter((child) => child !== null)];
+        }
+        return JSON.stringify(canonical(template.content));
+      };
+      return render(markdown) === render(editor.getMarkdown());
+    },
     getMarkdown: () => editor.getMarkdown(),
     setMarkdown: (value) => {
       editor.commands.setContent(value || '', { contentType: 'markdown', emitUpdate: false });

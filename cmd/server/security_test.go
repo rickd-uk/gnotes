@@ -58,6 +58,20 @@ func TestMarkdownCodeLanguageLabels(t *testing.T) {
 	}
 }
 
+func TestNoteRendererPreservesOrdinaryLineBreaks(t *testing.T) {
+	raw := "[Sriniously](https://www.youtube.com/@sriniously)  *System Engineering\n[Zachary Huang](https://www.youtube.com/@ZacharyLLM/videos)  *AI Dives"
+	rendered := mdToHTML(raw)
+	if strings.Count(rendered, "<br>") != 1 || strings.Count(rendered, "<a href=") != 2 {
+		t.Fatalf("two linked lines should stay separate: %s", rendered)
+	}
+	if got := mdToHTML("first\nsecond\n\nthird"); strings.Count(got, "<p>") != 2 || strings.Count(got, "<br>") != 1 {
+		t.Fatalf("paragraphs and ordinary breaks should both survive: %s", got)
+	}
+	if got := mdToHTML("```\nfirst\nsecond\n```"); strings.Contains(got, "<br>") {
+		t.Fatalf("code block newlines must stay literal: %s", got)
+	}
+}
+
 func TestMarkdownRendererSupportsToolbarFormatting(t *testing.T) {
 	rendered := mdToHTML(`~~finished~~
 

@@ -26,6 +26,7 @@ import (
 	"github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	markdownhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"gnotes/internal/db"
 	"gnotes/internal/models"
@@ -39,6 +40,7 @@ const (
 )
 
 var markdownRenderer = goldmark.New(
+	goldmark.WithRendererOptions(markdownhtml.WithHardWraps()),
 	goldmark.WithExtensions(
 		extension.GFM,
 		highlighting.NewHighlighting(

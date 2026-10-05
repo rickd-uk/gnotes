@@ -4902,7 +4902,7 @@
           input.value = markdown;
           input.dispatchEvent(new Event("input", { bubbles: true }));
         }, (context) => showRichContext(richDraft, context), openRichLinkDialog);
-        if (!sameMarkdown(editor.getMarkdown(), input.value)) {
+        if (!sameMarkdown(editor.getMarkdown(), input.value) && !editor.preservesContent(input.value)) {
           editor.destroy();
           host.hidden = true;
           input.classList.add("force-source");
@@ -4940,7 +4940,7 @@
           input.value = markdown;
           scheduleEditAutosave(id);
         }, (context) => showRichContext(richEdit, context), openRichLinkDialog);
-        if (!sameMarkdown(editor.getMarkdown(), input.value)) {
+        if (!sameMarkdown(editor.getMarkdown(), input.value) && !editor.preservesContent(input.value)) {
           editor.destroy();
           host.hidden = true;
           input.classList.add("force-source");
