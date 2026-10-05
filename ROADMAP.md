@@ -4,7 +4,7 @@ Last reviewed: 2026-10-05
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.22`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.23`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -17,6 +17,7 @@ The current release includes:
 - Rich text editing with Markdown source under Advanced, export and import, full Archived notes view, configurable quick actions, and archive feedback.
 - Markdown fenced-code completion, brace pairing, syntax highlighting, and clickable code-language labels.
 - Verified-email password recovery, note roll-up, selectable time zones and text, note titles in browser tabs, and compact view controls.
+- Private note tags, combined tag/text/date search, persistent filters, and tag-preserving export/import.
 - A one-command release updater and operational checker.
 
 ## Recovery tooling
@@ -46,7 +47,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.22 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check swipe actions, note colors, the Aa formatting toggle, green completion checks, three quick actions, and the code language picker when editing a saved note.
+1. Retest v0.7.23 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check tags, swipe actions, note colors, the Aa formatting toggle, green completion checks, three quick actions, and the code language picker when editing a saved note.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 
@@ -76,7 +77,7 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 - [x] Add durable note archiving for one note or all active notes. Archived notes leave the main notes view but remain accessible in an Archived view, with individual restore. This is distinct from temporary Hide and from the recycle bin.
 - Opt-in encrypted offline reading and editing with explicit synchronization state.
 - [x] Interactive task-checkbox toggling from rendered notes.
-- [x] Account-specific note tags with filtering and search; implemented locally, awaiting release.
+- [x] Account-specific note tags with filtering and search; deployed in v0.7.23.
 - Carefully scoped formatting improvements that keep the writing interface uncluttered.
 
 ### Distant ideas
