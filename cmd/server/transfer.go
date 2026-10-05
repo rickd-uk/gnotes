@@ -16,25 +16,27 @@ import (
 	"unicode/utf8"
 
 	"gnotes/internal/db"
+	"gnotes/internal/models"
 )
 
 // The format deliberately excludes server IDs and rendered HTML. IDs belong to
 // the destination database; HTML is derived from Markdown when notes are read.
-const transferVersion = 1
+const transferVersion = 2
 const maxTransferBytes = 64 << 20
 const maxTransferNotes = 10000
 
 var errTransferTooLarge = errors.New("transfer exceeds the size limit")
 
 type transferNote struct {
-	SourceID        int        `json:"source_id,omitempty"`
-	Title           string     `json:"title"`
-	Content         string     `json:"content"`
-	CreatedAt       time.Time  `json:"created_at"`
-	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
-	ArchivedAt      *time.Time `json:"archived_at,omitempty"`
-	Pinned          bool       `json:"pinned"`
-	BackgroundColor string     `json:"background_color"`
+	SourceID        int         `json:"source_id,omitempty"`
+	Title           string      `json:"title"`
+	Content         string      `json:"content"`
+	CreatedAt       time.Time   `json:"created_at"`
+	DeletedAt       *time.Time  `json:"deleted_at,omitempty"`
+	ArchivedAt      *time.Time  `json:"archived_at,omitempty"`
+	Pinned          bool        `json:"pinned"`
+	BackgroundColor string      `json:"background_color"`
+	Tags            models.Tags `json:"tags,omitempty"`
 }
 
 type transferFile struct {
@@ -89,7 +91,7 @@ func exportNotesHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write(body)
 		return
 	}
-	if len(notes) == 1 {
+	if len(notes) == 1 && len(notes[0].Tags) == 0 {
 		extension := ".md"
 		if format == "text" {
 			extension = ".txt"
@@ -212,7 +214,7 @@ func parseTransferIDs(raw string) ([]int, error) {
 }
 
 func loadTransferNotes(userID int, ids []int) ([]transferNote, error) {
-	query := "SELECT id, title, content, created_at, deleted_at, archived_at, pinned, background_color FROM notes WHERE user_id = ?"
+	query := "SELECT id, title, content, created_at, deleted_at, archived_at, pinned, background_color, tags FROM notes WHERE user_id = ?"
 	args := []any{userID}
 	if ids != nil {
 		query += " AND id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")"
@@ -231,7 +233,7 @@ func loadTransferNotes(userID int, ids []int) ([]transferNote, error) {
 	for rows.Next() {
 		var note transferNote
 		var deleted, archived sql.NullTime
-		if err := rows.Scan(&note.SourceID, &note.Title, &note.Content, &note.CreatedAt, &deleted, &archived, &note.Pinned, &note.BackgroundColor); err != nil {
+		if err := rows.Scan(&note.SourceID, &note.Title, &note.Content, &note.CreatedAt, &deleted, &archived, &note.Pinned, &note.BackgroundColor, &note.Tags); err != nil {
 			return nil, err
 		}
 		if deleted.Valid {
@@ -342,6 +344,7 @@ func importNotesHandler(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	imported, skipped := 0, 0
 	for _, note := range file.Notes {
+		tags, _ := normalizeTags(note.Tags)
 		if mode == "skip" {
 			var exists int
 			if format == "markdown" || format == "text" {
@@ -349,8 +352,8 @@ func importNotesHandler(w http.ResponseWriter, r *http.Request) {
 					userIDFromRequest(r), note.Title, note.Content).Scan(&exists)
 			} else {
 				err = tx.QueryRow(`SELECT 1 FROM notes WHERE user_id = ? AND title = ? AND content = ? AND created_at = ?
-				AND deleted_at IS ? AND archived_at IS ? AND pinned = ? AND background_color = ? LIMIT 1`,
-					userIDFromRequest(r), note.Title, note.Content, note.CreatedAt, note.DeletedAt, note.ArchivedAt, note.Pinned, note.BackgroundColor).Scan(&exists)
+				AND deleted_at IS ? AND archived_at IS ? AND pinned = ? AND background_color = ? AND tags = ? LIMIT 1`,
+					userIDFromRequest(r), note.Title, note.Content, note.CreatedAt, note.DeletedAt, note.ArchivedAt, note.Pinned, note.BackgroundColor, tags).Scan(&exists)
 			}
 			if err == nil {
 				skipped++
@@ -361,9 +364,9 @@ func importNotesHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		_, err = tx.Exec(`INSERT INTO notes (user_id, title, content, rendered_content, created_at, deleted_at, archived_at, pinned, background_color)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, userIDFromRequest(r), note.Title, note.Content, mdToHTML(note.Content), note.CreatedAt,
-			note.DeletedAt, note.ArchivedAt, note.Pinned, note.BackgroundColor)
+		_, err = tx.Exec(`INSERT INTO notes (user_id, title, content, rendered_content, created_at, deleted_at, archived_at, pinned, background_color, tags)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userIDFromRequest(r), note.Title, note.Content, mdToHTML(note.Content), note.CreatedAt,
+			note.DeletedAt, note.ArchivedAt, note.Pinned, note.BackgroundColor, tags)
 		if err != nil {
 			http.Error(w, "Import failed", 500)
 			return
@@ -387,7 +390,7 @@ func decodeTransferFile(body []byte, file *transferFile) error {
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return errors.New("expected one JSON object")
 	}
-	if file.Format != "gnotes" || file.Version != transferVersion {
+	if file.Format != "gnotes" || (file.Version != 1 && file.Version != transferVersion) {
 		return errors.New("unsupported gnotes format version")
 	}
 	if file.Notes == nil {
@@ -397,6 +400,9 @@ func decodeTransferFile(body []byte, file *transferFile) error {
 }
 
 func validateTransferNote(note transferNote) error {
+	if _, err := normalizeTags(note.Tags); err != nil {
+		return err
+	}
 	if !utf8.ValidString(note.Title) || !utf8.ValidString(note.Content) {
 		return errors.New("note text must be UTF-8")
 	}

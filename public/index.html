@@ -829,8 +829,20 @@
 
       body { user-select: none; }
       input, textarea, [contenteditable="true"] { user-select: text; }
-      .note-view h2, .note-content { -webkit-user-select: text; user-select: text; }
+      .note-view > h2, .note-content { -webkit-user-select: text; user-select: text; }
       .note-content button { -webkit-user-select: none; user-select: none; }
+      .note-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+      .note-tag { padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--accent); font-size: 0.72rem; cursor: pointer; overflow-wrap: anywhere; max-width: 100%; }
+      .note-tag:hover { background: #e9e5dc; }
+      #tags-dialog { width: min(400px, calc(100% - 32px)); }
+      #tags-dialog input { padding: 10px 0; }
+      #tags-dialog .tag-dialog-actions { display: flex; justify-content: flex-end; gap: 12px; }
+      #tags-dialog .tag-dialog-actions button { margin-left: 0; }
+      #tags-cancel { background: #e8e3d8; color: var(--muted); }
+      #tags-cancel:hover { background: #ded8cc; color: var(--ink); }
+      #tags-dialog-status { min-height: 1.3em; color: var(--danger); font-size: 0.82rem; }
+      .search-tag-filter { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 0.8rem; }
+      #search-tag { min-width: 0; max-width: 100%; padding: 5px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink); }
 
       .icon {
         display: block;
@@ -1844,12 +1856,12 @@
         );
       }
 
-      .newest-note h2 {
+      .newest-note .note-view > h2 {
         color: #173f32;
         font-weight: 600;
       }
 
-      .note-card h2 {
+      .note-card .note-view > h2 {
         max-width: 640px;
         margin: 2px auto 8px;
         font-family: var(--note-title-font);
@@ -1864,7 +1876,7 @@
         display: contents;
       }
 
-      .note-card:not(.is-editing) .note-view h2 {
+      .note-card:not(.is-editing) .note-view > h2 {
         position: absolute;
         top: 15px;
         right: calc(104px + 44px * var(--quick-action-count));
@@ -1880,7 +1892,7 @@
         margin-top: 12px;
       }
 
-      .note-card.has-roll-control:not(.is-editing) .note-view h2 { left: 132px; }
+      .note-card.has-roll-control:not(.is-editing) .note-view > h2 { left: 132px; }
 
       .note-roll-toggle {
         flex-shrink: 0;
@@ -1947,6 +1959,7 @@
         right: 0;
         display: flex;
         width: max-content;
+        max-width: calc(100vw - 32px);
         flex-wrap: nowrap;
         align-items: center;
         gap: 5px;
@@ -1961,6 +1974,8 @@
 
       .note-safe-actions {
         display: flex;
+        flex-wrap: wrap;
+        min-width: 0;
         gap: 4px;
       }
 
@@ -2585,7 +2600,7 @@
         padding-bottom: 13px;
       }
 
-      #notes-list.density-compact .note-card h2 {
+      #notes-list.density-compact .note-card .note-view > h2 {
         margin: 2px auto 4px;
         font-size: calc(0.95rem * var(--note-title-scale));
       }
@@ -2632,7 +2647,7 @@
         display: none;
       }
 
-      #notes-list.density-titles .note-card h2 {
+      #notes-list.density-titles .note-card .note-view > h2 {
         left: 12px;
         right: calc(54px + 44px * var(--quick-action-count));
         max-width: none;
@@ -2651,7 +2666,7 @@
         padding-right: 12px;
       }
 
-      #notes-list.density-titles.tool-all-hidden .note-card h2 { right: 12px; }
+      #notes-list.density-titles.tool-all-hidden .note-card .note-view > h2 { right: 12px; }
 
       #notes-list.density-compact .note-card.is-editing,
       #notes-list.density-titles .note-card.is-editing { padding: 20px 24px 18px; }
@@ -3693,7 +3708,7 @@
           position: relative;
         }
 
-        #notes-list:not(.density-titles) .note-card:not(.is-editing) .note-view h2 {
+        #notes-list:not(.density-titles) .note-card:not(.is-editing) .note-view > h2 {
           position: static;
           max-width: none;
           margin: 8px 0 0;
@@ -4335,6 +4350,7 @@
             </div>
           </div>
           <p class="search-status" id="search-status" aria-live="polite"></p>
+          <label class="search-tag-filter">Tag <select id="search-tag"><option value="">All tags</option></select></label>
         </form>
       </section>
 
@@ -4386,6 +4402,16 @@
     </div>
 
     <div class="note-action-toast" id="note-action-toast" role="status" aria-live="polite" hidden></div>
+    <dialog class="note-action-dialog" id="tags-dialog" aria-labelledby="tags-dialog-title">
+      <form id="tags-form">
+        <h2 id="tags-dialog-title">Note tags</h2>
+        <label for="note-tags-input">Tags, separated by commas</label>
+        <input id="note-tags-input" type="text" maxlength="2560" placeholder="work, ideas, reading" autocomplete="off" />
+        <p>Up to 10 tags. Leave empty to remove all tags. Spaces become hyphens.</p>
+        <p id="tags-dialog-status" role="status"></p>
+        <div class="tag-dialog-actions"><button id="tags-cancel" type="button">Cancel</button><button type="submit">Save</button></div>
+      </form>
+    </dialog>
     <dialog class="note-action-dialog" id="note-action-dialog" aria-labelledby="note-action-dialog-title" aria-describedby="note-action-dialog-message">
       <h2 id="note-action-dialog-title"></h2>
       <p id="note-action-dialog-message"></p>
@@ -5050,6 +5076,7 @@
           selectedArchiveLabel,
           search: {
             query: document.getElementById("search-query").value,
+            tag: document.getElementById("search-tag").value,
             scope: selectedSearchScope(),
             from: document.getElementById("search-from").value,
             to: document.getElementById("search-to").value,
@@ -5193,6 +5220,9 @@
         setDefaultSearchDates();
         const search = state.search || {};
         document.getElementById("search-query").value = typeof search.query === "string" ? search.query : "";
+        const savedTag = typeof search.tag === "string" ? search.tag : "";
+        if (savedTag) document.getElementById("search-tag").add(new Option(`#${savedTag}`, savedTag));
+        document.getElementById("search-tag").value = savedTag;
         syncSearchClear();
         setSearchScope(search.scope);
         if (/^\d{4}-\d{2}-\d{2}$/.test(search.from || "")) document.getElementById("search-from").value = search.from;
@@ -5302,6 +5332,9 @@
       }
 
       function showAuth(message = "") {
+        document.getElementById("tags-dialog").close();
+        document.getElementById("tags-form").reset();
+        document.getElementById("search-tag").replaceChildren(new Option("All tags", ""));
         clearTimeout(deletedNoteUndoTimer);
         clearTimeout(noteActionToastTimer);
         document.getElementById("note-action-toast").hidden = true;
@@ -5878,7 +5911,7 @@
           : searchActive
             ? `${archiveMode ? "Archived " : ""}search results · ${searchSummary}`
             : archiveMode ? `Archived notes · ${notesTotal}` : "Recent notes";
-        document.getElementById("calendar-clear").hidden = !calendarActive;
+        document.getElementById("calendar-clear").hidden = !searchActive;
         document.getElementById("calendar-clear").textContent = archiveMode ? "All archived" : "Recent";
         updateSearchToggleState();
 
@@ -5965,6 +5998,7 @@
                   <button class="note-actions-toggle" type="button" onclick="toggleNoteActions(${n.id})" aria-controls="note-tools-${n.id}" aria-expanded="false" aria-label="Show tools for this note" title="Show note tools">…</button>
                   <div class="note-tools" id="note-tools-${n.id}">
                   <div class="note-safe-actions">
+                  <button class="note-action" type="button" onclick="openNoteTags(${n.id})" aria-label="Edit note tags" title="Edit tags"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7l11 11-7 7L3 10Z"/><circle cx="7" cy="7" r="1"/></svg><span class="visually-hidden">Tags</span></button>
                   <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" data-note-action="pin" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" />
@@ -6013,6 +6047,7 @@
               </div>
                 <div class="note-view" id="note-view-${n.id}">
                   <h2 class="${hasTitle ? "" : "fallback-title"}">${escapeHTML(displayTitle)}</h2>
+                  ${(n.tags || []).length ? `<div class="note-tags" aria-label="Note tags">${n.tags.map((tag) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}">#${escapeHTML(tag)}</button>`).join("")}</div>` : ""}
                   <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
                 </div>
                 <div class="note-editor" id="note-editor-${n.id}" hidden>
@@ -6036,6 +6071,7 @@
         document.getElementById("notes-list").innerHTML = renderedNotes;
         enableNoteTaskCheckboxes();
         decorateNoteCodeBlocks();
+        await refreshTagOptions();
         document.querySelectorAll("#notes-list .note-content a[href]").forEach((link) => {
           link.title = link.getAttribute("href");
         });
@@ -6071,6 +6107,7 @@
         const to = document.getElementById("search-to").value;
 
         if (query) params.set("q", query);
+        if (document.getElementById("search-tag").value) params.set("tag", document.getElementById("search-tag").value);
         params.set("scope", scope);
         if (from) params.set("from", from);
         if (to) params.set("to", to);
@@ -6097,7 +6134,7 @@
         const escaped = highlightQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const expression = new RegExp(escaped, highlightMatchCase ? "g" : "gi");
         const selectors = [];
-        if (highlightScope === "all" || highlightScope === "title") selectors.push(".note-view h2");
+        if (highlightScope === "all" || highlightScope === "title") selectors.push(".note-view > h2");
         if (highlightScope === "all" || highlightScope === "content") selectors.push(".note-content");
         document.querySelectorAll(selectors.join(",")).forEach((root) => {
           const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -6158,7 +6195,7 @@
       async function runLiveSearch() {
         if (!currentUser) return;
         const query = document.getElementById("search-query").value.trim();
-        if (!query) {
+        if (!query && !document.getElementById('search-tag').value) {
           highlightQuery = "";
           if (searchActive && !calendarActive) {
             if (notesLoading) {
@@ -6183,7 +6220,7 @@
       function scheduleLiveSearch() {
         clearTimeout(liveSearchTimer);
         const query = document.getElementById("search-query").value.trim();
-        if (query) {
+        if (query || document.getElementById('search-tag').value) {
           searchActive = true;
           expandVisibleSearchSections();
           calendarActive = false;
@@ -7626,6 +7663,78 @@
       let noteGesture = null;
       let suppressNoteClick = false;
       const notesList = document.getElementById("notes-list");
+      let tagsNoteID = null;
+
+      async function refreshTagOptions() {
+        const owner = currentUser;
+        if (!owner) return;
+        const select = document.getElementById('search-tag');
+        const selected = select.value;
+        try {
+          const response = await apiFetch(`/api/tags${archiveMode ? '?archive=1' : ''}`);
+          if (!response.ok || currentUser !== owner) return;
+          const tags = await response.json();
+          if (currentUser !== owner) return;
+          select.replaceChildren(new Option('All tags', ''));
+          for (const tag of tags) select.add(new Option(`#${tag.name} (${tag.count})`, tag.name));
+          if (selected && !tags.some((tag) => tag.name === selected)) select.add(new Option(`#${selected} (0)`, selected));
+          select.value = selected;
+        } catch { /* Keep the current selection when the tag list cannot load. */ }
+      }
+
+      async function openNoteTags(id) {
+        if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
+        const note = loadedNotes.get(id);
+        if (!note) return;
+        tagsNoteID = id;
+        document.getElementById('note-tags-input').value = (note.tags || []).join(', ');
+        document.getElementById('tags-dialog-status').textContent = '';
+        document.getElementById('tags-dialog').showModal();
+        document.getElementById('note-tags-input').focus();
+      }
+
+      document.getElementById('tags-cancel').addEventListener('click', () => document.getElementById('tags-dialog').close());
+      document.getElementById('tags-dialog').addEventListener('click', (event) => {
+        const dialog = event.currentTarget;
+        if (event.target !== dialog) return;
+        const bounds = dialog.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+      });
+      document.getElementById('tags-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = event.target.querySelector('button[type="submit"]');
+        const status = document.getElementById('tags-dialog-status');
+        const tags = document.getElementById('note-tags-input').value.split(',').map((tag) => tag.trim()).filter(Boolean);
+        button.disabled = true;
+        status.textContent = 'Saving…';
+        try {
+          const response = await apiFetch(`/api/notes/tags?id=${tagsNoteID}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags }),
+          });
+          if (!response.ok) throw new Error((await response.text()).trim() || 'Could not save tags.');
+          const result = await response.json();
+          if (loadedNotes.has(tagsNoteID)) loadedNotes.get(tagsNoteID).tags = result.tags;
+          document.getElementById('tags-dialog').close();
+          await loadNotes();
+        } catch (error) { status.textContent = error.message || 'Could not reach the server.'; }
+        finally { button.disabled = false; }
+      });
+
+      notesList.addEventListener('click', async (event) => {
+        const button = event.target.closest('.note-tag');
+        if (!button) return;
+        const select = document.getElementById('search-tag');
+        if (![...select.options].some((option) => option.value === button.dataset.tag)) select.add(new Option(`#${button.dataset.tag}`, button.dataset.tag));
+        select.value = button.dataset.tag;
+        document.getElementById('search-query').value = '';
+        document.getElementById('search-from').value = '';
+        document.getElementById('search-to').value = '';
+        syncSearchClear();
+        document.getElementById('search-panel').hidden = false;
+        document.getElementById('search-toggle').setAttribute('aria-expanded', 'true');
+        await runTextSearch();
+      });
+      document.getElementById('search-tag').addEventListener('change', () => runTextSearch());
 
       function taskLinesInMarkdown(markdown) {
         const segments = markdown.split(/(\r?\n)/);
@@ -7763,7 +7872,7 @@
             target.closest("a, button, input, textarea, select, label, summary, [contenteditable], .note-actions")) return;
         if (window.getSelection()?.toString().trim()) return;
         const body = target.closest(".note-content");
-        const title = target.closest(".note-view h2");
+        const title = target.closest(".note-view > h2");
         const textOffset = body || title ? textOffsetAtPoint(body || title, event.clientX, event.clientY) : null;
         editNote(Number(card.id.slice(5)), Boolean(body), textOffset);
       });
@@ -8122,7 +8231,7 @@
           closeTrashPanel();
           closeHiddenNotesPanel();
           document.getElementById("search-query").focus();
-          if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+          if (document.getElementById("search-query").value.trim() || document.getElementById("search-tag").value) scheduleLiveSearch();
         }
         saveUIState();
       });
@@ -8158,16 +8267,16 @@
         if (!button) return;
         setSearchScope(button.dataset.scope);
         saveUIState();
-        if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+        if (document.getElementById("search-query").value.trim() || document.getElementById("search-tag").value) scheduleLiveSearch();
       });
       document.getElementById("search-match-case").addEventListener("change", () => {
-        if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+        if (document.getElementById("search-query").value.trim() || document.getElementById("search-tag").value) scheduleLiveSearch();
       });
       document.getElementById("search-from").addEventListener("change", () => {
-        if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+        if (document.getElementById("search-query").value.trim() || document.getElementById("search-tag").value) scheduleLiveSearch();
       });
       document.getElementById("search-to").addEventListener("change", () => {
-        if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+        if (document.getElementById("search-query").value.trim() || document.getElementById("search-tag").value) scheduleLiveSearch();
       });
 
       async function showRecentNotes() {
@@ -8519,7 +8628,7 @@
             .getElementById("search-toggle")
             .setAttribute("aria-expanded", "true");
           document.getElementById("search-query").focus();
-          if (document.getElementById("search-query").value.trim()) scheduleLiveSearch();
+          if (document.getElementById("search-query").value.trim() || document.getElementById("search-tag").value) scheduleLiveSearch();
           saveUIState();
         }
       });

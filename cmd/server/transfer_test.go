@@ -55,7 +55,7 @@ func TestTransferRoundTripAndAccountIsolation(t *testing.T) {
 	if err := json.Unmarshal(export.Body.Bytes(), &file); err != nil {
 		t.Fatal(err)
 	}
-	if file.Version != 1 || len(file.Notes) != 3 {
+	if file.Version != transferVersion || len(file.Notes) != 3 {
 		t.Fatalf("export = %+v", file)
 	}
 	for _, note := range file.Notes {

@@ -11,6 +11,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 ## Current features
 
 - Per-user accounts, sessions, CSRF protection, and note isolation
+- Note tags: open a note’s tools menu → Tags, enter comma-separated labels, and save. Click a tag or choose one in Search to filter; combine tags with text/date searches. Up to 10 tags per note; labels are lowercase, spaces become hyphens, and tags remain with archived/recycled notes. JSON exports and readable ZIP manifests preserve tags
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
 - Create, autosave, and edit notes in a focused full-screen phone view or centered desktop panel; copy the current text from the lower left or finish with the green check mark and return to the same list position. Pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
@@ -66,6 +67,8 @@ Supported environment variables:
 | `GNOTES_EMAIL_FROM` | none | Verified sender email address in Brevo |
 | `GNOTES_EMAIL_FROM_NAME` | `gnotes` | Sender display name |
 | `GNOTES_PUBLIC_URL` | none | Application origin for email links; HTTPS required except on localhost |
+
+gnotes JSON exports now use format version 2; version 1 remains importable. A tagged single-note Markdown/text export uses a ZIP with a metadata manifest so tags survive reimport.
 
 See [OPERATIONS.md](OPERATIONS.md#brevo-password-recovery) for email setup. Existing account emails require verification before they can recover a password.
 

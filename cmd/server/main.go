@@ -129,6 +129,8 @@ func run() error {
 	mux.HandleFunc("/api/notes/search", protect(searchNotesHandler, false))
 	mux.HandleFunc("/api/notes/search-page", protect(pagedSearchNotesHandler, false))
 	mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
+	mux.HandleFunc("/api/notes/tags", protect(updateNoteTagsHandler, true))
+	mux.HandleFunc("/api/tags", protect(tagsHandler, false))
 	mux.HandleFunc("/api/notes/color", protect(updateNoteColorHandler, true))
 	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
 	mux.HandleFunc("/api/notes/unpin-all", protect(unpinAllNotesHandler, true))
@@ -245,10 +247,15 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	n.CreatedAt = time.Now()
+	n.Tags, err = normalizeTags(n.Tags)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
 	// insert into sqlite
 	renderedContent := mdToHTML(n.Content)
-	query := `INSERT INTO notes (user_id, title, content, rendered_content, created_at) VALUES(?,?,?,?,?)`
-	result, err := db.DB.Exec(query, userIDFromRequest(r), n.Title, n.Content, renderedContent, n.CreatedAt)
+	query := `INSERT INTO notes (user_id, title, content, rendered_content, created_at, tags) VALUES(?,?,?,?,?,?)`
+	result, err := db.DB.Exec(query, userIDFromRequest(r), n.Title, n.Content, renderedContent, n.CreatedAt, n.Tags)
 	if err != nil {
 		http.Error(w, "Database error", 500)
 		return
@@ -275,7 +282,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// quey db
-	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
+	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color, tags FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Query error", 500)
 		return
@@ -287,7 +294,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var n models.Note
 		// scan cols. into struct fields
-		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor)
+		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags)
 		if err != nil {
 			log.Println("Scan error:", err)
 			http.Error(w, "Could not load notes", http.StatusInternalServerError)
@@ -377,7 +384,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	query := "SELECT id, title, content, created_at, pinned, background_color FROM notes WHERE " +
+	query := "SELECT id, title, content, created_at, pinned, background_color, tags FROM notes WHERE " +
 		strings.Join(conditions, " AND ") +
 		" ORDER BY pinned DESC, created_at DESC"
 	rows, err := db.DB.Query(query, args...)
@@ -390,7 +397,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	matches := make([]models.Note, 0)
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags); err != nil {
 			log.Println("Search scan error:", err)
 			http.Error(w, "Search failed", http.StatusInternalServerError)
 			return
@@ -493,11 +500,21 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var tags any
+	if n.Tags != nil {
+		normalized, err := normalizeTags(n.Tags)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+		tags = normalized
+	}
 	result, err := db.DB.Exec(
-		"UPDATE notes SET title = ?, content = ?, rendered_content = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
+		"UPDATE notes SET title = ?, content = ?, rendered_content = ?, tags = COALESCE(?, tags) WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
 		n.Title,
 		n.Content,
 		mdToHTML(n.Content),
+		tags,
 		id,
 		userIDFromRequest(r),
 	)
@@ -624,7 +641,7 @@ func trashNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.DB.Query(
-		"SELECT id, title, content, created_at, deleted_at FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+		"SELECT id, title, content, created_at, deleted_at, tags FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
 		userIDFromRequest(r),
 	)
 	if err != nil {
@@ -636,7 +653,7 @@ func trashNotesHandler(w http.ResponseWriter, r *http.Request) {
 	trash := make([]models.Note, 0)
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.DeletedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.DeletedAt, &n.Tags); err != nil {
 			log.Println("Trash scan error:", err)
 			http.Error(w, "Could not load trash", http.StatusInternalServerError)
 			return

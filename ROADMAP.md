@@ -76,7 +76,7 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 - [x] Add durable note archiving for one note or all active notes. Archived notes leave the main notes view but remain accessible in an Archived view, with individual restore. This is distinct from temporary Hide and from the recycle bin.
 - Opt-in encrypted offline reading and editing with explicit synchronization state.
 - [x] Interactive task-checkbox toggling from rendered notes.
-- Add account-specific note tags with filtering and search.
+- [x] Account-specific note tags with filtering and search; implemented locally, awaiting release.
 - Carefully scoped formatting improvements that keep the writing interface uncluttered.
 
 ### Distant ideas

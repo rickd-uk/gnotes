@@ -12,9 +12,13 @@ Go/race/vet, ShellCheck, backup/restore tests, the restore rehearsal, and GitHub
 
 Brevo authenticated from Kagoya and recovery is enabled. The live admin must verify a recovery email in Profile; local verification does not carry over. Real reset-email inbox confirmation remains open.
 
+## Release candidate v0.7.23
+
+Tags are implemented locally: note tools → Tags, clickable labels, account-private tag counts, combined tag/text/date search, and persistent filters. Tags survive archive/recycle actions and JSON/ZIP export/import; older exports remain importable. Unit and Chromium tests cover privacy, validation, CSRF, pagination, autosave preservation, round trips, and 320px/1024px layouts. The approved candidate also gives Cancel a neutral color, closes the tags dialog on outside clicks, uses a Save label, and fixes Markdown headings inheriting note-title positioning. Production remains `v0.7.22` until deployment.
+
 ## Next work
 
-1. Add note tags and filtering. Retest the release on the Pixel 6a browsers, including recovery, code editing, archive removal, export/import, and the welcome dialog.
+1. Deploy the approved `v0.7.23` candidate. Retest the release on the Pixel 6a browsers, including recovery, code editing, archive removal, export/import, and the welcome dialog.
 2. Choose encrypted off-server backup storage and alerts; validated daily backups currently remain on Kagoya.
 3. Tighten CSP, add audit records, and design administrator MFA.
 

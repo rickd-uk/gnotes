@@ -159,6 +159,7 @@ func InitDB(filepath string) {
 	ensureColumn("archived_at", "DATETIME")
 	ensureColumn("pinned", "INTEGER NOT NULL DEFAULT 0")
 	ensureColumn("background_color", "TEXT NOT NULL DEFAULT ''")
+	ensureColumn("tags", "TEXT NOT NULL DEFAULT '[]'")
 	ensureColumn("user_id", "INTEGER")
 	ensureColumn("rendered_content", "TEXT")
 	ensureTableColumn("users", "role", "TEXT NOT NULL DEFAULT 'user'")

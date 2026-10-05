@@ -102,7 +102,7 @@ func archivedNotesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	rows, err := db.DB.Query(`SELECT id, title, content, created_at, archived_at, pinned, background_color
+	rows, err := db.DB.Query(`SELECT id, title, content, created_at, archived_at, pinned, background_color, tags
     FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NOT NULL
     ORDER BY archived_at DESC, id DESC`, userIDFromRequest(r))
 	if err != nil {
@@ -113,7 +113,7 @@ func archivedNotesHandler(w http.ResponseWriter, r *http.Request) {
 	notes := make([]models.Note, 0)
 	for rows.Next() {
 		var note models.Note
-		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.ArchivedAt, &note.Pinned, &note.BackgroundColor); err != nil {
+		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.ArchivedAt, &note.Pinned, &note.BackgroundColor, &note.Tags); err != nil {
 			http.Error(w, "Could not load archived notes", http.StatusInternalServerError)
 			return
 		}

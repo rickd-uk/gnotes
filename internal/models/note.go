@@ -16,4 +16,5 @@ type Note struct {
 	ArchivedAt      *time.Time    `json:"archived_at,omitempty"`
 	Pinned          bool          `json:"pinned"`
 	BackgroundColor string        `json:"background_color,omitempty"`
+	Tags            Tags          `json:"tags"`
 }

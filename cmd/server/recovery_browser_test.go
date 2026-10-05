@@ -23,7 +23,7 @@ func TestRecoveryBrowser(t *testing.T) {
 	for _, width := range []int{320, 1024} {
 		t.Run(fmt.Sprint(width), func(t *testing.T) {
 			s, messages, _, _ := recoveryFixture(t)
-			checklist := "Markdown not rendering accurately\n\n- [ ] Display Note Title in browser tab as 'gnotes - NOTE_TITLE'\n- [ ] Add favorites feature\n- [ ] Add tags feature\n\n```go\nfunc main() {}\n```\n\n```\nplain block\n```"
+			checklist := "Markdown not rendering accurately\n\n## Progress\n\n- [ ] Display Note Title in browser tab as 'gnotes - NOTE_TITLE'\n- [ ] Add favorites feature\n- [ ] Add tags feature\n\n**Status:** going well.\n\n```go\nfunc main() {}\n```\n\n```\nplain block\n```"
 			mustRecoveryExec(t, "INSERT INTO notes (user_id,title,content,created_at) VALUES (1,'Body note',?,?)", checklist, time.Now().UTC())
 			mustRecoveryExec(t, "INSERT INTO notes (user_id,title,content,created_at) VALUES (1,'Title only','',?)", time.Now().UTC().Add(-time.Minute))
 			mux := http.NewServeMux()
@@ -33,6 +33,9 @@ func TestRecoveryBrowser(t *testing.T) {
 			mux.HandleFunc("/api/auth/logout", protect(logoutHandler, true))
 			mux.HandleFunc("/api/draft", protect(getDraftHandler, false))
 			mux.HandleFunc("/api/notes/page", protect(pagedListNotesHandler, false))
+			mux.HandleFunc("/api/notes/search-page", protect(pagedSearchNotesHandler, false))
+			mux.HandleFunc("/api/notes/tags", protect(updateNoteTagsHandler, true))
+			mux.HandleFunc("/api/tags", protect(tagsHandler, false))
 			mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
 			mux.HandleFunc("/api/notes/trash-page", protect(pagedTrashNotesHandler, false))
 			mux.HandleFunc("/api/auth/recovery/request", s.requestReset)
@@ -66,6 +69,7 @@ func TestRecoveryBrowser(t *testing.T) {
 				t.Fatal("sign-in and main-screen branding differ")
 			}
 			browser.wait(`document.documentElement.scrollWidth<=innerWidth`)
+			browser.script(`const bodyHeading=document.querySelector('.note-content h2'), title=document.querySelector('.has-roll-control .note-view > h2'); if(getComputedStyle(bodyHeading).position!=='static' || getComputedStyle(bodyHeading).textAlign!=='left' || bodyHeading.getBoundingClientRect().top<title.getBoundingClientRect().bottom) throw new Error('Markdown heading overlaps the note title');`)
 			points := browser.script(`const p=document.querySelector('.note-content p'); p.scrollIntoView({block:'center'}); const text=p.firstChild; const range=document.createRange(); range.setStart(text,1); range.setEnd(text,8); const r=range.getBoundingClientRect(); return [r.left,r.right,r.top+r.height/2];`).([]any)
 			browser.call("POST", "/actions", map[string]any{"actions": []any{map[string]any{
 				"type": "pointer", "id": "select-note-text", "parameters": map[string]string{"pointerType": "mouse"},
@@ -78,6 +82,34 @@ func TestRecoveryBrowser(t *testing.T) {
 			}}})
 			browser.wait(`window.getSelection().toString().trim().length>0 && !document.documentElement.classList.contains('note-edit-focus')`)
 			browser.script(`window.getSelection().removeAllRanges(); window.scrollTo(0,0);`)
+			browser.script(`window.tagNoteID=Number(document.querySelector('.has-roll-control').id.slice(5)); document.querySelector('.has-roll-control .note-actions-toggle').click();`)
+			browser.script(`const r=document.querySelector('.has-roll-control .note-tools').getBoundingClientRect(); if(r.left<0 || r.right>innerWidth) throw new Error('Note tools overflow with Tags action'); document.querySelector('.has-roll-control button[aria-label="Edit note tags"]').click();`)
+			browser.wait(`document.getElementById('tags-dialog').open`)
+			browser.script(`const cancel=document.getElementById('tags-cancel'), save=document.querySelector('#tags-form button[type=submit]'); if(save.textContent!=='Save' || getComputedStyle(cancel).backgroundColor===getComputedStyle(save).backgroundColor) throw new Error('Tag actions need distinct styling and the Save label'); document.getElementById('note-tags-input').value='discarded';`)
+			browser.call("POST", "/actions", map[string]any{"actions": []any{map[string]any{
+				"type": "pointer", "id": "dismiss-tags", "parameters": map[string]string{"pointerType": "mouse"},
+				"actions": []any{map[string]any{"type": "pointerMove", "duration": 0, "x": 8, "y": 8}, map[string]any{"type": "pointerDown", "button": 0}, map[string]any{"type": "pointerUp", "button": 0}},
+			}}})
+			browser.wait(`!document.getElementById('tags-dialog').open && document.querySelectorAll('.note-tag').length===0`)
+			browser.script(`openNoteTags(window.tagNoteID);`)
+			browser.wait(`document.getElementById('tags-dialog').open && document.getElementById('note-tags-input').value===''`)
+			browser.script(`document.getElementById('note-tags-input').value='Work, ideas, WORK'; document.getElementById('tags-form').requestSubmit();`)
+			browser.wait(`!document.getElementById('tags-dialog').open && !notesLoading && document.querySelectorAll('.note-tag').length===2 && document.documentElement.scrollWidth<=innerWidth`)
+			browser.script(`document.querySelector('.note-tag[data-tag="work"]').click();`)
+			browser.wait(`!notesLoading && document.querySelectorAll('.note-card').length===1 && document.getElementById('search-tag').value==='work' && !document.getElementById('calendar-clear').hidden && !document.documentElement.classList.contains('note-edit-focus')`)
+			browser.navigate(server.URL)
+			browser.wait(`!notesLoading && !document.getElementById('app-shell').hidden && document.querySelectorAll('.note-card').length===1 && document.getElementById('search-tag').value==='work'`)
+			browser.script(`window.tagNoteID=Number(document.querySelector('.note-card').id.slice(5));`)
+			browser.script(`document.getElementById('search-query').value='no such text'; document.getElementById('search-query').dispatchEvent(new Event('input',{bubbles:true}));`)
+			browser.wait(`!notesLoading && document.querySelectorAll('.note-card').length===0 && document.getElementById('search-tag').value==='work'`)
+			browser.script(`document.getElementById('search-query').value=''; document.getElementById('search-query').dispatchEvent(new Event('input',{bubbles:true}));`)
+			browser.wait(`!notesLoading && document.querySelectorAll('.note-card').length===1 && document.getElementById('search-tag').value==='work'`)
+			browser.script(`openNoteTags(window.tagNoteID); document.getElementById('note-tags-input').value='ideas, reading'; document.getElementById('tags-form').requestSubmit();`)
+			browser.wait(`!document.getElementById('tags-dialog').open && !notesLoading && document.querySelectorAll('.note-card').length===0`)
+			browser.script(`document.getElementById('calendar-clear').click();`)
+			browser.wait(`!notesLoading && document.querySelectorAll('.note-card').length===2 && document.getElementById('search-tag').value===''`)
+			browser.script(`openNoteTags(window.tagNoteID); document.getElementById('note-tags-input').value=''; document.getElementById('tags-form').requestSubmit();`)
+			browser.wait(`!document.getElementById('tags-dialog').open && !notesLoading && document.querySelectorAll('.note-tag').length===0`)
 			browser.wait(`document.querySelectorAll('.note-content input[type=checkbox]').length===3`)
 			browser.script(`for (const checkbox of document.querySelectorAll('.note-content input[type=checkbox]')) { const li=checkbox.closest('li'); const walker=document.createTreeWalker(li, NodeFilter.SHOW_TEXT); let text; while (text=walker.nextNode()) { if (text.textContent.trim()) break; } const range=document.createRange(); range.setStart(text, text.textContent.search(/\S/)); range.setEnd(text, text.textContent.search(/\S/)+1); const a=checkbox.getBoundingClientRect(), b=range.getBoundingClientRect(); if (a.top>=b.bottom || b.top>=a.bottom || getComputedStyle(li).listStyleType!=='none') throw new Error('Checklist checkbox and text must share a line without a bullet'); }`)
 			browser.script(`const id=Number(document.querySelector('.note-card').id.replace('note-','')); openNoteEditor(id, false); window.tabTitleNoteID=id;`)
