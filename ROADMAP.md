@@ -4,7 +4,7 @@ Last reviewed: 2026-10-06
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.30`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.31`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -24,6 +24,7 @@ The current release includes:
 - Right-click Copy/Dictionary/Always ignore menu, native menu via Shift + right-click, spelling underline toggle, and separate account-owned ignored-word and Names lists in SQLite. Names support people, companies, places, and other names; matching rich note text is ignored automatically without changing note content. Older browser lists migrate automatically, and database backups cover both lists.
 - Confirmed active-note bulk removal by displayed date section, Pinned, or all active notes. Date sections exclude pinned notes; removal covers hidden notes and later pages, preserves Archive, and is recoverable from the recycle bin.
 - Ordinary line breaks preserved in the saved view and rich editor. Harmless changes to source escaping or spacing retain rich text editing; unsupported formatting retains the protective source fallback.
+- Untitled notes show body text once in Full and Compact views; their first-line preview appears only when folded or in titles-only view, without adding a stored title.
 - A one-command release updater and operational checker.
 
 ## Recovery tooling
@@ -53,7 +54,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.30 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check Dictionary word selection and saving, the Copy context menu, ignored words and Names, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide in the notes toolbar, tag expansion and collapse, ordinary line breaks, swipe actions, note colors, the Aa formatting toggle, green completion checks, three quick actions, and the code language picker when editing a saved note.
+1. Retest v0.7.31 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check Dictionary word selection and saving, the Copy context menu, ignored words and Names, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide in the notes toolbar, tag expansion and collapse, ordinary line breaks, swipe actions, note colors, the Aa formatting toggle, green completion checks, three quick actions, and the code language picker when editing a saved note.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 

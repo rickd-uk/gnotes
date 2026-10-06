@@ -2,7 +2,7 @@
 
 Updated: 2026-10-06
 
-`v0.7.30` deployed: https://gnotes.rickd.dev. Names and ignored words now live in private account-owned SQLite lists, available across devices and covered by database backups. Existing browser lists merge automatically on sign-in/reload and remain intact until migration succeeds. Individual writes avoid replacing another device's additions. Spellcheck on/off remains browser-local. Desktop/mobile checks, migration retries and failures, isolation and limits, Go/race/vet, release restore rehearsal, validated backup, live asset checksums, authentication, schema, and health checks passed; 4 accounts and 37 notes preserved.
+`v0.7.31` deployed: https://gnotes.rickd.dev. Untitled notes show body text once in Full and Compact views. First-line previews appear only when folded or in titles-only view; real titles remain visible. Desktop/mobile checks cover density changes, folding, editing, save, and reload. Release checks, restore rehearsal, validated backup, live page checksum, and health checks passed. Account-stored Names and ignored words remain available across devices and included in database backups.
 
 Remaining:
 
