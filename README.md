@@ -19,6 +19,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Phone long presses keep native selection handles and Copy; desktop right-clicks retain Copy/Dictionary/Always ignore
 - Selected words on phones expose Dictionary and Always ignore in a bottom bar, above editor Copy/Done controls; Dictionary includes Save word
 - Spellcheck includes a shared list of 15,981 built-in names, with an independent switch and private personal additions. Capitalized name matching runs locally while typing
+- Search personal Names and ignored words, show larger lists in batches of 50, export both lists as JSON, and merge JSON/text imports without replacing existing entries or name types
 - Archive notes for later reading and restore them without deleting them; move one archived note, all notes archived on a displayed date, or the full archive to the recycle bin
 - Move an active date section, all pinned notes, or all active notes to the recycle bin after confirmation; date sections exclude pinned notes, and removal includes hidden notes and later pages
 - Icon buttons below active notes archive or recycle the whole collection after confirmation. Cancel is a bordered button; clicking outside a modal dismisses it without confirming its action

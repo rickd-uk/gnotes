@@ -4433,13 +4433,28 @@
       <h3>Always ignore</h3>
       <p>Ignored words are separate from saved dictionary words. They apply to rich note text. Markdown source and note titles use your browser’s word list.</p>
       <form id="spelling-ignore-form"><label for="spelling-word">Word to ignore</label><div class="dictionary-search"><input id="spelling-word" type="text" maxlength="96" autocomplete="off" spellcheck="false" required /><button type="submit">Ignore word</button></div></form>
+      <label class="spelling-search-label" for="spelling-ignored-search">Find ignored words</label><input id="spelling-ignored-search" type="search" maxlength="96" placeholder="Search your ignored words" autocomplete="off" spellcheck="false" />
+      <p id="spelling-ignored-count" role="status"></p>
       <ul id="spelling-ignored-list"></ul><p id="spelling-status" role="status"></p>
+      <button id="spelling-ignored-more" type="button" hidden>Show more words</button>
       <h3>Names</h3><p>Automatically ignore these people, companies, places, and other names in rich note text. Full names and single names are supported.</p>
       <label><input id="spelling-builtin-enabled" type="checkbox" checked /> Automatically ignore built-in names</label>
       <p id="spelling-builtin-status" role="status">Includes a shared list of people, companies, and worldwide places. Built-in names match capitalized text; add your own names below.</p>
       <form id="spelling-name-form"><label for="spelling-name">Name</label><div class="dictionary-search"><input id="spelling-name" type="text" maxlength="96" autocomplete="off" spellcheck="false" required placeholder="e.g. Sriniously or New York" /><button type="submit">Add name</button></div>
         <label for="spelling-name-kind">Type</label><select id="spelling-name-kind"><option value="person">Person</option><option value="company">Company</option><option value="place">Place</option><option value="other">Other</option></select></form>
-      <ul id="spelling-names-list"></ul><p id="spelling-names-status" role="status"></p>
+      <label class="spelling-search-label" for="spelling-names-search">Find personal names</label><input id="spelling-names-search" type="search" maxlength="96" placeholder="Search by name or type" autocomplete="off" spellcheck="false" />
+      <p id="spelling-names-count" role="status"></p><ul id="spelling-names-list"></ul><p id="spelling-names-status" role="status"></p>
+      <button id="spelling-names-more" type="button" hidden>Show more names</button>
+      <details class="spelling-transfer"><summary>Import / export personal lists</summary>
+        <p>Export both lists as JSON. Import a JSON export or a text file with one word or name per line. Files can be up to 2 MB; each personal list holds up to 2,000 entries. Import adds entries; existing entries and their types stay the same.</p>
+        <button id="spelling-export" type="button">Export lists</button>
+        <form id="spelling-import-form">
+          <label for="spelling-import-file">File to import</label><input id="spelling-import-file" type="file" accept=".json,.txt,application/json,text/plain" required />
+          <label for="spelling-import-type">For text files, add entries as</label><select id="spelling-import-type"><option value="person">Person names</option><option value="company">Company names</option><option value="place">Place names</option><option value="other">Other names</option><option value="words">Ignored words</option></select>
+          <button type="submit">Import lists</button>
+        </form>
+        <p id="spelling-transfer-status" role="status"></p>
+      </details>
       <p id="spelling-sync-status" role="status"></p><button id="spelling-retry" type="button" hidden>Retry loading lists</button>
       <p class="dictionary-credit">Names and ignored words are saved to your account and available on your other devices. Spellcheck on/off is remembered in this browser.</p>
     </dialog>
@@ -4765,6 +4780,7 @@
       let spellingNames = [];
       let builtinSpellingEnabled = true;
       let builtinNamesReady = false, builtinNamesRequest = null;
+      let spellingWordsVisible = 50, spellingNamesVisible = 50;
       let spellingListsMigrated = false;
       let spellingReady = false;
       let spellingBusy = false;
@@ -5314,24 +5330,38 @@
         richDraft?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
         richEdit?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
         if (currentUser && spellcheckEnabled && builtinSpellingEnabled) loadBuiltinNames();
+        renderSpellingLists();
+        refreshSpellingControls();
+      }
+
+      function renderSpellingLists() {
+        const wordQuery = document.getElementById('spelling-ignored-search').value.trim().toLowerCase().replaceAll('’', "'");
+        const nameQuery = document.getElementById('spelling-names-search').value.trim().toLowerCase().replaceAll('’', "'");
+        const words = ignoredSpellingWords.filter(word => word.includes(wordQuery));
+        const names = spellingNames.filter(entry => entry.name.toLowerCase().replaceAll('’', "'").includes(nameQuery) || entry.kind.includes(nameQuery));
         const list = document.getElementById('spelling-ignored-list');
         list.replaceChildren();
-        for (const word of ignoredSpellingWords) {
+        for (const word of words.slice(0, spellingWordsVisible)) {
           const item = document.createElement('li');
           const button = document.createElement('button');
           button.type = 'button'; button.textContent = 'Stop ignoring';
           button.setAttribute('aria-label', `Stop ignoring ${word}`);
           button.addEventListener('click', () => removeSpellingEntry('word', word));
-          item.append(document.createTextNode(`${word} `), button); list.append(item);
+          const text = document.createElement('span'); text.className = 'spelling-entry-text'; text.textContent = word;
+          item.append(text, button); list.append(item);
         }
         const namesList = document.getElementById('spelling-names-list'); namesList.replaceChildren();
-        for (const entry of spellingNames) {
+        for (const entry of names.slice(0, spellingNamesVisible)) {
           const item = document.createElement('li'), button = document.createElement('button');
           button.type = 'button'; button.textContent = 'Remove'; button.setAttribute('aria-label', `Remove ${entry.name} from names`);
           button.addEventListener('click', () => removeSpellingEntry('name', entry.name));
-          item.append(document.createTextNode(`${entry.name} · ${entry.kind} `), button); namesList.append(item);
+          const text = document.createElement('span'); text.className = 'spelling-entry-text'; text.textContent = `${entry.name} · ${entry.kind}`;
+          item.append(text, button); namesList.append(item);
         }
-        refreshSpellingControls();
+        document.getElementById('spelling-ignored-count').textContent = `${Math.min(words.length, spellingWordsVisible)} of ${words.length} ${wordQuery ? 'matching ' : ''}ignored words${wordQuery ? ` (${ignoredSpellingWords.length} total)` : ''}`;
+        document.getElementById('spelling-names-count').textContent = `${Math.min(names.length, spellingNamesVisible)} of ${names.length} ${nameQuery ? 'matching ' : ''}personal names${nameQuery ? ` (${spellingNames.length} total)` : ''}`;
+        document.getElementById('spelling-ignored-more').hidden = words.length <= spellingWordsVisible;
+        document.getElementById('spelling-names-more').hidden = names.length <= spellingNamesVisible;
       }
 
       function validSpellingName(value) {
@@ -5367,7 +5397,7 @@
       }
 
       function refreshSpellingControls() {
-        document.querySelectorAll('#spelling-ignore-form button, #spelling-name-form button, #spelling-ignored-list button, #spelling-names-list button').forEach(button => { button.disabled = spellingBusy || !spellingReady; });
+        document.querySelectorAll('#spelling-ignore-form button, #spelling-name-form button, #spelling-ignored-list button, #spelling-names-list button, #spelling-export, #spelling-import-form button, #spelling-import-file, #spelling-import-type').forEach(button => { button.disabled = spellingBusy || !spellingReady; });
         window.GnotesDictionary?.refreshSpelling();
       }
 
@@ -5430,6 +5460,76 @@
 
       function removeSpellingEntry(scope, value) {
         return changeSpellingEntry(`/api/spelling?${new URLSearchParams({ scope, value })}`, { method: 'DELETE' });
+      }
+
+      function parseSpellingImport(text, filename, type) {
+        text = text.replace(/^\uFEFF/, '');
+        let data;
+        if (/\.json$/i.test(filename) || /^[\s]*[\[{]/.test(text)) {
+          try { data = JSON.parse(text); } catch { throw new Error('The file is not valid JSON.'); }
+          if (!data || typeof data !== 'object' || Array.isArray(data) ||
+              (data.format !== undefined && data.format !== 'gnotes-spelling') ||
+              (data.version !== undefined && data.version !== 1) ||
+              (!Array.isArray(data.words) && !Array.isArray(data.names)) ||
+              (data.words !== undefined && !Array.isArray(data.words)) ||
+              (data.names !== undefined && !Array.isArray(data.names))) throw new Error('Choose a spelling-lists JSON export with words and/or names.');
+        } else {
+          const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+          data = type === 'words' ? { words: lines } : { names: lines.map(name => ({ name, kind: type })) };
+        }
+        if ((data.words?.length || 0) > 2000 || (data.names?.length || 0) > 2000) throw new Error('Import up to 2,000 entries per list.');
+        const words = [], names = [], wordKeys = new Set(), nameKeys = new Set();
+        for (const [index, value] of (data.words || []).entries()) {
+          const word = typeof value === 'string' ? spellingWord(value) : '';
+          if (!word) throw new Error(`Ignored word ${index + 1} must be one word using up to 96 characters.`);
+          if (!wordKeys.has(word)) { wordKeys.add(word); words.push(word); }
+        }
+        for (const [index, entry] of (data.names || []).entries()) {
+          const name = validSpellingName(entry?.name);
+          if (!name || !['person', 'company', 'place', 'other'].includes(entry.kind)) throw new Error(`Name ${index + 1} needs a valid name and Person, Company, Place, or Other type.`);
+          const key = name.toLowerCase().replaceAll('’', "'");
+          if (!nameKeys.has(key)) { nameKeys.add(key); names.push({ name, kind: entry.kind }); }
+        }
+        if (!words.length && !names.length) throw new Error('The file contains no words or names.');
+        return { words, names };
+      }
+
+      async function importSpellingLists(file, type) {
+        if (!currentUser || !spellingReady || spellingBusy) return;
+        const owner = currentUser, status = document.getElementById('spelling-transfer-status');
+        spellingBusy = true; refreshSpellingControls(); status.textContent = 'Reading import…';
+        try {
+          if (!file || file.size > 2 * 1024 * 1024) throw new Error('Choose a JSON or text file up to 2 MB.');
+          const text = await file.text();
+          if (currentUser !== owner) return;
+          const lists = parseSpellingImport(text, file.name, type);
+          status.textContent = 'Importing…';
+          const data = await spellingRequest('/api/spelling/migrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lists) }, owner);
+          applySpelling(spellcheckEnabled, data.words, data.names);
+          spellingListsMigrated = true; saveUIState();
+          document.getElementById('spelling-import-file').value = '';
+          status.textContent = `Import complete. Your account now has ${data.words.length} ignored words and ${data.names.length} personal names. Existing entries were kept.`;
+          document.getElementById('spelling-sync-status').textContent = 'Saved to your account.';
+        } catch (error) {
+          if (currentUser === owner && error.name !== 'AbortError') status.textContent = `Could not import. ${error.message} Your file is kept for retry.`;
+        } finally { if (currentUser === owner) { spellingBusy = false; refreshSpellingControls(); } }
+      }
+
+      async function exportSpellingLists() {
+        if (!currentUser || !spellingReady || spellingBusy) return;
+        const owner = currentUser, status = document.getElementById('spelling-transfer-status');
+        spellingBusy = true; refreshSpellingControls(); status.textContent = 'Preparing export…';
+        try {
+          const data = await spellingRequest('/api/spelling', {}, owner);
+          applySpelling(spellcheckEnabled, data.words, data.names);
+          const payload = { format: 'gnotes-spelling', version: 1, words: data.words, names: data.names };
+          const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+          const link = document.createElement('a'); link.href = url; link.download = `gnotes-spelling-${new Date().toISOString().slice(0, 10)}.json`;
+          document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+          status.textContent = `Exported ${data.words.length} ignored words and ${data.names.length} personal names.`;
+        } catch (error) {
+          if (currentUser === owner && error.name !== 'AbortError') status.textContent = `Could not export. ${error.message}`;
+        } finally { if (currentUser === owner) { spellingBusy = false; refreshSpellingControls(); } }
       }
 
       function applyNoteSizes(title, body) {
@@ -5589,6 +5689,11 @@
         document.getElementById('spelling-dialog').close();
         document.getElementById('spelling-ignore-form').reset();
         document.getElementById('spelling-name-form').reset();
+        document.getElementById('spelling-import-form').reset();
+        document.getElementById('spelling-transfer-status').textContent = '';
+        document.getElementById('spelling-ignored-search').value = '';
+        document.getElementById('spelling-names-search').value = '';
+        spellingWordsVisible = 50; spellingNamesVisible = 50;
         document.getElementById('spelling-names-status').textContent = '';
         document.getElementById('spelling-status').textContent = '';
         applySpelling(true, [], []);
@@ -8525,6 +8630,12 @@
       document.getElementById('spelling-retry').addEventListener('click', loadSpellingLists);
       window.addEventListener('focus', () => { if (spellingReady && !spellingBusy) loadSpellingLists(); });
       document.getElementById('spelling-close').addEventListener('click', () => document.getElementById('spelling-dialog').close());
+      document.getElementById('spelling-ignored-search').addEventListener('input', () => { spellingWordsVisible = 50; renderSpellingLists(); refreshSpellingControls(); });
+      document.getElementById('spelling-names-search').addEventListener('input', () => { spellingNamesVisible = 50; renderSpellingLists(); refreshSpellingControls(); });
+      document.getElementById('spelling-ignored-more').addEventListener('click', () => { spellingWordsVisible += 50; renderSpellingLists(); refreshSpellingControls(); });
+      document.getElementById('spelling-names-more').addEventListener('click', () => { spellingNamesVisible += 50; renderSpellingLists(); refreshSpellingControls(); });
+      document.getElementById('spelling-export').addEventListener('click', exportSpellingLists);
+      document.getElementById('spelling-import-form').addEventListener('submit', event => { event.preventDefault(); importSpellingLists(document.getElementById('spelling-import-file').files[0], document.getElementById('spelling-import-type').value); });
       document.getElementById('spelling-enabled').addEventListener('change', event => { applySpelling(event.target.checked); saveUIState(); });
       document.getElementById('spelling-builtin-enabled').addEventListener('change', event => { builtinSpellingEnabled = event.target.checked; applySpelling(); saveUIState(); });
       document.getElementById('spelling-ignore-form').addEventListener('submit', async event => {
