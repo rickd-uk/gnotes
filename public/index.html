@@ -832,8 +832,9 @@
       .note-view > h2, .note-content { -webkit-user-select: text; user-select: text; }
       .note-content button { -webkit-user-select: none; user-select: none; }
       .note-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-      .note-tag { padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--accent); font-size: 0.72rem; cursor: pointer; overflow-wrap: anywhere; max-width: 100%; }
-      .note-tag:hover { background: #e9e5dc; }
+      .note-tag, .note-tags-toggle { padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--accent); font-size: 0.72rem; cursor: pointer; overflow-wrap: anywhere; max-width: 100%; }
+      .note-tag:hover, .note-tags-toggle:hover { background: #e9e5dc; }
+      .note-tag[hidden] { display: none; }
       #tags-dialog { width: min(400px, calc(100% - 32px)); }
       #tags-dialog input { padding: 10px 0; }
       #tags-dialog .tag-dialog-actions { display: flex; justify-content: flex-end; gap: 12px; }
@@ -6047,7 +6048,7 @@
               </div>
                 <div class="note-view" id="note-view-${n.id}">
                   <h2 class="${hasTitle ? "" : "fallback-title"}">${escapeHTML(displayTitle)}</h2>
-                  ${(n.tags || []).length ? `<div class="note-tags" aria-label="Note tags">${n.tags.map((tag) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}">#${escapeHTML(tag)}</button>`).join("")}</div>` : ""}
+                  ${(n.tags || []).length ? `<div class="note-tags" id="note-tags-${n.id}" aria-label="Note tags">${n.tags.map((tag, index) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}"${index >= 3 ? ' data-extra-tag hidden' : ''}>#${escapeHTML(tag)}</button>`).join("")}${n.tags.length > 3 ? `<button class="note-tags-toggle" type="button" aria-expanded="false" aria-controls="note-tags-${n.id}">+${n.tags.length - 3} more</button>` : ''}</div>` : ""}
                   <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
                 </div>
                 <div class="note-editor" id="note-editor-${n.id}" hidden>
@@ -7721,6 +7722,15 @@
       });
 
       notesList.addEventListener('click', async (event) => {
+        const toggle = event.target.closest('.note-tags-toggle');
+        if (toggle) {
+          const extras = toggle.closest('.note-tags').querySelectorAll('[data-extra-tag]');
+          const expanded = toggle.getAttribute('aria-expanded') !== 'true';
+          for (const tag of extras) tag.hidden = !expanded;
+          toggle.setAttribute('aria-expanded', String(expanded));
+          toggle.textContent = expanded ? 'Show fewer' : `+${extras.length} more`;
+          return;
+        }
         const button = event.target.closest('.note-tag');
         if (!button) return;
         const select = document.getElementById('search-tag');
