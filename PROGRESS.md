@@ -6,6 +6,8 @@ Updated: 2026-10-06
 
 Remaining:
 
+Phone/tablet orientation checks also passed in Chromium touch emulation: 360×800, 800×360, 768×1024, and 1024×768. Read-view and editor actions stay within the visible viewport and clear of Copy/Done; rotating an existing selection preserves it. These checks require no production code change.
+
 - Verify the live admin recovery email in Profile and test a real reset email.
 - Retest on Pixel 6a browsers.
 - Configure encrypted off-server backups and alerts; improve CSP, auditing, and admin MFA.
