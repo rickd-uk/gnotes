@@ -2,7 +2,7 @@
 
 Updated: 2026-10-06
 
-`v0.7.24` deployed: https://gnotes.rickd.dev. Ordinary line breaks stay visible, and harmless source normalization no longer forces notes out of the default rich text editor. Tests, browser checks, backup, checksums, health, and database checks passed; 4 accounts and 32 notes preserved.
+`v0.7.25` deployed: https://gnotes.rickd.dev. Notes show three tags with expandable overflow. The v0.7.24 line-break and rich text fixes remain live. Tests, browser checks, backup, checksums, health, and database checks passed; 4 accounts and 33 notes preserved.
 
 Remaining:
 
