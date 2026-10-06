@@ -1066,8 +1066,11 @@
         font: 650 0.76rem var(--note-body-font);
       }
       .archive-remove-all:hover { background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
+      #active-notes-remove-all { display: block; margin: 12px 0 0 auto; }
+      #active-notes-remove-all[hidden] { display: none; }
       #app-shell.archive-mode #note-form { display: none; }
       #app-shell.archive-mode #hidden-notes-control,
+      #app-shell.archive-mode #active-notes-remove-all,
       #app-shell.archive-mode #archive-open { display: none; }
       #app-shell.archive-mode #notes-list .note-card { cursor: default; }
       #app-shell.archive-mode #notes-list .note-card:not([class*="note-color-"]) {
@@ -4190,6 +4193,7 @@
               <span>Link underlines</span>
               <span class="tool-state" id="link-style-state">On</span>
             </button>
+            <button class="link-style-toggle dictionary-ui" id="spelling-open" type="button"><span>Spellcheck</span><span class="tool-state" id="spelling-state">On</span></button>
             </div>
             <div class="menu-opacity-control">
               <label for="menu-opacity">Menu opacity <span id="menu-opacity-value">88%</span></label>
@@ -4389,6 +4393,7 @@
         <p class="search-status" id="notes-load-status" role="status" hidden></p>
         <div id="notes-list"></div>
         <button class="load-more" id="load-more-notes" type="button" hidden>Load older</button>
+        <button class="archive-remove-all" id="active-notes-remove-all" type="button" onclick="promptActiveRemoval('all')" hidden>Move all active notes to recycle bin</button>
       </section>
     </main>
 
@@ -4408,6 +4413,19 @@
         <div class="tag-dialog-actions"><button id="tags-cancel" type="button">Cancel</button><button type="submit">Save</button></div>
       </form>
     </dialog>
+    <dialog class="dictionary-ui" id="spelling-dialog" aria-labelledby="spelling-heading">
+      <div class="dictionary-header"><h2 id="spelling-heading">Spellcheck</h2><button id="spelling-close" type="button" aria-label="Close spellcheck settings">×</button></div>
+      <label><input id="spelling-enabled" type="checkbox" checked /> Show spelling underlines in notes</label>
+      <h3>Always ignore</h3>
+      <p>Ignored words are separate from saved dictionary words. They apply to rich note text. Markdown source and note titles use your browser’s word list.</p>
+      <form id="spelling-ignore-form"><label for="spelling-word">Word to ignore</label><div class="dictionary-search"><input id="spelling-word" type="text" maxlength="96" autocomplete="off" spellcheck="false" required /><button type="submit">Ignore word</button></div></form>
+      <ul id="spelling-ignored-list"></ul><p id="spelling-status" role="status"></p>
+      <h3>Names</h3><p>Automatically ignore these people, companies, places, and other names in rich note text. Full names and single names are supported.</p>
+      <form id="spelling-name-form"><label for="spelling-name">Name</label><div class="dictionary-search"><input id="spelling-name" type="text" maxlength="96" autocomplete="off" spellcheck="false" required placeholder="e.g. Sriniously or New York" /><button type="submit">Add name</button></div>
+        <label for="spelling-name-kind">Type</label><select id="spelling-name-kind"><option value="person">Person</option><option value="company">Company</option><option value="place">Place</option><option value="other">Other</option></select></form>
+      <ul id="spelling-names-list"></ul><p id="spelling-names-status" role="status"></p>
+      <p class="dictionary-credit">These settings are saved for your account in this browser.</p>
+    </dialog>
     <dialog class="dictionary-ui" id="dictionary-dialog" aria-labelledby="dictionary-heading">
       <div class="dictionary-header"><h2 id="dictionary-heading">Dictionary</h2><button id="dictionary-close" type="button" aria-label="Close dictionary">×</button></div>
       <div class="dictionary-tabs" role="tablist" aria-label="Dictionary views">
@@ -4418,6 +4436,7 @@
         <form id="dictionary-lookup-form"><label for="dictionary-word">Word or short phrase</label><div class="dictionary-search"><input id="dictionary-word" type="text" maxlength="96" autocomplete="off" placeholder="e.g. serendipity" /><button type="submit">Look up</button></div></form>
         <div id="dictionary-result" aria-live="polite"></div>
         <button id="dictionary-save" type="button" hidden>Save word</button>
+        <button id="dictionary-ignore" type="button" hidden>Always ignore spelling</button>
       </section>
       <section id="dictionary-saved-panel" role="tabpanel" aria-labelledby="dictionary-saved-tab" hidden>
         <label for="dictionary-filter">Find a saved word</label><input id="dictionary-filter" type="search" maxlength="96" autocomplete="off" placeholder="Search your word list" />
@@ -4428,6 +4447,12 @@
       <p class="dictionary-credit">English definitions · <a href="/WORDNET-LICENSE.txt" target="_blank" rel="noopener">WordNet 3.1</a> · © 2011 Princeton University</p>
     </dialog>
     <button class="dictionary-ui" id="dictionary-selection" type="button" hidden>Dictionary</button>
+    <div class="dictionary-ui" id="note-context-menu" role="menu" aria-label="Text actions" hidden>
+      <button id="note-context-copy" type="button" role="menuitem">Copy</button>
+      <button id="note-context-dictionary" type="button" role="menuitem">Dictionary</button>
+      <button id="note-context-ignore" type="button" role="menuitem">Always ignore spelling</button>
+      <span>Shift + right-click for browser menu</span>
+    </div>
     <dialog class="note-action-dialog" id="note-action-dialog" aria-labelledby="note-action-dialog-title" aria-describedby="note-action-dialog-message">
       <h2 id="note-action-dialog-title"></h2>
       <p id="note-action-dialog-message"></p>
@@ -4649,6 +4674,7 @@
       let inviteRequired = false;
       let activeNoteCount = 0;
       let pinnedNoteCount = 0;
+      let activeRemovalBusy = false;
       let trashedNoteCount = 0;
       let draftVersion = 0;
       let draftSaveTimer;
@@ -4714,6 +4740,9 @@
       let rolledNoteIds = new Set();
       let markdownSource = false;
       let richDraft = null;
+      let spellcheckEnabled = true;
+      let ignoredSpellingWords = [];
+      let spellingNames = [];
       let richEdit = null;
       let richDraftFallback = false;
       let richToolbarVisible = false;
@@ -4935,6 +4964,7 @@
         input.classList.remove("force-source");
         richDraftFallback = false;
         richDraft = editor;
+        editor.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames);
         mountRichToolbar(host, editor);
         toggle.hidden = false;
       }
@@ -4973,6 +5003,7 @@
         }
         input.classList.remove("force-source");
         richEdit = editor;
+        editor.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames);
         mountRichToolbar(host, editor);
         document.getElementById(`edit-rich-format-toggle-${id}`).hidden = false;
       }
@@ -5087,6 +5118,9 @@
           titleSize,
           bodySize,
           linkUnderlines,
+          spellcheckEnabled,
+          ignoredSpellingWords,
+          spellingNames,
           timeZoneChoice,
           markdownSource,
           richToolbarVisible,
@@ -5208,6 +5242,57 @@
         document.getElementById("link-style-state").textContent = linkUnderlines ? "On" : "Color only";
       }
 
+      function spellingWord(value) {
+        const word = String(value || '').trim().toLowerCase().replaceAll('’', "'");
+        return word.length <= 96 && /^[\p{L}\p{N}]+(?:['\-][\p{L}\p{N}]+)*$/u.test(word) ? word : '';
+      }
+
+      function applySpelling(enabled = true, words = ignoredSpellingWords, names = spellingNames) {
+        spellcheckEnabled = enabled !== false;
+        ignoredSpellingWords = [...new Set((Array.isArray(words) ? words : []).map(spellingWord).filter(Boolean))].slice(0, 2000);
+        const seen = new Set();
+        spellingNames = (Array.isArray(names) ? names : []).filter(entry => {
+          const name = validSpellingName(entry?.name);
+          if (!name || !['person', 'company', 'place', 'other'].includes(entry.kind) || seen.has(name.toLowerCase())) return false;
+          seen.add(name.toLowerCase()); return true;
+        }).slice(0, 2000).map(entry => ({name: validSpellingName(entry.name), kind: entry.kind}));
+        document.getElementById('spelling-enabled').checked = spellcheckEnabled;
+        document.getElementById('spelling-state').textContent = spellcheckEnabled ? 'On' : 'Off';
+        document.querySelectorAll('#title, #content, .edit-title, .edit-content').forEach(input => { input.spellcheck = spellcheckEnabled; });
+        richDraft?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames);
+        richEdit?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames);
+        const list = document.getElementById('spelling-ignored-list');
+        list.replaceChildren();
+        for (const word of ignoredSpellingWords) {
+          const item = document.createElement('li');
+          const button = document.createElement('button');
+          button.type = 'button'; button.textContent = 'Stop ignoring';
+          button.setAttribute('aria-label', `Stop ignoring ${word}`);
+          button.addEventListener('click', () => { applySpelling(spellcheckEnabled, ignoredSpellingWords.filter(value => value !== word)); saveUIState(); });
+          item.append(document.createTextNode(`${word} `), button); list.append(item);
+        }
+        const namesList = document.getElementById('spelling-names-list'); namesList.replaceChildren();
+        for (const entry of spellingNames) {
+          const item = document.createElement('li'), button = document.createElement('button');
+          button.type = 'button'; button.textContent = 'Remove'; button.setAttribute('aria-label', `Remove ${entry.name} from names`);
+          button.addEventListener('click', () => { applySpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames.filter(value => value !== entry)); saveUIState(); });
+          item.append(document.createTextNode(`${entry.name} · ${entry.kind} `), button); namesList.append(item);
+        }
+      }
+
+      function validSpellingName(value) {
+        const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+        return name.length <= 96 && /\p{L}/u.test(name) && /^[\p{L}\p{N}'’&.,() -]+$/u.test(name) && name.split(' ').length <= 12 ? name : '';
+      }
+
+      function ignoreSpellingWord(value) {
+        const word = spellingWord(value);
+        if (!currentUser || !word) return false;
+        if (!ignoredSpellingWords.includes(word) && ignoredSpellingWords.length >= 2000) return false;
+        applySpelling(spellcheckEnabled, [...ignoredSpellingWords, word]); saveUIState();
+        return true;
+      }
+
       function applyNoteSizes(title, body) {
         const clampSize = (value) => {
           const number = Number(value);
@@ -5281,6 +5366,7 @@
         applyFontMode(state.fontMode);
         applyNoteSizes(state.titleSize, state.bodySize);
         applyLinkStyle(state.linkUnderlines);
+        applySpelling(state.spellcheckEnabled, state.ignoredSpellingWords || [], state.spellingNames || []);
         richToolbarVisible = state.richToolbarVisible === true;
         applyEditorMode(Boolean(state.markdownSource));
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
@@ -5355,6 +5441,12 @@
       }
 
       function showAuth(message = "") {
+        document.getElementById('spelling-dialog').close();
+        document.getElementById('spelling-ignore-form').reset();
+        document.getElementById('spelling-name-form').reset();
+        document.getElementById('spelling-names-status').textContent = '';
+        document.getElementById('spelling-status').textContent = '';
+        applySpelling(true, [], []);
         window.GnotesDictionary?.reset();
         document.getElementById("tags-dialog").close();
         document.getElementById("tags-form").reset();
@@ -5989,12 +6081,12 @@
               const sectionCollapsed = !searchActive && collapsedDateSections.has(dateSectionKey);
               renderedNotes += `
                 <section class="date-group ${dateSection === "Pinned" ? "pinned-section" : ""} ${sectionCollapsed ? "is-collapsed" : ""}" aria-labelledby="date-section-${dateSectionIndex}">
-                  <h3 class="date-section-heading ${archiveMode ? "archive-date-heading" : ""}" id="date-section-${dateSectionIndex}">
+                  <h3 class="date-section-heading archive-date-heading" id="date-section-${dateSectionIndex}">
                     <button class="date-section-toggle" type="button" data-section-key="${dateSectionKey}" aria-expanded="${String(!sectionCollapsed)}" onclick="toggleDateSection(this)">
                       <span>${escapeHTML(dateSection)}</span>
                       <svg class="date-section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                     </button>
-                    ${archiveMode ? `<button class="archive-date-remove" type="button" data-archive-date="${formatLocalDateKey(noteDate)}" onclick="promptArchiveDateRemoval(this)" aria-label="Move notes archived on ${formatLocalDateKey(noteDate)} to recycle bin" title="Move this archive date to recycle bin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>` : ""}
+                    ${archiveMode ? `<button class="archive-date-remove" type="button" data-archive-date="${formatLocalDateKey(noteDate)}" onclick="promptArchiveDateRemoval(this)" aria-label="Move notes archived on ${formatLocalDateKey(noteDate)} to recycle bin" title="Move this archive date to recycle bin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>` : `<button class="archive-date-remove active-section-remove" type="button" data-remove-scope="${n.pinned ? 'pinned' : 'date'}" data-note-date="${n.pinned ? '' : formatLocalDateKey(noteDate)}" onclick="promptActiveSectionRemoval(this)" aria-label="${n.pinned ? 'Move all pinned notes to recycle bin' : `Move unpinned notes dated ${formatLocalDateKey(noteDate)} to recycle bin`}" title="${n.pinned ? 'Move all pinned notes to recycle bin' : 'Move this date section to recycle bin'}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>`}
                   </h3>`;
             }
 
@@ -6075,8 +6167,8 @@
                   <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
                 </div>
                 <div class="note-editor" id="note-editor-${n.id}" hidden>
-                  <input class="edit-title" id="edit-title-${n.id}" aria-label="Edit note title" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" />
-                  <textarea class="edit-content" id="edit-content-${n.id}" aria-label="Edit note content" oninput="handleEditInput(event, ${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
+                  <input class="edit-title" id="edit-title-${n.id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note title" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" />
+                  <textarea class="edit-content" id="edit-content-${n.id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note content" oninput="handleEditInput(event, ${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
                   <div class="rich-editor-container" id="rich-editor-${n.id}" hidden></div>
                   <div class="editor-actions">
                     <button class="edit-copy" type="button" onclick="copyEditedNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
@@ -6449,6 +6541,7 @@
       function setActiveNoteCount(count) {
         activeNoteCount = Math.max(0, count);
         document.getElementById("delete-all-notes").hidden = activeNoteCount === 0;
+        document.getElementById("active-notes-remove-all").hidden = activeNoteCount === 0;
       }
 
       function setPinnedNoteCount(count) {
@@ -6774,8 +6867,11 @@
       function promptArchiveRemoval(scope, date = "") {
         if (!archiveMode) return;
         const dialog = document.getElementById("archive-remove-dialog");
+        dialog.dataset.mode = "archived";
         dialog.dataset.scope = scope;
         dialog.dataset.date = date;
+        dialog.dataset.timezone = noteTimeZone();
+        document.getElementById("archive-remove-title").textContent = "Move archived notes?";
         document.getElementById("archive-remove-message").textContent = scope === "all"
           ? "Move every archived note to the recycle bin, including notes outside the current page or filter? You can recover them from the recycle bin."
           : `Move every note archived on ${date} to the recycle bin, including notes outside the current page or filter? You can recover them from the recycle bin.`;
@@ -6785,6 +6881,60 @@
 
       function promptArchiveDateRemoval(button) {
         promptArchiveRemoval("date", button.dataset.archiveDate);
+      }
+
+      async function promptActiveRemoval(scope, date = "", owner = currentUser) {
+        if (!currentUser || currentUser !== owner || archiveMode || activeRemovalBusy || !['all', 'date', 'pinned'].includes(scope)) return;
+        if (draftFinalizing || notesLoading) {
+          setTimeout(() => promptActiveRemoval(scope, date, owner), 150);
+          return;
+        }
+        if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
+        if (draftHasText() || draftVersion > 0) {
+          await finalizeDraft();
+          if (draftHasText() || draftVersion > 0) return;
+        }
+        if (!currentUser || currentUser !== owner || archiveMode) return;
+        document.getElementById('account-control').open = false;
+        const dialog = document.getElementById('archive-remove-dialog');
+        dialog.dataset.mode = 'active';
+        dialog.dataset.scope = scope;
+        dialog.dataset.date = date;
+        dialog.dataset.timezone = noteTimeZone();
+        document.getElementById('archive-remove-title').textContent = scope === 'pinned' ? 'Move pinned notes?' : scope === 'date' ? 'Move this date section?' : 'Move all active notes?';
+        const target = scope === 'all' ? 'every active note, including pinned notes' : scope === 'pinned' ? 'every pinned active note' : `every unpinned active note dated ${date}`;
+        document.getElementById('archive-remove-message').textContent = `Move ${target} to the recycle bin, including hidden notes and notes outside the current page or filter? Archived notes stay in Archive.${scope === 'date' ? ' Pinned notes stay in Pinned.' : ''} You can recover removed notes from the recycle bin.`;
+        if (!dialog.open) dialog.showModal();
+        document.getElementById('archive-remove-cancel').focus();
+      }
+
+      function promptActiveSectionRemoval(button) {
+        promptActiveRemoval(button.dataset.removeScope, button.dataset.noteDate);
+      }
+
+      async function moveActiveNotesToTrash(params) {
+        if (activeRemovalBusy) return;
+        activeRemovalBusy = true;
+        const owner = currentUser;
+        try {
+          const response = await apiFetch(`/api/notes/delete-active?${params}`, { method: 'POST' });
+          if (currentUser !== owner) return;
+          if (!response.ok) {
+            if (response.status !== 401) showNoteActionDialog('Could not move notes', 'These notes could not be moved to the recycle bin. Please try again.');
+            return;
+          }
+          const result = await response.json();
+          if (currentUser !== owner) return;
+          for (const id of result.removed_ids) { hiddenNoteIds.delete(id); hiddenNotes.delete(id); }
+          saveHiddenNoteIds();
+          setActiveNoteCount(result.active_total);
+          setPinnedNoteCount(result.pinned_total);
+          await Promise.all([loadNotes(), loadTrash()]);
+          if (currentUser !== owner) return;
+          showNoteActionToast(result.removed ? `${result.removed} ${result.removed === 1 ? 'note' : 'notes'} moved to recycle bin` : 'No matching active notes to move');
+        } catch {
+          if (currentUser === owner) showNoteActionDialog('Could not move notes', 'Could not reach the server. Refresh to check your notes before retrying.');
+        } finally { activeRemovalBusy = false; }
       }
 
       async function moveArchivedNotesToTrash(params) {
@@ -6814,29 +6964,28 @@
       });
       document.getElementById("archive-remove-confirm").addEventListener("click", () => {
         const dialog = document.getElementById("archive-remove-dialog");
+        if (dialog.dataset.mode === 'active') {
+          const params = new URLSearchParams({ scope: dialog.dataset.scope });
+          if (dialog.dataset.scope === 'date') {
+            params.set('date', dialog.dataset.date);
+            params.set('timezone', dialog.dataset.timezone);
+          }
+          dialog.close();
+          moveActiveNotesToTrash(params);
+          return;
+        }
         const params = dialog.dataset.scope === "all"
           ? new URLSearchParams({ id: "all" })
           : new URLSearchParams({
             date: dialog.dataset.date,
-            timezone: noteTimeZone(),
+            timezone: dialog.dataset.timezone,
           });
         dialog.close();
         moveArchivedNotesToTrash(params);
       });
 
       async function deleteAllNotes() {
-        document.getElementById("account-control").open = false;
-        const response = await apiFetch("/api/notes/delete-all", { method: "POST" });
-        if (!response.ok) {
-          alert("Could not move your notes to the recycle bin.");
-          return;
-        }
-        hiddenNoteIds.clear();
-        hiddenNotes.clear();
-        saveHiddenNoteIds();
-        setActiveNoteCount(0);
-        setPinnedNoteCount(0);
-        await Promise.all([loadNotes(), loadTrash()]);
+        await promptActiveRemoval('all');
       }
 
       async function togglePin(id) {
@@ -8189,6 +8338,31 @@
       document.getElementById("link-style-toggle").addEventListener("click", () => {
         applyLinkStyle(!linkUnderlines);
         saveUIState();
+      });
+
+      document.getElementById('spelling-open').addEventListener('click', () => {
+        closeViewMenu(); hideRichContext();
+        document.getElementById('spelling-dialog').showModal();
+      });
+      document.getElementById('spelling-close').addEventListener('click', () => document.getElementById('spelling-dialog').close());
+      document.getElementById('spelling-enabled').addEventListener('change', event => { applySpelling(event.target.checked); saveUIState(); });
+      document.getElementById('spelling-ignore-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const input = document.getElementById('spelling-word');
+        const added = ignoreSpellingWord(input.value);
+        document.getElementById('spelling-status').textContent = added ? 'Word will always be ignored in rich note text.' : 'Enter one word. You can ignore up to 2,000 words.';
+        if (added) input.value = '';
+      });
+      document.getElementById('spelling-name-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const input = document.getElementById('spelling-name'), name = validSpellingName(input.value);
+        const duplicate = spellingNames.some(entry => entry.name.toLowerCase() === name.toLowerCase());
+        const status = document.getElementById('spelling-names-status');
+        if (!name) { status.textContent = 'Enter a name using up to 96 characters and 12 words.'; return; }
+        if (duplicate) { status.textContent = 'This name is already in your list.'; return; }
+        if (spellingNames.length >= 2000) { status.textContent = 'Your names list can hold up to 2,000 names.'; return; }
+        applySpelling(spellcheckEnabled, ignoredSpellingWords, [...spellingNames, {name, kind: document.getElementById('spelling-name-kind').value}]); saveUIState();
+        input.value = ''; status.textContent = 'Name added. Matching names will be ignored automatically.';
       });
 
       document.getElementById("note-time-zone").addEventListener("change", async (event) => {

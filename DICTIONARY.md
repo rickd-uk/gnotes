@@ -1,10 +1,18 @@
 # Personal dictionary
 
-Right-click a word in a displayed note or the rich editor to look it up. Selecting text in a displayed note exposes a Dictionary button; the editor's selection toolbar has the same action. Account → Dictionary also accepts typed words and short phrases.
+Right-click text in a displayed note or the rich editor for **Copy**, **Dictionary**, and **Always ignore spelling**. Copy uses the full selection, or the clicked word when nothing is selected. Dictionary opens only when chosen. Shift + right-click keeps the browser's native menu; links, code, and source text fields keep their native menus. Selecting text in a displayed note exposes a Dictionary button; the editor's selection toolbar has the same action. Account → Dictionary also accepts typed words and short phrases.
 
 Definitions are grouped by part of speech, with WordNet examples and related words. **Save word** adds the word to your account's list; **Remove saved word** removes it. Saved words can be searched, opened, removed, and exported as JSON. A word without a definition can still be saved.
 
 WordNet provides English nouns, verbs, adjectives, and adverbs. It is a lexical database rather than a complete dictionary of function words, new slang, or specialist terminology. Exception lists and standard suffix rules resolve common inflections. Lookup preserves the selected spelling in the saved list while showing which base form supplied the definition.
+
+## Spellcheck and local names
+
+**Controls → Spellcheck** turns native spelling underlines on or off for note text and titles. **Always ignore** maintains a separate list of individual words; this action is also available from the right-click menu and Dictionary lookup, without saving a dictionary word.
+
+The separate **Names** list accepts people, companies, places, and other names, including full names such as “New York”. Matching names are automatically excluded from native checking in rich note text, ignoring case. Whole words and phrases match; a name does not suppress unrelated words that merely contain it. Inline formatting does not prevent matching. Remove an entry to allow checking again.
+
+These settings and lists are stored locally in the existing per-account browser UI preferences. Each list holds up to 2,000 entries. They do not sync to other devices and are not part of SQLite backups or note exports. Clearing browser storage removes them. The browser's own dictionary remains responsible for source text fields and titles when spellcheck is on; HTML text fields cannot selectively disable checking for individual words. App ignore lists use editor view decorations, preserving note content and exported Markdown.
 
 ## Storage and privacy
 

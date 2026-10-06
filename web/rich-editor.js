@@ -3,6 +3,54 @@ import StarterKit from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Markdown } from '@tiptap/markdown';
 import { Marked } from 'marked';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+
+// View decorations suppress native checking without changing note Markdown.
+const spellingKey = new PluginKey('gnotesSpelling');
+const SpellingPreferences = Extension.create({
+  name: 'spellingPreferences',
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      key: spellingKey,
+      state: {
+        init: () => ({ enabled: true, ignored: new Set(), names: new Map() }),
+        apply: (tr, previous) => tr.getMeta(spellingKey) || previous,
+      },
+      props: {
+        decorations(state) {
+          const preferences = spellingKey.getState(state);
+          if (!preferences.enabled || (!preferences.ignored.size && !preferences.names.size)) return DecorationSet.empty;
+          const decorations = [];
+          state.doc.descendants((node, pos) => {
+            if (!node.isTextblock) return;
+            if (node.type.name === 'codeBlock') return false;
+            const text = node.textBetween(0, node.content.size, '\n', '\n');
+            const tokens = [...text.matchAll(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)];
+            const normalize = value => value.toLowerCase().replaceAll('’', "'").replace(/\s+/g, ' ');
+            const decorate = (from, to, name = false) => {
+              let code = false;
+              node.nodesBetween(from, to, child => { if (child.marks.some(mark => mark.type.name === 'code')) code = true; });
+              if (!code) decorations.push(Decoration.inline(pos + 1 + from, pos + 1 + to,
+                { spellcheck: 'false', 'data-spelling-ignored': name ? 'name' : 'word' }));
+            };
+            for (let i = 0; i < tokens.length; i++) {
+              const token = tokens[i], word = normalize(token[0]);
+              if (preferences.ignored.has(word)) decorate(token.index, token.index + token[0].length);
+              for (const name of preferences.names.get(word) || []) {
+                const last = tokens[i + name.count - 1];
+                if (last && normalize(text.slice(token.index, last.index + last[0].length)) === name.text)
+                  decorate(token.index, last.index + last[0].length, true);
+              }
+            }
+            return false;
+          });
+          return DecorationSet.create(state.doc, decorations);
+        },
+      },
+    })];
+  },
+});
 
 // Keep comparison rendering separate from Tiptap's custom tokenizers.
 const comparisonMarkdown = new Marked({ gfm: true, breaks: true });
@@ -48,6 +96,7 @@ const extensions = [
   TaskItem.configure({ nested: true }),
   Markdown.configure({ markedOptions: { gfm: true, breaks: true } }),
   MarkdownLinkShortcut,
+  SpellingPreferences,
 ];
 
 function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}) {
@@ -98,6 +147,22 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
   editor.view.dom.dataset.empty = String(editor.isEmpty);
   return {
     editor,
+    setSpelling(enabled, ignored, nameEntries = []) {
+      editor.setOptions({ editorProps: { ...editor.options.editorProps,
+        attributes: { ...editor.options.editorProps.attributes, spellcheck: String(enabled) } } });
+      const names = new Map();
+      for (const entry of nameEntries) {
+        const raw = entry.name.toLowerCase().replaceAll('’', "'").replace(/\s+/g, ' ');
+        const tokens = [...raw.matchAll(/[\p{L}\p{N}]+(?:['\-][\p{L}\p{N}]+)*/gu)];
+        if (!tokens.length) continue;
+        const last = tokens[tokens.length - 1];
+        const text = raw.slice(tokens[0].index, last.index + last[0].length);
+        const key = tokens[0][0];
+        if (!names.has(key)) names.set(key, []);
+        names.get(key).push({ text, count: tokens.length });
+      }
+      editor.view.dispatch(editor.state.tr.setMeta(spellingKey, { enabled, ignored: new Set(ignored), names }));
+    },
     preservesContent(markdown) {
       // Compare rendered content, not source spelling: the serializer escapes
       // literal asterisks and writes explicit breaks for ordinary newlines.

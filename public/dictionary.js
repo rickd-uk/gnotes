@@ -3,12 +3,45 @@
   const wordInput = document.getElementById('dictionary-word');
   const result = document.getElementById('dictionary-result');
   const saveButton = document.getElementById('dictionary-save');
+  const ignoreButton = document.getElementById('dictionary-ignore');
   const status = document.getElementById('dictionary-status');
   const wordList = document.getElementById('dictionary-word-list');
   const filter = document.getElementById('dictionary-filter');
   const listStatus = document.getElementById('dictionary-list-status');
   const moreButton = document.getElementById('dictionary-load-more');
   const selectionButton = document.getElementById('dictionary-selection');
+  const contextMenu = document.getElementById('note-context-menu');
+  let contextWord = '', contextText = '', contextEditor = null;
+
+  function closeContext() { contextMenu.hidden = true; }
+  contextMenu.addEventListener('pointerdown', event => event.preventDefault());
+  document.addEventListener('pointerdown', event => { if (!contextMenu.contains(event.target)) closeContext(); });
+  document.getElementById('note-context-dictionary').addEventListener('click', () => { closeContext(); open(contextWord); });
+  document.getElementById('note-context-ignore').addEventListener('click', () => {
+    closeContext();
+    if (ignoreSpellingWord(contextWord)) showNoteActionToast('Word will always be ignored in rich note text');
+    contextEditor?.focus({ preventScroll: true });
+  });
+  document.getElementById('note-context-copy').addEventListener('click', async () => {
+    const text = contextText, owner = currentUser;
+    closeContext();
+    try {
+      await navigator.clipboard.writeText(text);
+      if (owner === currentUser) showNoteActionToast('Copied');
+    } catch {
+      if (owner === currentUser) showNoteActionDialog('Could not copy', 'Use Ctrl+C or Command+C to copy selected text, or Shift + right-click for the browser menu.');
+    }
+  });
+  contextMenu.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeContext(); contextEditor?.focus({ preventScroll: true }); }
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const buttons = [...contextMenu.querySelectorAll('button:not(:disabled)')];
+      const index = buttons.indexOf(document.activeElement);
+      buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus();
+    }
+    if (event.key === 'Tab') closeContext();
+  });
   let currentEntry = null;
   let nextCursor = '';
   let lookupController, listController, filterTimer;
@@ -51,7 +84,16 @@
     saveButton.hidden = !currentEntry;
     saveButton.disabled = false;
     saveButton.textContent = currentEntry?.saved ? 'Remove saved word' : 'Save word';
+    ignoreButton.hidden = !currentEntry || !spellingWord(currentEntry.word);
+    ignoreButton.textContent = ignoredSpellingWords.includes(spellingWord(currentEntry?.word)) ? 'Spelling always ignored' : 'Always ignore spelling';
+    ignoreButton.disabled = ignoredSpellingWords.includes(spellingWord(currentEntry?.word));
   }
+
+  ignoreButton.addEventListener('click', () => {
+    if (currentEntry && ignoreSpellingWord(currentEntry.word)) {
+      updateSaveButton(); message('Spelling ignored in rich note text. This word was not added to saved words.');
+    }
+  });
 
   async function lookup(word) {
     lookupController?.abort();
@@ -91,6 +133,7 @@
 
   function open(word = '') {
     if (!currentUser) return;
+    closeContext();
     document.getElementById('account-control').open = false;
     closeViewMenu();
     hideRichContext();
@@ -238,9 +281,11 @@
   });
   selectionButton.addEventListener('pointerdown', (event) => event.preventDefault());
   selectionButton.addEventListener('click', () => open(selectionWord));
-  window.addEventListener('scroll', () => { selectionButton.hidden = true; }, true);
-  window.addEventListener('resize', () => { selectionButton.hidden = true; });
+  window.addEventListener('scroll', () => { selectionButton.hidden = true; closeContext(); }, true);
+  window.addEventListener('resize', () => { selectionButton.hidden = true; closeContext(); });
   document.addEventListener('contextmenu', (event) => {
+    closeContext();
+    if (event.shiftKey) return;
     const root = event.target.closest('.note-content, .tiptap');
     if (!currentUser || !root || event.target.closest('a, button, input, pre, code')) return;
     let word = '';
@@ -257,10 +302,23 @@
         }
       }
     }
-    if (word) { event.preventDefault(); open(word); }
+    const selectedText = selection?.rangeCount && root.contains(selection.anchorNode) && root.contains(selection.focusNode) && !selection.isCollapsed ? selection.toString() : '';
+    if (!word && !selectedText) return;
+    event.preventDefault(); hideRichContext(); selectionButton.hidden = true;
+    contextWord = word; contextText = selectedText || word;
+    contextEditor = root.matches('.tiptap') ? root : null;
+    document.getElementById('note-context-dictionary').disabled = !word;
+    document.getElementById('note-context-ignore').disabled = !spellingWord(word) || ignoredSpellingWords.includes(spellingWord(word));
+    contextMenu.hidden = false;
+    const rect = root.getBoundingClientRect();
+    const x = event.clientX || rect.left, y = event.clientY || rect.top;
+    contextMenu.style.left = `${Math.max(8, Math.min(x, innerWidth - contextMenu.offsetWidth - 8))}px`;
+    contextMenu.style.top = `${Math.max(8, Math.min(y, innerHeight - contextMenu.offsetHeight - 8))}px`;
+    document.getElementById('note-context-copy').focus({ preventScroll: true });
   });
 
   function reset() {
+    closeContext(); contextWord = ''; contextText = ''; contextEditor = null;
     generation++;
     lookupController?.abort(); listController?.abort(); clearTimeout(filterTimer);
     if (dialog.open) dialog.close();
