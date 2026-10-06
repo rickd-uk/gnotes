@@ -4,7 +4,7 @@ Last reviewed: 2026-10-06
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.28`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.29`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -53,7 +53,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.28 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check Dictionary word selection and saving, the Copy context menu, ignored words and Names, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide in the notes toolbar, tag expansion and collapse, ordinary line breaks, swipe actions, note colors, the Aa formatting toggle, green completion checks, three quick actions, and the code language picker when editing a saved note.
+1. Retest v0.7.29 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check Dictionary word selection and saving, the Copy context menu, ignored words and Names, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide in the notes toolbar, tag expansion and collapse, ordinary line breaks, swipe actions, note colors, the Aa formatting toggle, green completion checks, three quick actions, and the code language picker when editing a saved note.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 

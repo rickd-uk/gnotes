@@ -2,7 +2,7 @@
 
 Updated: 2026-10-06
 
-`v0.7.28` deployed: https://gnotes.rickd.dev. Main notes now support confirmed bulk removal by date, pinned section, or all active notes. Right-click offers Copy, Dictionary, and Always ignore spelling. Controls → Spellcheck provides on/off and separate local ignored-word and Names lists, remembered per account in this browser. Matching names are ignored automatically in rich note text. Go tests, race checks, vet, desktop/mobile browser checks, release restore rehearsal, validated backup, release and live-asset checksums, health, and database checks passed; 4 accounts and 34 notes preserved.
+`v0.7.29` deployed: https://gnotes.rickd.dev. Clear spacing between the Spellcheck Type label and dropdown; right-click Copy, Dictionary, and Always ignore spelling actions have separate bordered buttons. Desktop/mobile browser checks, release tests and restore rehearsal, validated backup, release and live stylesheet checksums, and health checks passed. Active date/Pinned/all bulk removal and separate local ignored-word and Names lists remain live.
 
 Remaining:
 
