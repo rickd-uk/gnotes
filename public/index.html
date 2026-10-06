@@ -4424,7 +4424,8 @@
       <form id="spelling-name-form"><label for="spelling-name">Name</label><div class="dictionary-search"><input id="spelling-name" type="text" maxlength="96" autocomplete="off" spellcheck="false" required placeholder="e.g. Sriniously or New York" /><button type="submit">Add name</button></div>
         <label for="spelling-name-kind">Type</label><select id="spelling-name-kind"><option value="person">Person</option><option value="company">Company</option><option value="place">Place</option><option value="other">Other</option></select></form>
       <ul id="spelling-names-list"></ul><p id="spelling-names-status" role="status"></p>
-      <p class="dictionary-credit">These settings are saved for your account in this browser.</p>
+      <p id="spelling-sync-status" role="status"></p><button id="spelling-retry" type="button" hidden>Retry loading lists</button>
+      <p class="dictionary-credit">Names and ignored words are saved to your account and available on your other devices. Spellcheck on/off is remembered in this browser.</p>
     </dialog>
     <dialog class="dictionary-ui" id="dictionary-dialog" aria-labelledby="dictionary-heading">
       <div class="dictionary-header"><h2 id="dictionary-heading">Dictionary</h2><button id="dictionary-close" type="button" aria-label="Close dictionary">×</button></div>
@@ -4743,6 +4744,9 @@
       let spellcheckEnabled = true;
       let ignoredSpellingWords = [];
       let spellingNames = [];
+      let spellingListsMigrated = false;
+      let spellingReady = false;
+      let spellingBusy = false;
       let richEdit = null;
       let richDraftFallback = false;
       let richToolbarVisible = false;
@@ -5119,8 +5123,8 @@
           bodySize,
           linkUnderlines,
           spellcheckEnabled,
-          ignoredSpellingWords,
-          spellingNames,
+          spellingListsMigrated,
+          ...(!spellingListsMigrated ? { ignoredSpellingWords, spellingNames } : {}),
           timeZoneChoice,
           markdownSource,
           richToolbarVisible,
@@ -5268,16 +5272,17 @@
           const button = document.createElement('button');
           button.type = 'button'; button.textContent = 'Stop ignoring';
           button.setAttribute('aria-label', `Stop ignoring ${word}`);
-          button.addEventListener('click', () => { applySpelling(spellcheckEnabled, ignoredSpellingWords.filter(value => value !== word)); saveUIState(); });
+          button.addEventListener('click', () => removeSpellingEntry('word', word));
           item.append(document.createTextNode(`${word} `), button); list.append(item);
         }
         const namesList = document.getElementById('spelling-names-list'); namesList.replaceChildren();
         for (const entry of spellingNames) {
           const item = document.createElement('li'), button = document.createElement('button');
           button.type = 'button'; button.textContent = 'Remove'; button.setAttribute('aria-label', `Remove ${entry.name} from names`);
-          button.addEventListener('click', () => { applySpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames.filter(value => value !== entry)); saveUIState(); });
+          button.addEventListener('click', () => removeSpellingEntry('name', entry.name));
           item.append(document.createTextNode(`${entry.name} · ${entry.kind} `), button); namesList.append(item);
         }
+        refreshSpellingControls();
       }
 
       function validSpellingName(value) {
@@ -5285,12 +5290,76 @@
         return name.length <= 96 && /\p{L}/u.test(name) && /^[\p{L}\p{N}'’&.,() -]+$/u.test(name) && name.split(' ').length <= 12 ? name : '';
       }
 
-      function ignoreSpellingWord(value) {
+      async function ignoreSpellingWord(value) {
         const word = spellingWord(value);
         if (!currentUser || !word) return false;
-        if (!ignoredSpellingWords.includes(word) && ignoredSpellingWords.length >= 2000) return false;
-        applySpelling(spellcheckEnabled, [...ignoredSpellingWords, word]); saveUIState();
-        return true;
+        return saveSpellingEntry({ scope: 'word', value: word });
+      }
+
+      function refreshSpellingControls() {
+        document.querySelectorAll('#spelling-ignore-form button, #spelling-name-form button, #spelling-ignored-list button, #spelling-names-list button').forEach(button => { button.disabled = spellingBusy || !spellingReady; });
+        window.GnotesDictionary?.refreshSpelling();
+      }
+
+      async function spellingRequest(path, options, owner) {
+        const response = await apiFetch(path, options);
+        if (currentUser !== owner) throw new DOMException('Cancelled', 'AbortError');
+        if (!response.ok) throw new Error((await response.text()).trim() || 'Could not sync spelling lists.');
+        const data = await response.json();
+        if (currentUser !== owner) throw new DOMException('Cancelled', 'AbortError');
+        return data;
+      }
+
+      async function loadSpellingLists() {
+        if (!currentUser || spellingBusy) return;
+        const owner = currentUser;
+        spellingBusy = true; refreshSpellingControls();
+        document.getElementById('spelling-sync-status').textContent = 'Loading your spelling lists…';
+        try {
+          const legacy = !spellingListsMigrated && (ignoredSpellingWords.length || spellingNames.length);
+          const data = await spellingRequest(legacy ? '/api/spelling/migrate' : '/api/spelling', legacy ? {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ words: ignoredSpellingWords, names: spellingNames }),
+          } : {}, owner);
+          spellingListsMigrated = true; spellingReady = true;
+          applySpelling(spellcheckEnabled, data.words, data.names); saveUIState();
+          document.getElementById('spelling-sync-status').textContent = legacy ? 'Your browser lists are now saved to your account.' : '';
+          document.getElementById('spelling-retry').hidden = true;
+        } catch (error) {
+          if (currentUser === owner && error.name !== 'AbortError') {
+            const retained = !spellingListsMigrated && (ignoredSpellingWords.length || spellingNames.length);
+            document.getElementById('spelling-sync-status').textContent = `Could not load your spelling lists. ${error.message}${retained ? ' Your existing browser lists are kept until migration succeeds.' : ''}`;
+            document.getElementById('spelling-retry').hidden = false;
+          }
+        } finally { if (currentUser === owner) { spellingBusy = false; refreshSpellingControls(); } }
+      }
+
+      async function changeSpellingEntry(path, options) {
+        if (!currentUser || !spellingReady || spellingBusy) return false;
+        const owner = currentUser;
+        spellingBusy = true; refreshSpellingControls();
+        document.getElementById('spelling-sync-status').textContent = 'Saving…';
+        try {
+          const data = await spellingRequest(path, options, owner);
+          applySpelling(spellcheckEnabled, data.words, data.names);
+          document.getElementById('spelling-sync-status').textContent = 'Saved to your account.';
+          document.getElementById('spelling-retry').hidden = true;
+          return true;
+        } catch (error) {
+          if (currentUser === owner && error.name !== 'AbortError') {
+            document.getElementById('spelling-sync-status').textContent = `Could not save. ${error.message}`;
+            showNoteActionDialog('Could not save spelling list', `${error.message} Retry loading your lists before trying again.`);
+            document.getElementById('spelling-retry').hidden = false;
+          }
+          return false;
+        } finally { if (currentUser === owner) { spellingBusy = false; refreshSpellingControls(); } }
+      }
+
+      function saveSpellingEntry(entry) {
+        return changeSpellingEntry('/api/spelling', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) });
+      }
+
+      function removeSpellingEntry(scope, value) {
+        return changeSpellingEntry(`/api/spelling?${new URLSearchParams({ scope, value })}`, { method: 'DELETE' });
       }
 
       function applyNoteSizes(title, body) {
@@ -5366,7 +5435,8 @@
         applyFontMode(state.fontMode);
         applyNoteSizes(state.titleSize, state.bodySize);
         applyLinkStyle(state.linkUnderlines);
-        applySpelling(state.spellcheckEnabled, state.ignoredSpellingWords || [], state.spellingNames || []);
+        spellingListsMigrated = state.spellingListsMigrated === true;
+        applySpelling(state.spellcheckEnabled, spellingListsMigrated ? [] : state.ignoredSpellingWords || [], spellingListsMigrated ? [] : state.spellingNames || []);
         richToolbarVisible = state.richToolbarVisible === true;
         applyEditorMode(Boolean(state.markdownSource));
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
@@ -5441,6 +5511,9 @@
       }
 
       function showAuth(message = "") {
+        spellingReady = false; spellingBusy = false; spellingListsMigrated = false;
+        document.getElementById('spelling-sync-status').textContent = '';
+        document.getElementById('spelling-retry').hidden = true;
         document.getElementById('spelling-dialog').close();
         document.getElementById('spelling-ignore-form').reset();
         document.getElementById('spelling-name-form').reset();
@@ -5545,7 +5618,7 @@
         document.getElementById("auth-screen").hidden = true;
         document.getElementById("app-shell").hidden = true;
         document.getElementById("startup-screen").hidden = false;
-        const [notesResult, , draftResult] = await Promise.allSettled([loadNotes(), loadTrash(), loadDraft()]);
+        const [notesResult, , draftResult] = await Promise.allSettled([loadNotes(), loadTrash(), loadDraft(), loadSpellingLists()]);
         if (currentUser !== session) return;
         if (notesResult.status === "rejected") {
           showNotesLoadError("Could not display notes. Reload the page to try again.");
@@ -8343,17 +8416,23 @@
       document.getElementById('spelling-open').addEventListener('click', () => {
         closeViewMenu(); hideRichContext();
         document.getElementById('spelling-dialog').showModal();
+        loadSpellingLists();
       });
+      document.getElementById('spelling-retry').addEventListener('click', loadSpellingLists);
+      window.addEventListener('focus', () => { if (spellingReady && !spellingBusy) loadSpellingLists(); });
       document.getElementById('spelling-close').addEventListener('click', () => document.getElementById('spelling-dialog').close());
       document.getElementById('spelling-enabled').addEventListener('change', event => { applySpelling(event.target.checked); saveUIState(); });
-      document.getElementById('spelling-ignore-form').addEventListener('submit', event => {
+      document.getElementById('spelling-ignore-form').addEventListener('submit', async event => {
         event.preventDefault();
         const input = document.getElementById('spelling-word');
-        const added = ignoreSpellingWord(input.value);
-        document.getElementById('spelling-status').textContent = added ? 'Word will always be ignored in rich note text.' : 'Enter one word. You can ignore up to 2,000 words.';
+        if (!spellingWord(input.value)) { document.getElementById('spelling-status').textContent = 'Enter one word to ignore.'; return; }
+        const owner = currentUser;
+        const added = await ignoreSpellingWord(input.value);
+        if (currentUser !== owner) return;
+        if (added) document.getElementById('spelling-status').textContent = 'Word saved to your account and ignored in rich note text.';
         if (added) input.value = '';
       });
-      document.getElementById('spelling-name-form').addEventListener('submit', event => {
+      document.getElementById('spelling-name-form').addEventListener('submit', async event => {
         event.preventDefault();
         const input = document.getElementById('spelling-name'), name = validSpellingName(input.value);
         const duplicate = spellingNames.some(entry => entry.name.toLowerCase() === name.toLowerCase());
@@ -8361,8 +8440,9 @@
         if (!name) { status.textContent = 'Enter a name using up to 96 characters and 12 words.'; return; }
         if (duplicate) { status.textContent = 'This name is already in your list.'; return; }
         if (spellingNames.length >= 2000) { status.textContent = 'Your names list can hold up to 2,000 names.'; return; }
-        applySpelling(spellcheckEnabled, ignoredSpellingWords, [...spellingNames, {name, kind: document.getElementById('spelling-name-kind').value}]); saveUIState();
-        input.value = ''; status.textContent = 'Name added. Matching names will be ignored automatically.';
+        const owner = currentUser;
+        const saved = await saveSpellingEntry({scope: 'name', value: name, kind: document.getElementById('spelling-name-kind').value});
+        if (saved && currentUser === owner) { input.value = ''; status.textContent = 'Name saved to your account. Matching names will be ignored automatically.'; }
       });
 
       document.getElementById("note-time-zone").addEventListener("change", async (event) => {

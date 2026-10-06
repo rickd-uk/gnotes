@@ -25,6 +25,7 @@ func TestActiveBulkRemovalBrowser(t *testing.T) {
 			mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at,pinned) VALUES(1,'Pinned note','body',?,1)", created)
 			mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at,archived_at) VALUES(1,'Archived note','body',?,?)", created, created)
 			mux := http.NewServeMux()
+			registerSpellingRoutes(mux)
 			mux.HandleFunc("/api/auth/config", authConfigHandler)
 			mux.HandleFunc("/api/auth/login", loginHandler)
 			mux.HandleFunc("/api/auth/me", protect(meHandler, false))

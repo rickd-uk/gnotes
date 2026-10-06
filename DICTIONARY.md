@@ -6,13 +6,17 @@ Definitions are grouped by part of speech, with WordNet examples and related wor
 
 WordNet provides English nouns, verbs, adjectives, and adverbs. It is a lexical database rather than a complete dictionary of function words, new slang, or specialist terminology. Exception lists and standard suffix rules resolve common inflections. Lookup preserves the selected spelling in the saved list while showing which base form supplied the definition.
 
-## Spellcheck and local names
+## Spellcheck, Names, and ignored words
 
 **Controls → Spellcheck** turns native spelling underlines on or off for note text and titles. **Always ignore** maintains a separate list of individual words; this action is also available from the right-click menu and Dictionary lookup, without saving a dictionary word.
 
 The separate **Names** list accepts people, companies, places, and other names, including full names such as “New York”. Matching names are automatically excluded from native checking in rich note text, ignoring case. Whole words and phrases match; a name does not suppress unrelated words that merely contain it. Inline formatting does not prevent matching. Remove an entry to allow checking again.
 
-These settings and lists are stored locally in the existing per-account browser UI preferences. Each list holds up to 2,000 entries. They do not sync to other devices and are not part of SQLite backups or note exports. Clearing browser storage removes them. The browser's own dictionary remains responsible for source text fields and titles when spellcheck is on; HTML text fields cannot selectively disable checking for individual words. App ignore lists use editor view decorations, preserving note content and exported Markdown.
+Names and ignored words are private account data in SQLite's `spelling_entries` table. They load at sign-in, when opening Spellcheck, and when returning to the browser window, making them available across devices. Each list holds up to 2,000 entries. Additions and removals target individual entries, so one device does not replace another device's list. All endpoints require authentication, writes require CSRF protection, and account deletion cascades to its entries. Consistent SQLite backups and restores include both lists automatically; note exports do not include spelling lists. Clearing browser storage no longer removes lists saved to the account. Spellcheck on/off remains a per-browser preference.
+
+For lists created in v0.7.28–v0.7.29, open the original browser after updating. Sign-in or reload automatically merges those local lists into the account without overwriting existing entries or their categories. Browser copies are retained until the server confirms migration. A retry handles interrupted migration; successful migration removes the old lists from browser UI preferences and records completion so later reloads do not resurrect removed entries. Each existing browser migrates its own lists.
+
+The browser's own dictionary remains responsible for source text fields and titles when spellcheck is on; HTML text fields cannot selectively disable checking for individual words. App ignore lists use editor view decorations, preserving note content and exported Markdown.
 
 ## Storage and privacy
 

@@ -27,6 +27,7 @@ func TestRecoveryBrowser(t *testing.T) {
 			mustRecoveryExec(t, "INSERT INTO notes (user_id,title,content,created_at) VALUES (1,'Body note',?,?)", checklist, time.Now().UTC())
 			mustRecoveryExec(t, "INSERT INTO notes (user_id,title,content,created_at) VALUES (1,'Title only','',?)", time.Now().UTC().Add(-time.Minute))
 			mux := http.NewServeMux()
+			registerSpellingRoutes(mux)
 			mux.HandleFunc("/api/auth/config", authConfigHandler)
 			mux.HandleFunc("/api/auth/login", loginHandler)
 			mux.HandleFunc("/api/auth/me", protect(meHandler, false))

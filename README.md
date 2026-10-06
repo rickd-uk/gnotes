@@ -73,7 +73,7 @@ gnotes JSON exports now use format version 2; version 1 remains importable. A ta
 
 See [OPERATIONS.md](OPERATIONS.md#brevo-password-recovery) for email setup. Existing account emails require verification before they can recover a password.
 
-The personal [dictionary](DICTIONARY.md) provides offline English definitions and private saved-word lists. Right-click text for Copy, Dictionary, or Always ignore spelling; select a word, or use Account → Dictionary. Controls → Spellcheck provides an on/off setting and separate local ignored-word and Names lists for people, companies, and places. WordNet 3.1 is bundled under its included license; lookup makes no external requests.
+The personal [dictionary](DICTIONARY.md) provides offline English definitions and private saved-word lists. Right-click text for Copy, Dictionary, or Always ignore spelling; select a word, or use Account → Dictionary. Controls → Spellcheck provides an on/off setting and separate account-stored ignored-word and Names lists for people, companies, and places. Both lists are available across devices and included in database backups; older browser lists migrate automatically on sign-in or reload. WordNet 3.1 is bundled under its included license; lookup makes no external requests.
 
 Run validation with:
 

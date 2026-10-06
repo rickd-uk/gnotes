@@ -89,6 +89,16 @@ func InitDB(filepath string) {
     PRIMARY KEY (user_id, word)
   );
 
+  CREATE TABLE IF NOT EXISTS spelling_entries (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scope TEXT NOT NULL CHECK(scope IN ('word','name')),
+    entry_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN ('word','person','company','place','other')),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, scope, entry_key)
+  );
+
   CREATE TABLE IF NOT EXISTS password_reset_tokens (
     token_hash TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,

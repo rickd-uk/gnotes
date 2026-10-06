@@ -97,7 +97,7 @@ func TestDictionaryBrowser(t *testing.T) {
 			browser.wait(`document.getElementById('spelling-open').getBoundingClientRect().height>0 && document.getElementById('spelling-open').getBoundingClientRect().bottom<=innerHeight`)
 			browser.wait(`document.getElementById('view-menu').getBoundingClientRect().left>=0`)
 			click("#spelling-open")
-			browser.wait(`document.getElementById('spelling-dialog').open && !document.getElementById('spelling-enabled').checked`)
+			browser.wait(`document.getElementById('spelling-dialog').open && !document.getElementById('spelling-enabled').checked && spellingReady && !spellingBusy`)
 			browser.script(`document.getElementById('spelling-name').value='New York';document.getElementById('spelling-name-kind').value='place';document.getElementById('spelling-name-form').requestSubmit();`)
 			browser.wait(`spellingNames.length===1 && document.getElementById('spelling-names-list').textContent.includes('New York')`)
 			browser.script(`document.getElementById('spelling-name').value='Sriniously';document.getElementById('spelling-name-kind').value='person';document.getElementById('spelling-name-form').requestSubmit();`)

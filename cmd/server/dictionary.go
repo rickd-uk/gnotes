@@ -11,6 +11,7 @@ import (
 )
 
 func registerDictionaryRoutes(mux *http.ServeMux) {
+	registerSpellingRoutes(mux)
 	mux.HandleFunc("/api/dictionary/lookup", protect(dictionaryLookupHandler, false))
 	mux.HandleFunc("/api/dictionary/words", protect(dictionaryWordsHandler, false))
 	mux.HandleFunc("/api/dictionary/save", protect(dictionarySaveHandler, true))

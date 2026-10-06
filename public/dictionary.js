@@ -17,10 +17,11 @@
   contextMenu.addEventListener('pointerdown', event => event.preventDefault());
   document.addEventListener('pointerdown', event => { if (!contextMenu.contains(event.target)) closeContext(); });
   document.getElementById('note-context-dictionary').addEventListener('click', () => { closeContext(); open(contextWord); });
-  document.getElementById('note-context-ignore').addEventListener('click', () => {
+  document.getElementById('note-context-ignore').addEventListener('click', async () => {
+    const owner = currentUser, editor = contextEditor;
     closeContext();
-    if (ignoreSpellingWord(contextWord)) showNoteActionToast('Word will always be ignored in rich note text');
-    contextEditor?.focus({ preventScroll: true });
+    if (await ignoreSpellingWord(contextWord) && owner === currentUser) showNoteActionToast('Word saved to your account and ignored in rich note text');
+    if (owner === currentUser && editor?.isConnected) editor.focus({ preventScroll: true });
   });
   document.getElementById('note-context-copy').addEventListener('click', async () => {
     const text = contextText, owner = currentUser;
@@ -86,11 +87,12 @@
     saveButton.textContent = currentEntry?.saved ? 'Remove saved word' : 'Save word';
     ignoreButton.hidden = !currentEntry || !spellingWord(currentEntry.word);
     ignoreButton.textContent = ignoredSpellingWords.includes(spellingWord(currentEntry?.word)) ? 'Spelling always ignored' : 'Always ignore spelling';
-    ignoreButton.disabled = ignoredSpellingWords.includes(spellingWord(currentEntry?.word));
+    ignoreButton.disabled = !spellingReady || spellingBusy || ignoredSpellingWords.includes(spellingWord(currentEntry?.word));
   }
 
-  ignoreButton.addEventListener('click', () => {
-    if (currentEntry && ignoreSpellingWord(currentEntry.word)) {
+  ignoreButton.addEventListener('click', async () => {
+    const entry = currentEntry, owner = currentUser;
+    if (entry && await ignoreSpellingWord(entry.word) && currentEntry === entry && owner === currentUser) {
       updateSaveButton(); message('Spelling ignored in rich note text. This word was not added to saved words.');
     }
   });
@@ -308,7 +310,7 @@
     contextWord = word; contextText = selectedText || word;
     contextEditor = root.matches('.tiptap') ? root : null;
     document.getElementById('note-context-dictionary').disabled = !word;
-    document.getElementById('note-context-ignore').disabled = !spellingWord(word) || ignoredSpellingWords.includes(spellingWord(word));
+    document.getElementById('note-context-ignore').disabled = !spellingReady || spellingBusy || !spellingWord(word) || ignoredSpellingWords.includes(spellingWord(word));
     contextMenu.hidden = false;
     const rect = root.getBoundingClientRect();
     const x = event.clientX || rect.left, y = event.clientY || rect.top;
@@ -328,5 +330,5 @@
     listStatus.textContent = ''; message(); updateSaveButton();
     selectionButton.hidden = true;
   }
-  window.GnotesDictionary = { open, reset };
+  window.GnotesDictionary = { open, reset, refreshSpelling: updateSaveButton };
 })();
