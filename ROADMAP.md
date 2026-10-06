@@ -4,7 +4,7 @@ Last reviewed: 2026-10-06
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.35`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.36`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -22,6 +22,7 @@ The current release includes:
 - Unhide appears on the left above notes beside the density controls when notes are hidden, with individual and all-note restoration.
 - Personal dictionary with bundled English WordNet 3.1 definitions, right-click and selection lookup, private saved words, filtering, removal, and word-list export. No runtime external lookups; see [DICTIONARY.md](DICTIONARY.md) for licensing, updates, and backup coverage.
 - Right-click Copy/Dictionary/Always ignore menu, native menu via Shift + right-click, spelling underline toggle, and separate account-owned ignored-word and Names lists in SQLite. Names support people, companies, places, and other names; matching rich note text is ignored automatically without changing note content. Older browser lists migrate automatically, and database backups cover both lists.
+- Searchable personal Names and ignored-word lists, displayed in batches of 50. JSON export preserves name types and includes complete lists; JSON and one-entry-per-line text imports merge atomically without changing existing entries. Failed imports retain the selected file for retry. Files may be up to 2 MB, with 2,000 entries per personal list.
 - Confirmed active-note bulk removal by displayed date section, Pinned, or all active notes. Date sections exclude pinned notes; removal covers hidden notes and later pages, preserves Archive, and is recoverable from the recycle bin.
 - Accessible Archive all and Recycle all icons below active notes, bordered Cancel buttons, and consistent outside-click dismissal for all modal dialogs and panels. Title text and title inputs support the Copy/Dictionary/Always ignore menu.
 - A shared list of 15,981 built-in names, with capitalized matching in rich text, an independent switch, and private account additions. Its index loads once per page and needs no typing-time server requests.
@@ -59,7 +60,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.35 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Use the bottom Dictionary/Save word and Always ignore buttons on displayed text, titles, and rich edits, including with the keyboard open; check editor Copy/Done remain accessible. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, Aa formatting, quick actions, and the code language picker.
+1. Retest v0.7.36 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Use the bottom Dictionary/Save word and Always ignore buttons on displayed text, titles, and rich edits, including with the keyboard open; check editor Copy/Done remain accessible. Check personal Names and ignored-word search, Show more, file import, and export downloads. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, Aa formatting, quick actions, and the code language picker.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 
