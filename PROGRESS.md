@@ -2,7 +2,7 @@
 
 Updated: 2026-10-06
 
-`v0.7.32` deployed: https://gnotes.rickd.dev. Clicking outside any modal or dialog panel dismisses it without confirming an action. Cancel has a visible button border. Active notes have icon buttons for Archive all and Recycle all; archiving includes pinned, hidden, and later-page notes. Titles and title inputs now support Copy, Dictionary, and Always ignore spelling. Desktop/mobile browser checks, standard tests, release checks, restore rehearsal, validated backup, live page/script checksums, and health checks passed. Untitled-note display and account-stored Names and ignored words remain available.
+`v0.7.34` deployed: https://gnotes.rickd.dev. Phone long presses retain native text selection and Copy, and selection drags take priority over note swipes. Spellcheck includes 15,981 shared built-in names stored on the VPS, loaded once per page and matched locally, with an independent switch and private personal additions. The v0.7.33 timezone fix prevents older tabs from overwriting the chosen timezone during unrelated settings saves; existing browser preferences migrate automatically. All browser workflows, standard tests, release checks, restore rehearsal, validated backups, live asset checksums, and health checks passed. Real Pixel 6a verification remains open.
 
 Remaining:
 
