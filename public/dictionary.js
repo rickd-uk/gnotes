@@ -10,6 +10,8 @@
   const listStatus = document.getElementById('dictionary-list-status');
   const moreButton = document.getElementById('dictionary-load-more');
   const selectionButton = document.getElementById('dictionary-selection');
+  const selectionActions = document.getElementById('note-selection-actions');
+  const selectionIgnore = document.getElementById('selection-ignore');
   const contextMenu = document.getElementById('note-context-menu');
   const noteTextSelector = '.note-content, .tiptap, .note-view > h2';
   let contextWord = '', contextText = '', contextEditor = null;
@@ -142,7 +144,7 @@
     document.getElementById('account-control').open = false;
     closeViewMenu();
     hideRichContext();
-    selectionButton.hidden = true;
+    hideSelectionActions();
     showLookup();
     if (!dialog.open) dialog.showModal();
     wordInput.value = word.trim();
@@ -259,30 +261,68 @@
   }
 
   function selectedNoteWord() {
+    const input = document.activeElement;
+    if (input?.matches('#title, .edit-title') && input.selectionStart !== input.selectionEnd) {
+      return selectableWord(input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0));
+    }
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.rangeCount) return '';
-    const root = selection.anchorNode?.parentElement?.closest(noteTextSelector);
-    if (!root || !root.contains(selection.focusNode) || selection.anchorNode?.parentElement?.closest('pre, code')) return '';
+    const anchor = selection.anchorNode?.nodeType === Node.ELEMENT_NODE ? selection.anchorNode : selection.anchorNode?.parentElement;
+    const root = anchor?.closest(noteTextSelector);
+    if (!root || !root.contains(selection.focusNode) || anchor.closest('pre, code')) return '';
     return selectableWord(selection.toString());
   }
 
-  document.addEventListener('selectionchange', () => {
+  function hideSelectionActions() {
+    selectionActions.hidden = true;
     selectionButton.hidden = true;
-    if (!currentUser || dialog.open) return;
+  }
+
+  function refreshSelectionActions() {
+    hideSelectionActions();
+    if (!currentUser || document.querySelector('dialog[open]')) return;
     selectionWord = selectedNoteWord();
     const selection = window.getSelection();
-    // The rich editor already has Dictionary in its selection toolbar.
-    if (!selectionWord || selection.anchorNode?.parentElement?.closest('.tiptap')) return;
-    const rect = selection.getRangeAt(0).getBoundingClientRect();
-    if (!rect.width || rect.bottom < 0 || rect.top > innerHeight) return;
+    const docked = useDockedSelectionTools();
+    // Desktop rich selections already have their formatting/Dictionary toolbar.
+    if (!selectionWord || (!docked && selection.anchorNode?.parentElement?.closest('.tiptap'))) return;
+    const input = document.activeElement;
+    const rect = input?.matches('#title, .edit-title') && input.selectionStart !== input.selectionEnd ? input.getBoundingClientRect() : selection.getRangeAt(0).getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const viewportTop = viewport?.offsetTop || 0;
+    const viewportBottom = viewportTop + (viewport?.height || innerHeight);
+    if (!rect.width || rect.bottom < viewportTop || rect.top > viewportBottom) return;
+    selectionActions.classList.toggle('is-docked', docked);
+    selectionActions.hidden = false;
     selectionButton.hidden = false;
-    selectionButton.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - selectionButton.offsetWidth - 8))}px`;
-    selectionButton.style.top = `${Math.max(8, Math.min(rect.bottom + 6, innerHeight - selectionButton.offsetHeight - 8))}px`;
-  });
-  selectionButton.addEventListener('pointerdown', (event) => event.preventDefault());
+    selectionIgnore.hidden = !docked;
+    selectionIgnore.disabled = !spellingReady || spellingBusy || !spellingWord(selectionWord) || ignoredSpellingWords.includes(spellingWord(selectionWord));
+    selectionIgnore.title = spellingWord(selectionWord) ? 'Always ignore spelling for this word' : 'Select one word to always ignore its spelling';
+    const viewportLeft = viewport?.offsetLeft || 0;
+    const viewportWidth = viewport?.width || innerWidth;
+    selectionActions.style.width = docked ? `${Math.min(440, viewportWidth - 16)}px` : '';
+    const width = selectionActions.offsetWidth, height = selectionActions.offsetHeight;
+    selectionActions.style.left = `${docked ? viewportLeft + Math.max(8, (viewportWidth - width) / 2) : Math.max(8, Math.min(rect.left, innerWidth - width - 8))}px`;
+    let bottom = viewportBottom - 12;
+    if (docked) {
+      const footer = document.querySelector('.note-card.is-editing .editor-actions')?.getBoundingClientRect();
+      if (footer && footer.top > viewportTop && footer.top < viewportBottom) bottom = Math.min(bottom, footer.top - 8);
+    }
+    selectionActions.style.top = `${Math.max(viewportTop + 8, docked ? bottom - height : Math.min(rect.bottom + 6, viewportBottom - height - 8))}px`;
+  }
+  document.addEventListener('selectionchange', refreshSelectionActions);
+  selectionActions.addEventListener('pointerdown', event => { if (event.target.closest('button')) event.preventDefault(); });
   selectionButton.addEventListener('click', () => open(selectionWord));
-  window.addEventListener('scroll', () => { selectionButton.hidden = true; closeContext(); }, true);
-  window.addEventListener('resize', () => { selectionButton.hidden = true; closeContext(); });
+  selectionIgnore.addEventListener('click', async () => {
+    const word = selectionWord, owner = currentUser;
+    selectionIgnore.disabled = true;
+    if (await ignoreSpellingWord(word) && owner === currentUser) showNoteActionToast(`“${word}” saved and always ignored in rich note text`);
+    refreshSelectionActions();
+  });
+  window.addEventListener('scroll', () => { if (useDockedSelectionTools()) refreshSelectionActions(); else hideSelectionActions(); closeContext(); }, true);
+  window.addEventListener('resize', () => { refreshSelectionActions(); closeContext(); });
+  window.visualViewport?.addEventListener('resize', refreshSelectionActions);
+  window.visualViewport?.addEventListener('scroll', refreshSelectionActions);
   document.addEventListener('contextmenu', (event) => {
     closeContext();
     // Long presses and selection handles belong to the phone's native text
@@ -320,7 +360,7 @@
       }
     }
     if (!word && !selectedText) return;
-    event.preventDefault(); hideRichContext(); selectionButton.hidden = true;
+    event.preventDefault(); hideRichContext(); hideSelectionActions();
     contextWord = word; contextText = selectedText || word;
     contextEditor = root.matches('.tiptap, #title, .edit-title') ? root : null;
     document.getElementById('note-context-dictionary').disabled = !word;
@@ -342,7 +382,7 @@
     wordInput.value = ''; filter.value = '';
     result.replaceChildren(); wordList.replaceChildren();
     listStatus.textContent = ''; message(); updateSaveButton();
-    selectionButton.hidden = true;
+    hideSelectionActions();
   }
-  window.GnotesDictionary = { open, reset, refreshSpelling: updateSaveButton };
+  window.GnotesDictionary = { open, reset, refreshSpelling: () => { updateSaveButton(); refreshSelectionActions(); } };
 })();

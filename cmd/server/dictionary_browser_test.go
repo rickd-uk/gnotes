@@ -91,7 +91,15 @@ func TestDictionaryBrowser(t *testing.T) {
 			// Selected text in a displayed note exposes Dictionary on mobile too.
 			browser.script(`const node=document.querySelector('.note-content p').firstChild; const start=node.textContent.indexOf('engineering'); const range=document.createRange();range.setStart(node,start);range.setEnd(node,start+11);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);`)
 			browser.wait(`!document.getElementById('dictionary-selection').hidden`)
-			click("#dictionary-selection")
+			if width == 320 {
+				browser.script(`const bar=document.getElementById('note-selection-actions'),r=bar.getBoundingClientRect();if(!bar.classList.contains('is-docked')||document.getElementById('selection-ignore').hidden||r.left<0||r.right>innerWidth||r.bottom>innerHeight||r.top<innerHeight-100)throw new Error('Phone actions must dock at the bottom');if(getSelection().toString()!=='engineering')throw new Error('Bottom bar changed native selection');`)
+			}
+			if width == 320 {
+				point := browser.script(`const r=document.getElementById('dictionary-selection').getBoundingClientRect();return [Math.round((r.left+r.right)/2),Math.round((r.top+r.bottom)/2)];`).([]any)
+				browser.call("POST", "/actions", map[string]any{"actions": []any{map[string]any{"type": "pointer", "id": "word-action-tap", "parameters": map[string]string{"pointerType": "touch"}, "actions": []any{map[string]any{"type": "pointerMove", "duration": 0, "x": point[0], "y": point[1]}, map[string]any{"type": "pointerDown", "button": 0}, map[string]any{"type": "pointerUp", "button": 0}}}}})
+			} else {
+				click("#dictionary-selection")
+			}
 			browser.wait(`document.getElementById('dictionary-word').value==='engineering' && document.querySelectorAll('#dictionary-result li').length>0`)
 			click("#dictionary-save")
 			browser.wait(`document.getElementById('dictionary-save').textContent==='Remove saved word' && !document.getElementById('dictionary-save').disabled`)
@@ -118,12 +126,25 @@ func TestDictionaryBrowser(t *testing.T) {
 			browser.script(`if(richEdit.editor.view.dom.spellcheck || document.getElementById('content').spellcheck || document.getElementById('title').spellcheck)throw new Error('Spellcheck not disabled');`)
 			click("#spelling-close")
 			browser.script(`richEdit.editor.chain().focus().setTextSelection({from:1,to:12}).run();`)
-			browser.wait(`!document.querySelector('.rich-context-menu').hidden && Boolean(document.querySelector('[data-rich-dictionary]'))`)
-			browser.script(`const menu=document.querySelector('.rich-context-menu').getBoundingClientRect(); if(menu.left<0 || menu.right>innerWidth) throw new Error('Selection toolbar overflows');`)
-			click("[data-rich-dictionary]")
+			if width == 320 {
+				browser.wait(`!document.getElementById('note-selection-actions').hidden && document.querySelector('.rich-context-menu').hidden`)
+				browser.script(`const r=document.getElementById('note-selection-actions').getBoundingClientRect(),footer=document.querySelector('.note-card.is-editing .editor-actions').getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.bottom>footer.top||r.top<innerHeight/2)throw new Error('Selection actions cover editor controls');`)
+				click("#dictionary-selection")
+			} else {
+				browser.wait(`!document.querySelector('.rich-context-menu').hidden && Boolean(document.querySelector('[data-rich-dictionary]'))`)
+				browser.script(`const menu=document.querySelector('.rich-context-menu').getBoundingClientRect(); if(menu.left<0 || menu.right>innerWidth) throw new Error('Selection toolbar overflows');`)
+				click("[data-rich-dictionary]")
+			}
 			browser.wait(`document.getElementById('dictionary-dialog').open && document.getElementById('dictionary-word').value==='serendipity' && document.querySelectorAll('#dictionary-result li').length>0`)
 			browser.script(`if(editingNoteId!==dictNoteID || !document.documentElement.classList.contains('note-edit-focus')) throw new Error('Dictionary closed the active editor');`)
 			click("#dictionary-close")
+			if width == 320 {
+				browser.script(`let from;richEdit.editor.state.doc.descendants((node,pos)=>{if(node.isText&&node.text.includes('Children'))from=pos+node.text.indexOf('Children');});richEdit.editor.chain().focus().setTextSelection({from,to:from+8}).run();window.beforeSelectionIgnore=richEdit.getMarkdown();`)
+				browser.wait(`!document.getElementById('note-selection-actions').hidden && !document.getElementById('selection-ignore').disabled`)
+				click("#selection-ignore")
+				browser.wait(`!spellingBusy && ignoredSpellingWords.includes('children')`)
+				browser.script(`if(editingNoteId!==dictNoteID||richEdit.getMarkdown()!==beforeSelectionIgnore)throw new Error('Bottom ignore closed or changed the note');`)
+			}
 			browser.script(`updateNote(dictNoteID);`)
 			browser.wait(`editingNoteId===null`)
 			click("#view-toggle")

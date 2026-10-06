@@ -4463,7 +4463,10 @@
       <p id="dictionary-status" role="status"></p>
       <p class="dictionary-credit">English definitions · <a href="/WORDNET-LICENSE.txt" target="_blank" rel="noopener">WordNet 3.1</a> · © 2011 Princeton University</p>
     </dialog>
-    <button class="dictionary-ui" id="dictionary-selection" type="button" hidden>Dictionary</button>
+    <div class="dictionary-ui" id="note-selection-actions" role="toolbar" aria-label="Selected text actions" hidden>
+      <button id="dictionary-selection" type="button" hidden>Dictionary</button>
+      <button id="selection-ignore" type="button" hidden>Always ignore</button>
+    </div>
     <div class="dictionary-ui" id="note-context-menu" role="menu" aria-label="Text actions" hidden>
       <button id="note-context-copy" type="button" role="menuitem">Copy</button>
       <button id="note-context-dictionary" type="button" role="menuitem">Dictionary</button>
@@ -4831,6 +4834,9 @@
 
       function showRichContext(owner, context) {
         if (!context) return hideRichContext(owner);
+        // Phone selections use native handles/Copy plus the bottom word bar.
+        // Formatting remains available through the editor's Aa toolbar.
+        if (useDockedSelectionTools() && (context.mode === 'selection' || owner?.editor.state.selection.empty === false)) return hideRichContext(owner);
         richContextOwner = owner;
         if (richContextMode !== context.mode) {
           richContextMode = context.mode;
@@ -4885,6 +4891,10 @@
           : context.y < height + 20;
         richContextMenu.style.left = `${left}px`;
         richContextMenu.style.top = `${Math.max(8, Math.min(below ? context.y + 20 : context.y - height - 8, innerHeight - height - 8))}px`;
+      }
+
+      function useDockedSelectionTools() {
+        return matchMedia('(max-width: 560px), (hover: none) and (pointer: coarse)').matches;
       }
 
       richContextMenu.addEventListener("pointerdown", (event) => {
