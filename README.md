@@ -18,6 +18,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Select note titles and text by dragging, then copy normally; selection does not open the editor. Copy whole notes from their action menu
 - Archive notes for later reading and restore them without deleting them; move one archived note, all notes archived on a displayed date, or the full archive to the recycle bin
 - Move an active date section, all pinned notes, or all active notes to the recycle bin after confirmation; date sections exclude pinned notes, and removal includes hidden notes and later pages
+- Untitled notes show their body once in Full and Compact views; a first-line preview appears only when folded or in titles-only view, without adding a stored title
 - Cursor-paginated note and recycle-bin loading with indexed full-text search
 - Live title/content search with note and occurrence counts, highlighting, date ranges, scope, and case controls
 - Calendar jumps and monthly/weekly archive overviews for large collections
