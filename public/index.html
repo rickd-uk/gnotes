@@ -5082,6 +5082,22 @@
         return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
       }
 
+      function timeZoneStorageKey() {
+        return currentUser ? `gnotes-time-zone:${currentUser.username.toLowerCase()}` : '';
+      }
+
+      function readSavedTimeZoneChoice() {
+        try {
+          const value = localStorage.getItem(timeZoneStorageKey());
+          return value === '' || validTimeZone(value) ? value : null;
+        } catch { return null; }
+      }
+
+      function saveTimeZoneChoice() {
+        const key = timeZoneStorageKey();
+        if (key) { try { localStorage.setItem(key, timeZoneChoice); } catch {} }
+      }
+
       function noteTimeZone() {
         return timeZoneChoice || browserTimeZone();
       }
@@ -5139,7 +5155,9 @@
           spellcheckEnabled,
           spellingListsMigrated,
           ...(!spellingListsMigrated ? { ignoredSpellingWords, spellingNames } : {}),
-          timeZoneChoice,
+          // Other tabs can save panel/spelling state with an older timezone.
+          // Only an explicit timezone selection writes the dedicated preference.
+          timeZoneChoice: readSavedTimeZoneChoice() ?? timeZoneChoice,
           markdownSource,
           richToolbarVisible,
           adminUserFilter,
@@ -5407,7 +5425,8 @@
         if (!key) return {};
         let state;
         try { state = JSON.parse(localStorage.getItem(key) || "{}"); } catch { state = {}; }
-        applyTimeZoneChoice(state.timeZoneChoice);
+        applyTimeZoneChoice(readSavedTimeZoneChoice() ?? state.timeZoneChoice);
+        saveTimeZoneChoice(); // Migrate the existing browser preference once.
         setDefaultSearchDates();
         const search = state.search || {};
         document.getElementById("search-query").value = typeof search.query === "string" ? search.query : "";
@@ -8487,11 +8506,17 @@
       });
 
       document.getElementById("note-time-zone").addEventListener("change", async (event) => {
+        const choice = event.target.value;
         if (editingNoteId !== null && !await updateNote(editingNoteId)) {
           event.target.value = timeZoneChoice;
           return;
         }
-        applyTimeZoneChoice(event.target.value);
+        applyTimeZoneChoice(choice);
+        saveTimeZoneChoice();
+        await refreshTimeZoneView();
+      });
+
+      async function refreshTimeZoneView() {
         if (!searchActive) setDefaultSearchDates();
         closeArchiveOverview();
         if (searchActive && calendarActive && selectedCalendarDate) {
@@ -8506,6 +8531,14 @@
         } else {
           await showRecentNotes();
         }
+      }
+
+      window.addEventListener('storage', event => {
+        if (!currentUser || event.key !== timeZoneStorageKey()) return;
+        const choice = readSavedTimeZoneChoice();
+        if (choice === null || choice === timeZoneChoice) return;
+        applyTimeZoneChoice(choice);
+        if (editingNoteId === null && !notesLoading) refreshTimeZoneView();
       });
 
       document.getElementById("density-toggle").addEventListener("click", () => {
