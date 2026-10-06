@@ -8,6 +8,8 @@ Selected words on phones retain the bottom Dictionary and Always ignore bar abov
 
 Phone/tablet orientation checks also passed in Chromium touch emulation: 360×800, 800×360, 768×1024, and 1024×768. Read-view and editor actions stay within the visible viewport and clear of Copy/Done; rotating an existing selection preserves it. These checks require no production code change.
 
+Session handoff: the connected Pixel 6a loaded the live site in Chrome, but native selection and bottom word actions were not verified; screen sleep and blank captures prevented a reliable result. Full device checks remain open. PDF/EPUB previews, the ascending/descending button height, and video thumbnail reports were for other apps; no gnotes changes were made for them.
+
 Remaining:
 
 - Verify the live admin recovery email in Profile and test a real reset email.
