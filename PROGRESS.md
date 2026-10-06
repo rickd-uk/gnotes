@@ -2,7 +2,7 @@
 
 Updated: 2026-10-06
 
-`v0.7.34` deployed: https://gnotes.rickd.dev. Phone long presses retain native text selection and Copy, and selection drags take priority over note swipes. Spellcheck includes 15,981 shared built-in names stored on the VPS, loaded once per page and matched locally, with an independent switch and private personal additions. The v0.7.33 timezone fix prevents older tabs from overwriting the chosen timezone during unrelated settings saves; existing browser preferences migrate automatically. All browser workflows, standard tests, release checks, restore rehearsal, validated backups, live asset checksums, and health checks passed. Real Pixel 6a verification remains open.
+`v0.7.35` deployed: https://gnotes.rickd.dev. Selected words on phones expose Dictionary and Always ignore in a bottom bar, above editor Copy/Done controls; Dictionary includes Save word. Native text selection and Copy remain available, and the floating app formatting menu is hidden during phone selections; Aa still provides formatting. The 15,981 shared names and timezone persistence fix remain included. All browser workflows, touch-tap checks, standard tests, release checks, restore rehearsal, validated backup, live page/script/style checksums, and health checks passed. Real Pixel 6a verification remains open.
 
 Remaining:
 

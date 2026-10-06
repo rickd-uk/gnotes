@@ -4,7 +4,7 @@ Last reviewed: 2026-10-06
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.34`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.35`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -26,6 +26,7 @@ The current release includes:
 - Accessible Archive all and Recycle all icons below active notes, bordered Cancel buttons, and consistent outside-click dismissal for all modal dialogs and panels. Title text and title inputs support the Copy/Dictionary/Always ignore menu.
 - A shared list of 15,981 built-in names, with capitalized matching in rich text, an independent switch, and private account additions. Its index loads once per page and needs no typing-time server requests.
 - Native phone long-press selection and Copy, with selection drags taking priority over swipes; desktop right-click menus remain available.
+- Bottom Dictionary/Always ignore actions for selected words on phones, including titles and rich editor text. The bar stays above editor Copy/Done and follows the visible viewport; phone selections no longer show the floating app formatting menu. Formatting remains available through Aa.
 - A dedicated browser timezone preference that migrates the existing choice and prevents older tabs' unrelated settings saves from overwriting it.
 - Ordinary line breaks preserved in the saved view and rich editor. Harmless changes to source escaping or spacing retain rich text editing; unsupported formatting retains the protective source fallback.
 - Untitled notes show body text once in Full and Compact views; their first-line preview appears only when folded or in titles-only view, without adding a stored title.
@@ -58,7 +59,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.34 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, Dictionary lookup, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, formatting, quick actions, and the code language picker.
+1. Retest v0.7.35 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Use the bottom Dictionary/Save word and Always ignore buttons on displayed text, titles, and rich edits, including with the keyboard open; check editor Copy/Done remain accessible. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, Aa formatting, quick actions, and the code language picker.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 
