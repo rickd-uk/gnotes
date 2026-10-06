@@ -4,7 +4,7 @@ Last reviewed: 2026-10-06
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.25`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.26`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -19,6 +19,7 @@ The current release includes:
 - Verified-email password recovery, note roll-up, selectable time zones and text, note titles in browser tabs, and compact view controls.
 - Private note tags, combined tag/text/date search, persistent filters, and tag-preserving export/import.
 - Compact tag displays show three tags and an expandable overflow count; all tags remain searchable and editable.
+- Unhide appears on the left above notes beside the density controls when notes are hidden, with individual and all-note restoration.
 - Ordinary line breaks preserved in the saved view and rich editor. Harmless changes to source escaping or spacing retain rich text editing; unsupported formatting retains the protective source fallback.
 - A one-command release updater and operational checker.
 
@@ -49,7 +50,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.25 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check tag expansion and collapse, ordinary line breaks, swipe actions, note colors, the Aa formatting toggle, green completion checks, three quick actions, and the code language picker when editing a saved note.
+1. Retest v0.7.26 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check Unhide in the notes toolbar, tag expansion and collapse, ordinary line breaks, swipe actions, note colors, the Aa formatting toggle, green completion checks, three quick actions, and the code language picker when editing a saved note.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 

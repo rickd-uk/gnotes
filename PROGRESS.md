@@ -2,7 +2,7 @@
 
 Updated: 2026-10-06
 
-`v0.7.25` deployed: https://gnotes.rickd.dev. Notes show three tags with expandable overflow. The v0.7.24 line-break and rich text fixes remain live. Tests, browser checks, backup, checksums, health, and database checks passed; 4 accounts and 33 notes preserved.
+`v0.7.26` deployed: https://gnotes.rickd.dev. Unhide is on the left above notes, beside the density controls. Compact tags and the line-break fixes remain live. Tests, browser checks, backup, checksums, health, and database checks passed; 4 accounts and 33 notes preserved.
 
 Remaining:
 
