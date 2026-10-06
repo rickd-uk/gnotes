@@ -69,6 +69,8 @@ Rehearse restores with an isolated database and service. `deploy/tests/restore-g
 
 ## Daily backups
 
+The personal dictionary's `saved_words` table is included in the same consistent SQLite snapshots as notes and accounts. The WordNet reference dataset is embedded in the application binary and its license ships in browser assets; it adds no reference data to database backups. Restoring a backup from before v0.7.27 restores the words available at that point (none); startup creates the missing table. See [DICTIONARY.md](DICTIONARY.md) for the pinned source, rebuild procedure, and separate word-list export.
+
 Kagoya runs `gnotes-podman-backup.timer` as a user timer at 03:15 server time, with up to 30 minutes of random delay. The job makes an online SQLite snapshot, compresses it, checks integrity and schema with the restore verifier, and then publishes `gnotes-daily-YYYYMMDDTHHMMSSZ.db.gz` in `~/apps/gnotes/backups`. It removes daily archives older than roughly 30 days; release and pre-restore backups are kept separately.
 
 To install or refresh the timer from this checkout:
