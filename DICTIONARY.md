@@ -1,6 +1,6 @@
 # Personal dictionary
 
-Right-click text in a displayed note or the rich editor for **Copy**, **Dictionary**, and **Always ignore spelling**. Copy uses the full selection, or the clicked word when nothing is selected. Dictionary opens only when chosen. Shift + right-click keeps the browser's native menu; links, code, and source text fields keep their native menus. Selecting text in a displayed note exposes a Dictionary button; the editor's selection toolbar has the same action. Account → Dictionary also accepts typed words and short phrases.
+Right-click note titles, title inputs, or text in a displayed note or the rich editor for **Copy**, **Dictionary**, and **Always ignore spelling**. Copy uses the full selection, or the clicked word when nothing is selected (the current caret word in a title input). Dictionary opens only when chosen. Shift + right-click keeps the browser's native menu; links, code, and Markdown source text fields keep their native menus. Selecting text in a displayed note exposes a Dictionary button; the editor's selection toolbar has the same action. Account → Dictionary also accepts typed words and short phrases.
 
 Definitions are grouped by part of speech, with WordNet examples and related words. **Save word** adds the word to your account's list; **Remove saved word** removes it. Saved words can be searched, opened, removed, and exported as JSON. A word without a definition can still be saved.
 

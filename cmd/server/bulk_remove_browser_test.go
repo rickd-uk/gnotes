@@ -38,6 +38,7 @@ func TestActiveBulkRemovalBrowser(t *testing.T) {
 			mux.HandleFunc("/api/notes/delete-active", protect(deleteActiveNotesHandler, true))
 			mux.HandleFunc("/api/notes/delete-archived", protect(deleteArchivedNotesHandler, true))
 			mux.HandleFunc("/api/notes/restore", protect(restoreNotesHandler, true))
+			mux.HandleFunc("/api/notes/archive", protect(noteArchiveHandler, false))
 			mux.HandleFunc("/api/tags", protect(tagsHandler, false))
 			mux.Handle("/", http.FileServer(http.Dir("../../public")))
 			server := httptest.NewServer(securityHeaders(mux))
@@ -53,10 +54,33 @@ func TestActiveBulkRemovalBrowser(t *testing.T) {
 			browser.wait(`!document.getElementById('auth-screen').hidden`)
 			browser.script(`document.getElementById('auth-username').value='rick';document.getElementById('auth-password').value='original password';document.getElementById('auth-form').requestSubmit();`)
 			browser.wait(`!notesLoading && document.querySelector('[data-remove-scope="date"]') && document.querySelector('[data-remove-scope="pinned"]')`)
+			outsideClick := func() {
+				t.Helper()
+				browser.call("POST", "/actions", map[string]any{"actions": []any{map[string]any{"type": "pointer", "id": "outside", "parameters": map[string]string{"pointerType": "mouse"}, "actions": []any{map[string]any{"type": "pointerMove", "duration": 0, "x": 2, "y": 2}, map[string]any{"type": "pointerDown", "button": 0}, map[string]any{"type": "pointerUp", "button": 0}}}}})
+			}
+			for _, id := range []string{"tags-dialog", "spelling-dialog", "dictionary-dialog", "note-action-dialog", "archive-remove-dialog", "rich-link-dialog"} {
+				browser.script(fmt.Sprintf(`document.getElementById(%q).showModal();`, id))
+				browser.script(fmt.Sprintf(`const d=document.getElementById(%q),r=d.getBoundingClientRect();d.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:r.left+2,clientY:r.top+2}));if(!d.open)throw new Error('Clicking inside must keep modal open');`, id))
+				outsideClick()
+				browser.wait(fmt.Sprintf(`!document.getElementById(%q).open`, id))
+			}
+			browser.script(`showWelcome();`)
+			outsideClick()
+			browser.wait(`document.getElementById('welcome-overlay').hidden`)
+			for _, id := range []string{"transfer-panel", "profile-panel", "help-panel", "archive-panel", "admin-panel"} {
+				browser.script(fmt.Sprintf(`document.getElementById(%q).hidden=false;`, id))
+				outsideClick()
+				browser.wait(fmt.Sprintf(`document.getElementById(%q).hidden`, id))
+			}
+			browser.script(`for(const id of ['active-notes-archive-all','active-notes-remove-all']){const b=document.getElementById(id);if(b.textContent.trim() || !b.querySelector('svg') || !b.getAttribute('aria-label'))throw new Error('Bulk action must be an accessible icon');}`)
 			browser.script(`if(document.querySelectorAll('.note-card').length>=66) throw new Error('Fixture must span multiple pages');hiddenNoteIds.add(1);saveHiddenNoteIds();`)
 			click(`[data-remove-scope="date"]`)
 			browser.wait(`document.getElementById('archive-remove-dialog').open`)
 			browser.script(`if(!document.getElementById('archive-remove-message').textContent.includes('Pinned notes stay'))throw new Error('Missing scope explanation');if(document.activeElement.id!=='archive-remove-cancel')throw new Error('Cancel should have focus');if(document.documentElement.scrollWidth>innerWidth)throw new Error('Overflow');`)
+			browser.script(`const s=getComputedStyle(document.getElementById('archive-remove-cancel'));if(s.borderStyle==='none'||parseFloat(s.borderWidth)<1||s.backgroundColor==='rgba(0, 0, 0, 0)')throw new Error('Cancel must look like a button');`)
+			outsideClick()
+			browser.wait(`!document.getElementById('archive-remove-dialog').open`)
+			click(`[data-remove-scope="date"]`)
 			click("#archive-remove-cancel")
 			var remaining int
 			db.DB.QueryRow("SELECT COUNT(*) FROM notes WHERE deleted_at IS NULL").Scan(&remaining)
@@ -94,6 +118,27 @@ func TestActiveBulkRemovalBrowser(t *testing.T) {
 			db.DB.QueryRow("SELECT COUNT(*) FROM notes WHERE deleted_at IS NOT NULL").Scan(&remaining)
 			if remaining != 67 {
 				t.Fatal("Archive removal regression")
+			}
+			// Restore the fixture, then archive every active note from the footer.
+			browser.script(`apiFetch('/api/notes/restore?id=all',{method:'POST'}).then(()=>toggleArchiveMode());`)
+			browser.wait(`!notesLoading && !archiveMode && activeNoteCount===67`)
+			mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at) VALUES(2,'Other owner','body',?)", created)
+			mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at,deleted_at) VALUES(1,'Already recycled','body',?,?)", created, created)
+			browser.script(`hiddenNoteIds.add(1);saveHiddenNoteIds();`)
+			click("#active-notes-archive-all")
+			browser.wait(`document.getElementById('archive-remove-dialog').open && document.getElementById('archive-remove-dialog').dataset.mode==='archive-active'`)
+			outsideClick()
+			browser.wait(`!document.getElementById('archive-remove-dialog').open && activeNoteCount===67`)
+			click("#active-notes-archive-all")
+			click("#archive-remove-confirm")
+			browser.wait(`!activeRemovalBusy && !notesLoading && activeNoteCount===0 && !hiddenNoteIds.has(1) && document.getElementById('active-notes-bulk-actions').hidden`)
+			db.DB.QueryRow("SELECT COUNT(*) FROM notes WHERE user_id=1 AND archived_at IS NOT NULL AND deleted_at IS NULL").Scan(&remaining)
+			if remaining != 67 {
+				t.Fatalf("Archived %d, want 67 including pinned, hidden, and later-page notes", remaining)
+			}
+			db.DB.QueryRow("SELECT COUNT(*) FROM notes WHERE (user_id=2 AND archived_at IS NULL AND deleted_at IS NULL) OR (user_id=1 AND deleted_at IS NOT NULL AND archived_at IS NULL)").Scan(&remaining)
+			if remaining != 2 {
+				t.Fatal("Archive all changed another account or recycled notes")
 			}
 		})
 	}

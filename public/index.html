@@ -1066,11 +1066,15 @@
         font: 650 0.76rem var(--note-body-font);
       }
       .archive-remove-all:hover { background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
-      #active-notes-remove-all { display: block; margin: 12px 0 0 auto; }
-      #active-notes-remove-all[hidden] { display: none; }
+      .active-notes-bulk-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+      .active-notes-bulk-actions[hidden], .active-notes-bulk-actions button[hidden] { display: none; }
+      .active-notes-bulk-actions button { display: grid; place-items: center; width: 44px; height: 44px; padding: 8px; }
+      .active-notes-bulk-actions .icon { width: 22px; height: 22px; }
+      #active-notes-archive-all { color: var(--accent); border-color: var(--line); }
+      #active-notes-archive-all:hover { background: color-mix(in srgb, var(--accent) 10%, var(--paper)); }
       #app-shell.archive-mode #note-form { display: none; }
       #app-shell.archive-mode #hidden-notes-control,
-      #app-shell.archive-mode #active-notes-remove-all,
+      #app-shell.archive-mode #active-notes-bulk-actions,
       #app-shell.archive-mode #archive-open { display: none; }
       #app-shell.archive-mode #notes-list .note-card { cursor: default; }
       #app-shell.archive-mode #notes-list .note-card:not([class*="note-color-"]) {
@@ -2174,9 +2178,12 @@
       .note-action-dialog button:hover { background: var(--accent-hover); }
       .archive-remove-dialog .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
       .archive-remove-dialog .dialog-actions button { margin: 0; }
-      .archive-remove-dialog .archive-remove-cancel { background: transparent; color: var(--accent); }
+      .archive-remove-dialog .archive-remove-cancel { border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+      .archive-remove-dialog .archive-remove-cancel:hover { background: color-mix(in srgb, var(--ink) 6%, var(--paper)); }
       .archive-remove-dialog .archive-remove-confirm { background: var(--danger); }
       .archive-remove-dialog .archive-remove-confirm:hover { background: #832c25; }
+      .archive-remove-dialog.is-archiving .archive-remove-confirm { background: var(--accent); }
+      .archive-remove-dialog.is-archiving .archive-remove-confirm:hover { background: var(--accent-hover); }
 
       .rich-link-dialog label {
         display: block;
@@ -4397,7 +4404,10 @@
         <p class="search-status" id="notes-load-status" role="status" hidden></p>
         <div id="notes-list"></div>
         <button class="load-more" id="load-more-notes" type="button" hidden>Load older</button>
-        <button class="archive-remove-all" id="active-notes-remove-all" type="button" onclick="promptActiveRemoval('all')" hidden>Move all active notes to recycle bin</button>
+        <div class="active-notes-bulk-actions" id="active-notes-bulk-actions" role="group" aria-label="All active notes" hidden>
+          <button class="archive-remove-all" id="active-notes-archive-all" type="button" onclick="promptActiveRemoval('all', '', currentUser, 'archive')" aria-label="Archive all active notes" title="Archive all active notes" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" /></svg></button>
+          <button class="archive-remove-all" id="active-notes-remove-all" type="button" onclick="promptActiveRemoval('all')" aria-label="Recycle all active notes" title="Recycle all active notes" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" /></svg></button>
+        </div>
       </section>
     </main>
 
@@ -6619,6 +6629,8 @@
         activeNoteCount = Math.max(0, count);
         document.getElementById("delete-all-notes").hidden = activeNoteCount === 0;
         document.getElementById("active-notes-remove-all").hidden = activeNoteCount === 0;
+        document.getElementById("active-notes-archive-all").hidden = activeNoteCount === 0;
+        document.getElementById("active-notes-bulk-actions").hidden = activeNoteCount === 0;
       }
 
       function setPinnedNoteCount(count) {
@@ -6945,6 +6957,8 @@
         if (!archiveMode) return;
         const dialog = document.getElementById("archive-remove-dialog");
         dialog.dataset.mode = "archived";
+        dialog.classList.remove('is-archiving');
+        document.getElementById('archive-remove-confirm').textContent = 'Move to recycle bin';
         dialog.dataset.scope = scope;
         dialog.dataset.date = date;
         dialog.dataset.timezone = noteTimeZone();
@@ -6960,10 +6974,10 @@
         promptArchiveRemoval("date", button.dataset.archiveDate);
       }
 
-      async function promptActiveRemoval(scope, date = "", owner = currentUser) {
+      async function promptActiveRemoval(scope, date = "", owner = currentUser, action = 'recycle') {
         if (!currentUser || currentUser !== owner || archiveMode || activeRemovalBusy || !['all', 'date', 'pinned'].includes(scope)) return;
         if (draftFinalizing || notesLoading) {
-          setTimeout(() => promptActiveRemoval(scope, date, owner), 150);
+          setTimeout(() => promptActiveRemoval(scope, date, owner, action), 150);
           return;
         }
         if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
@@ -6974,19 +6988,45 @@
         if (!currentUser || currentUser !== owner || archiveMode) return;
         document.getElementById('account-control').open = false;
         const dialog = document.getElementById('archive-remove-dialog');
-        dialog.dataset.mode = 'active';
+        dialog.dataset.mode = action === 'archive' ? 'archive-active' : 'active';
+        dialog.classList.toggle('is-archiving', action === 'archive');
+        document.getElementById('archive-remove-confirm').textContent = action === 'archive' ? 'Archive notes' : 'Move to recycle bin';
         dialog.dataset.scope = scope;
         dialog.dataset.date = date;
         dialog.dataset.timezone = noteTimeZone();
         document.getElementById('archive-remove-title').textContent = scope === 'pinned' ? 'Move pinned notes?' : scope === 'date' ? 'Move this date section?' : 'Move all active notes?';
         const target = scope === 'all' ? 'every active note, including pinned notes' : scope === 'pinned' ? 'every pinned active note' : `every unpinned active note dated ${date}`;
         document.getElementById('archive-remove-message').textContent = `Move ${target} to the recycle bin, including hidden notes and notes outside the current page or filter? Archived notes stay in Archive.${scope === 'date' ? ' Pinned notes stay in Pinned.' : ''} You can recover removed notes from the recycle bin.`;
+        if (action === 'archive') {
+          document.getElementById('archive-remove-title').textContent = 'Archive all active notes?';
+          document.getElementById('archive-remove-message').textContent = 'Archive every active note, including pinned and hidden notes and notes outside the current page or filter? You can return them to Recent from Archived notes.';
+        }
         if (!dialog.open) dialog.showModal();
         document.getElementById('archive-remove-cancel').focus();
       }
 
       function promptActiveSectionRemoval(button) {
         promptActiveRemoval(button.dataset.removeScope, button.dataset.noteDate);
+      }
+
+      async function archiveAllActiveNotes() {
+        if (!currentUser || archiveMode || activeRemovalBusy) return;
+        const owner = currentUser;
+        activeRemovalBusy = true;
+        try {
+          const response = await apiFetch('/api/notes/archive?id=all', { method: 'POST' });
+          if (currentUser !== owner) return;
+          if (!response.ok) {
+            if (response.status !== 401) showNoteActionDialog('Could not archive notes', 'Your notes could not be archived. Please try again.');
+            return;
+          }
+          hiddenNoteIds.clear(); hiddenNotes.clear(); saveHiddenNoteIds(); updateHiddenNotesControl();
+          setActiveNoteCount(0); setPinnedNoteCount(0);
+          await showRecentNotes();
+          if (currentUser === owner) showNoteActionToast('Active notes moved to Archive');
+        } catch {
+          if (currentUser === owner) showNoteActionDialog('Could not archive notes', 'Could not reach the server. Refresh to check your notes before retrying.');
+        } finally { activeRemovalBusy = false; }
       }
 
       async function moveActiveNotesToTrash(params) {
@@ -7041,6 +7081,9 @@
       });
       document.getElementById("archive-remove-confirm").addEventListener("click", () => {
         const dialog = document.getElementById("archive-remove-dialog");
+        if (dialog.dataset.mode === 'archive-active') {
+          dialog.close(); archiveAllActiveNotes(); return;
+        }
         if (dialog.dataset.mode === 'active') {
           const params = new URLSearchParams({ scope: dialog.dataset.scope });
           if (dialog.dataset.scope === 'date') {
@@ -7942,12 +7985,6 @@
       }
 
       document.getElementById('tags-cancel').addEventListener('click', () => document.getElementById('tags-dialog').close());
-      document.getElementById('tags-dialog').addEventListener('click', (event) => {
-        const dialog = event.currentTarget;
-        if (event.target !== dialog) return;
-        const bounds = dialog.getBoundingClientRect();
-        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
-      });
       document.getElementById('tags-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = event.target.querySelector('button[type="submit"]');
@@ -8807,6 +8844,10 @@
         if (!helpPanel.hidden && !helpPanel.contains(event.target) &&
             !document.getElementById("help-open").contains(event.target)) closeHelpPanel();
 
+        const transferPanel = document.getElementById('transfer-panel');
+        if (!transferPanel.hidden && !transferPanel.contains(event.target) &&
+            !document.getElementById('transfer-open').contains(event.target)) transferPanel.hidden = true;
+
         const archivePanel = document.getElementById("archive-panel");
         if (
           !archivePanel.hidden &&
@@ -9254,6 +9295,17 @@
         dismissWelcome();
         if (richDraft) richDraft.focus();
         else document.getElementById("content").focus();
+      });
+      document.getElementById('welcome-overlay').addEventListener('click', event => {
+        if (event.target === event.currentTarget) dismissWelcome();
+      });
+      document.querySelectorAll('dialog').forEach(dialog => {
+        dialog.addEventListener('click', event => {
+          if (event.target !== dialog) return;
+          const bounds = dialog.getBoundingClientRect();
+          if (event.clientX < bounds.left || event.clientX > bounds.right ||
+              event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+        });
       });
       document.getElementById("note-action-dialog-close").addEventListener("click", () => {
         document.getElementById("note-action-dialog").close();

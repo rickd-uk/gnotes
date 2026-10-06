@@ -11,6 +11,7 @@
   const moreButton = document.getElementById('dictionary-load-more');
   const selectionButton = document.getElementById('dictionary-selection');
   const contextMenu = document.getElementById('note-context-menu');
+  const noteTextSelector = '.note-content, .tiptap, .note-view > h2';
   let contextWord = '', contextText = '', contextEditor = null;
 
   function closeContext() { contextMenu.hidden = true; }
@@ -248,11 +249,6 @@
       message('Word list exported.');
     } catch (error) { if (error.name !== 'AbortError') message(error.message, true); }
   });
-  dialog.addEventListener('click', (event) => {
-    if (event.target !== dialog) return;
-    const rect = dialog.getBoundingClientRect();
-    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
-  });
   dialog.addEventListener('close', () => { generation++; lookupController?.abort(); listController?.abort(); clearTimeout(filterTimer); });
 
   function selectableWord(text) {
@@ -263,7 +259,7 @@
   function selectedNoteWord() {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.rangeCount) return '';
-    const root = selection.anchorNode?.parentElement?.closest('.note-content, .tiptap');
+    const root = selection.anchorNode?.parentElement?.closest(noteTextSelector);
     if (!root || !root.contains(selection.focusNode) || selection.anchorNode?.parentElement?.closest('pre, code')) return '';
     return selectableWord(selection.toString());
   }
@@ -288,12 +284,25 @@
   document.addEventListener('contextmenu', (event) => {
     closeContext();
     if (event.shiftKey) return;
-    const root = event.target.closest('.note-content, .tiptap');
-    if (!currentUser || !root || event.target.closest('a, button, input, pre, code')) return;
-    let word = '';
+    const titleInput = event.target.closest('#title, .edit-title');
+    const root = titleInput || event.target.closest(noteTextSelector);
+    if (!currentUser || !root || event.target.closest('a, button, pre, code') || (!titleInput && event.target.closest('input'))) return;
+    let word = '', selectedText = '';
     const selection = window.getSelection();
-    if (selectedNoteWord() && [...selection.getRangeAt(0).getClientRects()].some((rect) => event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom)) word = selectedNoteWord();
-    if (!word) {
+    if (titleInput) {
+      const from = titleInput.selectionStart ?? 0, to = titleInput.selectionEnd ?? from;
+      selectedText = titleInput.value.slice(from, to);
+      word = selectableWord(selectedText);
+      if (!word && !selectedText) {
+        for (const match of titleInput.value.matchAll(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)) {
+          if (from >= match.index && from <= match.index + match[0].length) { word = selectableWord(match[0]); break; }
+        }
+      }
+    } else {
+      if (selection?.rangeCount && root.contains(selection.anchorNode) && root.contains(selection.focusNode) && !selection.isCollapsed) selectedText = selection.toString();
+      if (selectedNoteWord() && [...selection.getRangeAt(0).getClientRects()].some((rect) => event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom)) word = selectedNoteWord();
+    }
+    if (!word && !titleInput) {
       const position = document.caretPositionFromPoint?.(event.clientX, event.clientY);
       const range = !position ? document.caretRangeFromPoint?.(event.clientX, event.clientY) : null;
       const node = position?.offsetNode || range?.startContainer;
@@ -304,11 +313,10 @@
         }
       }
     }
-    const selectedText = selection?.rangeCount && root.contains(selection.anchorNode) && root.contains(selection.focusNode) && !selection.isCollapsed ? selection.toString() : '';
     if (!word && !selectedText) return;
     event.preventDefault(); hideRichContext(); selectionButton.hidden = true;
     contextWord = word; contextText = selectedText || word;
-    contextEditor = root.matches('.tiptap') ? root : null;
+    contextEditor = root.matches('.tiptap, #title, .edit-title') ? root : null;
     document.getElementById('note-context-dictionary').disabled = !word;
     document.getElementById('note-context-ignore').disabled = !spellingReady || spellingBusy || !spellingWord(word) || ignoredSpellingWords.includes(spellingWord(word));
     contextMenu.hidden = false;
