@@ -986,7 +986,9 @@
         margin-left: auto;
       }
 
-      .notes-view-controls .toolbar-button {
+      .notes-toolbar-actions { display: flex; align-items: center; gap: 6px; }
+
+      .notes-toolbar .toolbar-button {
         display: inline-flex;
         min-height: 30px;
         align-items: center;
@@ -1002,8 +1004,8 @@
         line-height: 1;
       }
 
-      .notes-view-controls .toolbar-button:hover,
-      .notes-view-controls .toolbar-button:focus-visible { background: #e9e5dc; color: var(--accent); }
+      .notes-toolbar .toolbar-button:hover,
+      .notes-toolbar .toolbar-button:focus-visible { background: #e9e5dc; color: var(--accent); }
       .notes-view-controls .toolbar-button[hidden] { display: none; }
       .notes-view-controls .icon { width: 15px; height: 15px; }
       .notes-view-controls #controls-toggle[aria-pressed="true"] { background: #f1e9e3; color: #79513f; }
@@ -1061,8 +1063,7 @@
       }
       .archive-remove-all:hover { background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
       #app-shell.archive-mode #note-form { display: none; }
-      #app-shell.archive-mode #view-controls-group { display: none; }
-      #app-shell.archive-mode #hidden-notes-toggle,
+      #app-shell.archive-mode #hidden-notes-control,
       #app-shell.archive-mode #archive-open { display: none; }
       #app-shell.archive-mode #notes-list .note-card { cursor: default; }
       #app-shell.archive-mode #notes-list .note-card:not([class*="note-color-"]) {
@@ -1351,17 +1352,13 @@
         position: absolute;
         z-index: 40;
         top: calc(100% + 10px);
-        right: 0;
+        left: 0;
         width: min(350px, calc(100vw - 32px));
+        max-height: 55dvh;
+        overflow-y: auto;
         border: 1px solid var(--line);
         background: var(--paper);
         box-shadow: 0 18px 44px rgba(51, 45, 35, 0.18);
-      }
-
-      .view-menu .hidden-notes-panel {
-        position: fixed;
-        top: 72px;
-        right: max(16px, calc((100vw - 880px) / 2));
       }
 
       .hidden-notes-panel[hidden] { display: none; }
@@ -3896,14 +3893,6 @@
           display: none;
         }
 
-        .view-menu .hidden-notes-panel {
-          position: static;
-          width: 100%;
-          max-height: 40dvh;
-          overflow-y: auto;
-          box-shadow: none;
-        }
-
         .view-menu-view-options {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3922,6 +3911,8 @@
         .notes-toolbar {
           align-items: flex-start;
         }
+
+        .notes-toolbar-actions { flex-direction: column; align-items: flex-start; }
 
         .search-toggle,
         .trash-toggle {
@@ -4149,21 +4140,6 @@
             <strong>Controls</strong>
             <button class="view-menu-close" id="view-menu-close" type="button" aria-label="Close controls menu">×</button>
           </div>
-          <section class="controls-group" id="view-controls-group" aria-label="View" hidden>
-            <h2 class="controls-group-title">View</h2>
-            <div class="hidden-notes-control" id="hidden-notes-control" hidden>
-            <button class="toolbar-button" id="hidden-notes-toggle" type="button" aria-controls="hidden-notes-panel" aria-expanded="false" aria-label="Open hidden notes" title="Hidden notes">
-              <span id="hidden-notes-label">Hidden 0</span>
-            </button>
-            <section class="hidden-notes-panel" id="hidden-notes-panel" aria-label="Hidden notes" hidden>
-              <div class="hidden-notes-header">Hidden notes</div>
-              <div class="hidden-notes-list" id="hidden-notes-list"></div>
-              <div class="hidden-notes-actions">
-                <button id="show-all-hidden" type="button">Show all</button>
-              </div>
-            </section>
-            </div>
-          </section>
           <section class="controls-group" aria-label="Note actions">
             <h2 class="controls-group-title">Note actions</h2>
             <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Quick note actions">
@@ -4375,7 +4351,21 @@
       <section id="notes-section" aria-labelledby="notes-heading">
         <div class="notes-toolbar">
           <h2 class="visually-hidden" id="notes-heading">Recent notes</h2>
-          <button class="calendar-clear" id="calendar-clear" type="button" hidden>Recent</button>
+          <div class="notes-toolbar-actions">
+            <div class="hidden-notes-control" id="hidden-notes-control" hidden>
+              <button class="toolbar-button" id="hidden-notes-toggle" type="button" aria-controls="hidden-notes-panel" aria-expanded="false" aria-label="Open hidden notes" title="Unhide notes">
+                <span id="hidden-notes-label">Unhide 0</span>
+              </button>
+              <section class="hidden-notes-panel" id="hidden-notes-panel" aria-label="Hidden notes" hidden>
+                <div class="hidden-notes-header">Hidden notes</div>
+                <div class="hidden-notes-list" id="hidden-notes-list"></div>
+                <div class="hidden-notes-actions">
+                  <button id="show-all-hidden" type="button">Show all</button>
+                </div>
+              </section>
+            </div>
+            <button class="calendar-clear" id="calendar-clear" type="button" hidden>Recent</button>
+          </div>
           <div class="notes-view-controls" role="group" aria-label="Note view controls">
             <button class="toolbar-button" id="density-toggle" type="button" aria-controls="notes-list" aria-label="Note density: Full" title="Change note density">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" /></svg>
@@ -4523,7 +4513,7 @@
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
         <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Copy the current text at the bottom left, or choose the green check mark to save and return to your notes.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
-        <div><h3>Change the view</h3><p>Open Controls to choose quick actions, density, hidden notes, and date sections. You can change note font and size there too.</p></div>
+        <div><h3>Change the view</h3><p>Use the controls above your notes to change density and date sections. Unhide brings back hidden notes. Open Controls to choose quick actions, note font, and size.</p></div>
       </div>
     </section>
 
@@ -7005,8 +6995,7 @@
         const control = document.getElementById("hidden-notes-control");
         const count = hiddenNoteIds.size;
         control.hidden = count === 0;
-        document.getElementById("view-controls-group").hidden = count === 0;
-        document.getElementById("hidden-notes-label").textContent = `Hidden ${count}`;
+        document.getElementById("hidden-notes-label").textContent = `Unhide ${count}`;
         document.getElementById("hidden-notes-list").innerHTML = [...hiddenNoteIds]
           .map((id) => {
             const note = hiddenNotes.get(id);
