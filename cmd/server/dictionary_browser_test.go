@@ -1,0 +1,102 @@
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+)
+
+func TestDictionaryBrowser(t *testing.T) {
+	if os.Getenv("GNOTES_BROWSER_CHECK") != "1" {
+		t.Skip("optional local Chromium check")
+	}
+	for _, width := range []int{320, 1024} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			recoveryFixture(t)
+			mustRecoveryExec(t, "INSERT INTO notes (user_id,title,content,created_at) VALUES (1,'Dictionary note',?,?)", "Serendipity makes engineering interesting.\nChildren learn by running.", time.Now().UTC())
+			mux := http.NewServeMux()
+			mux.HandleFunc("/api/auth/config", authConfigHandler)
+			mux.HandleFunc("/api/auth/login", loginHandler)
+			mux.HandleFunc("/api/auth/me", protect(meHandler, false))
+			mux.HandleFunc("/api/auth/logout", protect(logoutHandler, true))
+			mux.HandleFunc("/api/draft", protect(getDraftHandler, false))
+			mux.HandleFunc("/api/draft/update", protect(updateDraftHandler, true))
+			mux.HandleFunc("/api/draft/finalize", protect(finalizeDraftHandler, true))
+			mux.HandleFunc("/api/notes/page", protect(pagedListNotesHandler, false))
+			mux.HandleFunc("/api/notes/trash-page", protect(pagedTrashNotesHandler, false))
+			mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
+			mux.HandleFunc("/api/tags", protect(tagsHandler, false))
+			registerDictionaryRoutes(mux)
+			mux.Handle("/", http.FileServer(http.Dir("../../public")))
+			server := httptest.NewServer(securityHeaders(mux))
+			defer server.Close()
+			browser := newRecoveryBrowser(t)
+			browser.call("POST", "/goog/cdp/execute", map[string]any{"cmd": "Emulation.setDeviceMetricsOverride", "params": map[string]any{"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": false}})
+			click := func(selector string) {
+				t.Helper()
+				t.Log("click", selector)
+				node := browser.call("POST", "/element", map[string]string{"using": "css selector", "value": selector}).(map[string]any)
+				browser.call("POST", "/element/"+node["element-6066-11e4-a52e-4f735466cecf"].(string)+"/click", nil)
+			}
+			browser.navigate(server.URL)
+			browser.wait(`!document.getElementById('auth-screen').hidden && Boolean(window.GnotesDictionary)`)
+			browser.script(`document.getElementById('auth-username').value='rick'; document.getElementById('auth-password').value='original password'; document.getElementById('auth-form').requestSubmit();`)
+			browser.wait(`!notesLoading && !document.getElementById('app-shell').hidden && document.querySelectorAll('.note-card').length===1`)
+			point := browser.script(`const p=document.querySelector('.note-content p'); p.scrollIntoView({block:'center'}); const range=document.createRange(); range.setStart(p.firstChild,2); range.setEnd(p.firstChild,5); const rect=range.getBoundingClientRect(); return [Math.round((rect.left+rect.right)/2),Math.round((rect.top+rect.bottom)/2)];`).([]any)
+			browser.call("POST", "/actions", map[string]any{"actions": []any{map[string]any{"type": "pointer", "id": "dictionary-right-click", "parameters": map[string]string{"pointerType": "mouse"}, "actions": []any{map[string]any{"type": "pointerMove", "duration": 0, "x": point[0], "y": point[1]}, map[string]any{"type": "pointerDown", "button": 2}, map[string]any{"type": "pointerUp", "button": 2}}}}})
+			browser.wait(`document.getElementById('dictionary-dialog').open && document.getElementById('dictionary-word').value==='serendipity' && document.querySelectorAll('#dictionary-result li').length>0`)
+			browser.script(`const r=document.getElementById('dictionary-dialog').getBoundingClientRect(); if(r.left<0 || r.right>innerWidth || r.top<0 || r.bottom>innerHeight || document.documentElement.scrollWidth>innerWidth) throw new Error('Dictionary modal overflows'); if(document.querySelector('#dictionary-result script')) throw new Error('Definition must be text');`)
+			click("#dictionary-save")
+			browser.wait(`document.getElementById('dictionary-save').textContent==='Remove saved word' && !document.getElementById('dictionary-save').disabled`)
+			click("#dictionary-saved-tab")
+			browser.wait(`document.querySelectorAll('#dictionary-word-list li').length===1 && document.querySelector('[data-lookup-word="serendipity"]')`)
+			click("#dictionary-close")
+			// Selected text in a displayed note exposes Dictionary on mobile too.
+			browser.script(`const node=document.querySelector('.note-content p').firstChild; const start=node.textContent.indexOf('engineering'); const range=document.createRange();range.setStart(node,start);range.setEnd(node,start+11);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);`)
+			browser.wait(`!document.getElementById('dictionary-selection').hidden`)
+			click("#dictionary-selection")
+			browser.wait(`document.getElementById('dictionary-word').value==='engineering' && document.querySelectorAll('#dictionary-result li').length>0`)
+			click("#dictionary-save")
+			browser.wait(`document.getElementById('dictionary-save').textContent==='Remove saved word' && !document.getElementById('dictionary-save').disabled`)
+			click("#dictionary-close")
+			// The editor's Dictionary button must preserve the active note.
+			browser.script(`window.dictNoteID=Number(document.querySelector('.note-card').id.slice(5));openNoteEditor(dictNoteID,false);`)
+			browser.wait(`Boolean(richEdit)`)
+			browser.script(`richEdit.editor.chain().focus().setTextSelection({from:1,to:12}).run();`)
+			browser.wait(`!document.querySelector('.rich-context-menu').hidden && Boolean(document.querySelector('[data-rich-dictionary]'))`)
+			browser.script(`const menu=document.querySelector('.rich-context-menu').getBoundingClientRect(); if(menu.left<0 || menu.right>innerWidth) throw new Error('Selection toolbar overflows');`)
+			click("[data-rich-dictionary]")
+			browser.wait(`document.getElementById('dictionary-dialog').open && document.getElementById('dictionary-word').value==='serendipity' && document.querySelectorAll('#dictionary-result li').length>0`)
+			browser.script(`if(editingNoteId!==dictNoteID || !document.documentElement.classList.contains('note-edit-focus')) throw new Error('Dictionary closed the active editor');`)
+			click("#dictionary-close")
+			browser.script(`updateNote(dictNoteID);`)
+			browser.wait(`editingNoteId===null`)
+			browser.navigate(server.URL)
+			browser.wait(`!notesLoading && !document.getElementById('app-shell').hidden && Boolean(window.GnotesDictionary)`)
+			browser.script(`document.getElementById('account-control').open=true;`)
+			click("#dictionary-open")
+			click("#dictionary-saved-tab")
+			browser.wait(`document.querySelectorAll('#dictionary-word-list li').length===2`)
+			browser.script(`document.getElementById('dictionary-filter').value='engine';document.getElementById('dictionary-filter').dispatchEvent(new Event('input'));`)
+			browser.wait(`document.querySelectorAll('#dictionary-word-list li').length===1 && document.querySelector('[data-lookup-word="engineering"]')`)
+			click(`[data-remove-word="engineering"]`)
+			browser.wait(`document.getElementById('dictionary-list-status').textContent==='No saved words match.'`)
+			click("#dictionary-lookup-tab")
+			browser.script(`document.getElementById('dictionary-word').value='children';document.getElementById('dictionary-lookup-form').requestSubmit();`)
+			browser.wait(`document.querySelector('#dictionary-result h3')?.textContent==='children' && document.getElementById('dictionary-result').textContent.includes('Definitions for child')`)
+			click("#dictionary-close")
+			browser.script(`document.getElementById('account-control').open=true;`)
+			click("#logout-button")
+			browser.wait(`!document.getElementById('auth-screen').hidden && !document.getElementById('dictionary-dialog').open && document.getElementById('dictionary-word').value==='' && document.querySelectorAll('#dictionary-word-list li').length===0`)
+			browser.script(`document.getElementById('auth-username').value='other'; document.getElementById('auth-password').value='original password'; document.getElementById('auth-form').requestSubmit();`)
+			browser.wait(`!document.getElementById('app-shell').hidden`)
+			browser.script(`GnotesDictionary.open('serendipity');`)
+			browser.wait(`document.querySelector('#dictionary-result h3')?.textContent==='serendipity' && document.getElementById('dictionary-save').textContent==='Save word'`)
+			click("#dictionary-saved-tab")
+			browser.wait(`document.getElementById('dictionary-list-status').textContent==='No saved words yet.'`)
+		})
+	}
+}

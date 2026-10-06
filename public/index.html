@@ -6,6 +6,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/dictionary.css" />
     <style>
       :root {
         color-scheme: light;
@@ -561,6 +562,9 @@
         position: fixed;
         z-index: 85;
         display: flex;
+        flex-wrap: wrap;
+        max-width: calc(100vw - 16px);
+        box-sizing: border-box;
         gap: 2px;
         padding: 4px;
         border: 1px solid #c9c3b8;
@@ -4259,6 +4263,7 @@
               </div>
               <div class="account-menu-section" id="account-notes-section">
                 <span class="account-menu-label">Notes</span>
+                <button id="dictionary-open" type="button">Dictionary</button>
                 <button id="unpin-all-notes" type="button" hidden>Unpin all notes</button>
               </div>
               <div class="account-menu-section" id="account-admin-section" hidden>
@@ -4403,6 +4408,26 @@
         <div class="tag-dialog-actions"><button id="tags-cancel" type="button">Cancel</button><button type="submit">Save</button></div>
       </form>
     </dialog>
+    <dialog class="dictionary-ui" id="dictionary-dialog" aria-labelledby="dictionary-heading">
+      <div class="dictionary-header"><h2 id="dictionary-heading">Dictionary</h2><button id="dictionary-close" type="button" aria-label="Close dictionary">×</button></div>
+      <div class="dictionary-tabs" role="tablist" aria-label="Dictionary views">
+        <button id="dictionary-lookup-tab" type="button" role="tab" aria-selected="true" aria-controls="dictionary-lookup-panel">Look up</button>
+        <button id="dictionary-saved-tab" type="button" role="tab" aria-selected="false" aria-controls="dictionary-saved-panel" tabindex="-1">Saved words</button>
+      </div>
+      <section id="dictionary-lookup-panel" role="tabpanel" aria-labelledby="dictionary-lookup-tab">
+        <form id="dictionary-lookup-form"><label for="dictionary-word">Word or short phrase</label><div class="dictionary-search"><input id="dictionary-word" type="text" maxlength="96" autocomplete="off" placeholder="e.g. serendipity" /><button type="submit">Look up</button></div></form>
+        <div id="dictionary-result" aria-live="polite"></div>
+        <button id="dictionary-save" type="button" hidden>Save word</button>
+      </section>
+      <section id="dictionary-saved-panel" role="tabpanel" aria-labelledby="dictionary-saved-tab" hidden>
+        <label for="dictionary-filter">Find a saved word</label><input id="dictionary-filter" type="search" maxlength="96" autocomplete="off" placeholder="Search your word list" />
+        <p id="dictionary-list-status" role="status"></p><ul id="dictionary-word-list"></ul>
+        <div class="dictionary-list-actions"><button id="dictionary-load-more" type="button" hidden>Load more</button><button id="dictionary-export" type="button">Export words</button></div>
+      </section>
+      <p id="dictionary-status" role="status"></p>
+      <p class="dictionary-credit">English definitions · <a href="/WORDNET-LICENSE.txt" target="_blank" rel="noopener">WordNet 3.1</a> · © 2011 Princeton University</p>
+    </dialog>
+    <button class="dictionary-ui" id="dictionary-selection" type="button" hidden>Dictionary</button>
     <dialog class="note-action-dialog" id="note-action-dialog" aria-labelledby="note-action-dialog-title" aria-describedby="note-action-dialog-message">
       <h2 id="note-action-dialog-title"></h2>
       <p id="note-action-dialog-message"></p>
@@ -4787,7 +4812,8 @@
                <button type="button" data-rich-command="strike" aria-label="Strikethrough" title="Strikethrough"><s>S</s></button>
                <button type="button" data-rich-command="code" aria-label="Inline code" title="Inline code"><code>&lt;/&gt;</code></button>
                <button type="button" data-rich-command="task" aria-label="Checklist" title="Checklist">☐</button>
-               <button type="button" data-rich-command="link" aria-label="Add link" title="Add link">Link</button>`;
+               <button type="button" data-rich-command="link" aria-label="Add link" title="Add link">Link</button>
+               <button type="button" data-rich-dictionary>Dictionary</button>`;
         }
         if (context.mode === "codeBlock") {
           const languageSelect = richContextMenu.querySelector("#rich-code-language");
@@ -4814,6 +4840,12 @@
         if (event.target.closest("button")) event.preventDefault();
       });
       richContextMenu.addEventListener("click", (event) => {
+        if (event.target.closest('[data-rich-dictionary]') && richContextOwner) {
+          const { from, to } = richContextOwner.editor.state.selection;
+          window.GnotesDictionary?.open(richContextOwner.editor.state.doc.textBetween(from, to, ' '));
+          hideRichContext();
+          return;
+        }
         const button = event.target.closest("[data-rich-command]");
         if (!button || !richContextOwner) return;
         richContextOwner.format(button.dataset.richCommand, richContextMode === "slash");
@@ -5323,6 +5355,7 @@
       }
 
       function showAuth(message = "") {
+        window.GnotesDictionary?.reset();
         document.getElementById("tags-dialog").close();
         document.getElementById("tags-form").reset();
         document.getElementById("search-tag").replaceChildren(new Option("All tags", ""));
@@ -6421,7 +6454,6 @@
       function setPinnedNoteCount(count) {
         pinnedNoteCount = Math.max(0, count);
         document.getElementById("unpin-all-notes").hidden = pinnedNoteCount === 0;
-        document.getElementById("account-notes-section").hidden = pinnedNoteCount === 0;
       }
 
       function getDisplayTitle(note) {
@@ -8528,7 +8560,7 @@
 
       document.addEventListener("pointerdown", (event) => {
         if (!document.getElementById("welcome-overlay").hidden) return;
-        if (richContextMenu.contains(event.target)) return;
+        if (richContextMenu.contains(event.target) || event.target.closest('.dictionary-ui')) return;
         if (editingNoteId !== null) {
           const card = document.getElementById(`note-${editingNoteId}`);
           if (card && !card.contains(event.target) && !event.target.closest(".rich-link-dialog")) updateNote(editingNoteId);
@@ -8575,6 +8607,7 @@
       });
 
       document.addEventListener("keydown", (event) => {
+        if (document.getElementById('dictionary-dialog').open) return;
         if (event.key === "Tab" && editingNoteId !== null && richContextMenu.hidden && !document.getElementById("rich-link-dialog").open) {
           const card = document.getElementById(`note-${editingNoteId}`);
           const controls = [...card.querySelectorAll("input, textarea, button, select, [contenteditable='true']")]
@@ -9056,5 +9089,6 @@
       setDefaultSearchDates();
       initializeAuth();
     </script>
+    <script src="/dictionary.js"></script>
   </body>
 </html>

@@ -72,6 +72,8 @@ gnotes JSON exports now use format version 2; version 1 remains importable. A ta
 
 See [OPERATIONS.md](OPERATIONS.md#brevo-password-recovery) for email setup. Existing account emails require verification before they can recover a password.
 
+The personal [dictionary](DICTIONARY.md) provides offline English definitions and private saved-word lists. Right-click or select a word in a note, or use Account → Dictionary. WordNet 3.1 is bundled under its included license; lookup makes no external requests.
+
 Run validation with:
 
 ```bash

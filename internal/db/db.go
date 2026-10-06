@@ -82,6 +82,13 @@ func InitDB(filepath string) {
     updated_at DATETIME NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS saved_words (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    word TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, word)
+  );
+
   CREATE TABLE IF NOT EXISTS password_reset_tokens (
     token_hash TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,

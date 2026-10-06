@@ -29,6 +29,7 @@ import (
 	markdownhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"gnotes/internal/db"
+	"gnotes/internal/dictionary"
 	"gnotes/internal/models"
 )
 
@@ -98,6 +99,9 @@ func run() error {
 	}
 	db.InitDB(databasePath)
 	defer db.DB.Close()
+	if err := dictionary.Load(); err != nil {
+		return fmt.Errorf("offline dictionary: %w", err)
+	}
 	recoverySettings, err := loadRecoveryConfig()
 	if err != nil {
 		return fmt.Errorf("password recovery configuration: %w", err)
@@ -133,6 +137,7 @@ func run() error {
 	mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
 	mux.HandleFunc("/api/notes/tags", protect(updateNoteTagsHandler, true))
 	mux.HandleFunc("/api/tags", protect(tagsHandler, false))
+	registerDictionaryRoutes(mux)
 	mux.HandleFunc("/api/notes/color", protect(updateNoteColorHandler, true))
 	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
 	mux.HandleFunc("/api/notes/unpin-all", protect(unpinAllNotesHandler, true))
