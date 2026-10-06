@@ -16,6 +16,8 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
 - Create, autosave, and edit notes in a focused full-screen phone view or centered desktop panel; copy the current text from the lower left or finish with the green check mark and return to the same list position. Pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
 - Select note titles and text by dragging, then copy normally; selection does not open the editor. Copy whole notes from their action menu
+- Phone long presses keep native selection handles and Copy; desktop right-clicks retain Copy/Dictionary/Always ignore
+- Spellcheck includes a shared list of 15,981 built-in names, with an independent switch and private personal additions. Capitalized name matching runs locally while typing
 - Archive notes for later reading and restore them without deleting them; move one archived note, all notes archived on a displayed date, or the full archive to the recycle bin
 - Move an active date section, all pinned notes, or all active notes to the recycle bin after confirmation; date sections exclude pinned notes, and removal includes hidden notes and later pages
 - Icon buttons below active notes archive or recycle the whole collection after confirmation. Cancel is a bordered button; clicking outside a modal dismisses it without confirming its action

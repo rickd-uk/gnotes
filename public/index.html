@@ -4435,6 +4435,8 @@
       <form id="spelling-ignore-form"><label for="spelling-word">Word to ignore</label><div class="dictionary-search"><input id="spelling-word" type="text" maxlength="96" autocomplete="off" spellcheck="false" required /><button type="submit">Ignore word</button></div></form>
       <ul id="spelling-ignored-list"></ul><p id="spelling-status" role="status"></p>
       <h3>Names</h3><p>Automatically ignore these people, companies, places, and other names in rich note text. Full names and single names are supported.</p>
+      <label><input id="spelling-builtin-enabled" type="checkbox" checked /> Automatically ignore built-in names</label>
+      <p id="spelling-builtin-status" role="status">Includes a shared list of people, companies, and worldwide places. Built-in names match capitalized text; add your own names below.</p>
       <form id="spelling-name-form"><label for="spelling-name">Name</label><div class="dictionary-search"><input id="spelling-name" type="text" maxlength="96" autocomplete="off" spellcheck="false" required placeholder="e.g. Sriniously or New York" /><button type="submit">Add name</button></div>
         <label for="spelling-name-kind">Type</label><select id="spelling-name-kind"><option value="person">Person</option><option value="company">Company</option><option value="place">Place</option><option value="other">Other</option></select></form>
       <ul id="spelling-names-list"></ul><p id="spelling-names-status" role="status"></p>
@@ -4758,6 +4760,8 @@
       let spellcheckEnabled = true;
       let ignoredSpellingWords = [];
       let spellingNames = [];
+      let builtinSpellingEnabled = true;
+      let builtinNamesReady = false, builtinNamesRequest = null;
       let spellingListsMigrated = false;
       let spellingReady = false;
       let spellingBusy = false;
@@ -4982,7 +4986,7 @@
         input.classList.remove("force-source");
         richDraftFallback = false;
         richDraft = editor;
-        editor.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames);
+        editor.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
         mountRichToolbar(host, editor);
         toggle.hidden = false;
       }
@@ -5021,7 +5025,7 @@
         }
         input.classList.remove("force-source");
         richEdit = editor;
-        editor.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames);
+        editor.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
         mountRichToolbar(host, editor);
         document.getElementById(`edit-rich-format-toggle-${id}`).hidden = false;
       }
@@ -5153,6 +5157,7 @@
           bodySize,
           linkUnderlines,
           spellcheckEnabled,
+          builtinSpellingEnabled,
           spellingListsMigrated,
           ...(!spellingListsMigrated ? { ignoredSpellingWords, spellingNames } : {}),
           // Other tabs can save panel/spelling state with an older timezone.
@@ -5293,10 +5298,12 @@
           seen.add(name.toLowerCase()); return true;
         }).slice(0, 2000).map(entry => ({name: validSpellingName(entry.name), kind: entry.kind}));
         document.getElementById('spelling-enabled').checked = spellcheckEnabled;
+        document.getElementById('spelling-builtin-enabled').checked = builtinSpellingEnabled;
         document.getElementById('spelling-state').textContent = spellcheckEnabled ? 'On' : 'Off';
         document.querySelectorAll('#title, #content, .edit-title, .edit-content').forEach(input => { input.spellcheck = spellcheckEnabled; });
-        richDraft?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames);
-        richEdit?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames);
+        richDraft?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
+        richEdit?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
+        if (currentUser && spellcheckEnabled && builtinSpellingEnabled) loadBuiltinNames();
         const list = document.getElementById('spelling-ignored-list');
         list.replaceChildren();
         for (const word of ignoredSpellingWords) {
@@ -5320,6 +5327,27 @@
       function validSpellingName(value) {
         const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
         return name.length <= 96 && /\p{L}/u.test(name) && /^[\p{L}\p{N}'’&.,() -]+$/u.test(name) && name.split(' ').length <= 12 ? name : '';
+      }
+
+      async function loadBuiltinNames() {
+        if (builtinNamesReady) return;
+        if (builtinNamesRequest) return builtinNamesRequest;
+        builtinNamesRequest = (async () => {
+          const status = document.getElementById('spelling-builtin-status');
+          try {
+            const response = await fetch('/builtin-names.json');
+            if (!response.ok) throw new Error('Names unavailable');
+            const data = await response.json();
+            if (!Array.isArray(data.names) || data.names.length > 100000) throw new Error('Invalid names list');
+            window.GnotesRichEditor.setBuiltinNames(data.names);
+            builtinNamesReady = true;
+            status.textContent = `${data.names.length.toLocaleString()} built-in names of people, companies, and worldwide places. They match capitalized text. Add names missing from this list below.`;
+            if (currentUser) applySpelling();
+          } catch {
+            status.textContent = 'Built-in names could not load. Your own names still work. Reopen Spellcheck to retry.';
+          } finally { builtinNamesRequest = null; }
+        })();
+        return builtinNamesRequest;
       }
 
       async function ignoreSpellingWord(value) {
@@ -5469,6 +5497,7 @@
         applyNoteSizes(state.titleSize, state.bodySize);
         applyLinkStyle(state.linkUnderlines);
         spellingListsMigrated = state.spellingListsMigrated === true;
+        builtinSpellingEnabled = state.builtinSpellingEnabled !== false;
         applySpelling(state.spellcheckEnabled, spellingListsMigrated ? [] : state.ignoredSpellingWords || [], spellingListsMigrated ? [] : state.spellingNames || []);
         richToolbarVisible = state.richToolbarVisible === true;
         applyEditorMode(Boolean(state.markdownSource));
@@ -8219,6 +8248,11 @@
         noteGesture = null;
       }, { passive: true });
 
+      notesList.addEventListener('contextmenu', () => {
+        suppressNoteClick = true;
+        noteSwipeStart = null;
+      });
+
       notesList.addEventListener("touchstart", (event) => {
         noteSwipeStart = null;
         if (!matchMedia("(max-width: 560px)").matches || event.touches.length !== 1 ||
@@ -8241,7 +8275,7 @@
       notesList.addEventListener("touchend", (event) => {
         const start = noteSwipeStart;
         noteSwipeStart = null;
-        if (!start || Date.now() - start.time > 850) return;
+        if (!start || Date.now() - start.time > 850 || window.getSelection()?.toString()) return;
         const touch = Array.from(event.changedTouches).find((item) => item.identifier === start.identifier);
         if (!touch) return;
         const dx = touch.clientX - start.x;
@@ -8482,6 +8516,7 @@
       window.addEventListener('focus', () => { if (spellingReady && !spellingBusy) loadSpellingLists(); });
       document.getElementById('spelling-close').addEventListener('click', () => document.getElementById('spelling-dialog').close());
       document.getElementById('spelling-enabled').addEventListener('change', event => { applySpelling(event.target.checked); saveUIState(); });
+      document.getElementById('spelling-builtin-enabled').addEventListener('change', event => { builtinSpellingEnabled = event.target.checked; applySpelling(); saveUIState(); });
       document.getElementById('spelling-ignore-form').addEventListener('submit', async event => {
         event.preventDefault();
         const input = document.getElementById('spelling-word');

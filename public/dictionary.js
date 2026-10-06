@@ -13,6 +13,8 @@
   const contextMenu = document.getElementById('note-context-menu');
   const noteTextSelector = '.note-content, .tiptap, .note-view > h2';
   let contextWord = '', contextText = '', contextEditor = null;
+  let lastPointerType = '';
+  document.addEventListener('pointerdown', event => { lastPointerType = event.pointerType; }, { capture: true, passive: true });
 
   function closeContext() { contextMenu.hidden = true; }
   contextMenu.addEventListener('pointerdown', event => event.preventDefault());
@@ -283,7 +285,11 @@
   window.addEventListener('resize', () => { selectionButton.hidden = true; closeContext(); });
   document.addEventListener('contextmenu', (event) => {
     closeContext();
-    if (event.shiftKey) return;
+    // Long presses and selection handles belong to the phone's native text
+    // controls. Some mobile browsers report long presses as MouseEvents.
+    if (event.shiftKey || event.pointerType === 'touch' || event.pointerType === 'pen' ||
+        lastPointerType === 'touch' || lastPointerType === 'pen' ||
+        matchMedia('(hover: none) and (pointer: coarse)').matches) return;
     const titleInput = event.target.closest('#title, .edit-title');
     const root = titleInput || event.target.closest(noteTextSelector);
     if (!currentUser || !root || event.target.closest('a, button, pre, code') || (!titleInput && event.target.closest('input'))) return;

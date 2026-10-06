@@ -8,6 +8,22 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 // View decorations suppress native checking without changing note Markdown.
 const spellingKey = new PluginKey('gnotesSpelling');
+let builtinNames = new Map();
+function setBuiltinNames(entries) {
+  const index = new Map();
+  for (const entry of entries) {
+    if (typeof entry !== 'string' || entry.length > 96) continue;
+    const text = entry.toLowerCase().replaceAll('’', "'").replace(/\s+/g, ' ');
+    const tokens = [...text.matchAll(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)];
+    if (!tokens.length || tokens.length > 12) continue;
+    const first = tokens[0][0];
+    if (!index.has(first)) index.set(first, new Map());
+    const lengths = index.get(first);
+    if (!lengths.has(tokens.length)) lengths.set(tokens.length, new Set());
+    lengths.get(tokens.length).add(text);
+  }
+  builtinNames = index;
+}
 const SpellingPreferences = Extension.create({
   name: 'spellingPreferences',
   addProseMirrorPlugins() {
@@ -20,7 +36,7 @@ const SpellingPreferences = Extension.create({
       props: {
         decorations(state) {
           const preferences = spellingKey.getState(state);
-          if (!preferences.enabled || (!preferences.ignored.size && !preferences.names.size)) return DecorationSet.empty;
+          if (!preferences.enabled || (!preferences.ignored.size && !preferences.names.size && (!builtinNames.size || preferences.builtin === false))) return DecorationSet.empty;
           const decorations = [];
           state.doc.descendants((node, pos) => {
             if (!node.isTextblock) return;
@@ -41,6 +57,15 @@ const SpellingPreferences = Extension.create({
                 const last = tokens[i + name.count - 1];
                 if (last && normalize(text.slice(token.index, last.index + last[0].length)) === name.text)
                   decorate(token.index, last.index + last[0].length, true);
+              }
+              // Shared names require capitalization. Lowercase ordinary words
+              // remain checked; per-user names retain their existing matching.
+              if (preferences.builtin !== false && /^\p{Lu}/u.test(token[0])) {
+                for (const [count, names] of builtinNames.get(word) || []) {
+                  const last = tokens[i + count - 1];
+                  if (last && names.has(normalize(text.slice(token.index, last.index + last[0].length))))
+                    decorate(token.index, last.index + last[0].length, true);
+                }
               }
             }
             return false;
@@ -147,7 +172,7 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
   editor.view.dom.dataset.empty = String(editor.isEmpty);
   return {
     editor,
-    setSpelling(enabled, ignored, nameEntries = []) {
+    setSpelling(enabled, ignored, nameEntries = [], builtin = true) {
       editor.setOptions({ editorProps: { ...editor.options.editorProps,
         attributes: { ...editor.options.editorProps.attributes, spellcheck: String(enabled) } } });
       const names = new Map();
@@ -161,7 +186,7 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
         if (!names.has(key)) names.set(key, []);
         names.get(key).push({ text, count: tokens.length });
       }
-      editor.view.dispatch(editor.state.tr.setMeta(spellingKey, { enabled, ignored: new Set(ignored), names }));
+      editor.view.dispatch(editor.state.tr.setMeta(spellingKey, { enabled, ignored: new Set(ignored), names, builtin }));
     },
     preservesContent(markdown) {
       // Compare rendered content, not source spelling: the serializer escapes
@@ -262,4 +287,4 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
   };
 }
 
-window.GnotesRichEditor = { mount };
+window.GnotesRichEditor = { mount, setBuiltinNames };
