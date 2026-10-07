@@ -4,7 +4,7 @@ Last reviewed: 2026-10-07
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.39`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.40`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -35,7 +35,7 @@ The current release includes:
 
 ## Favorites and note display
 
-Prepared for v0.7.40: Titles-view titles and tags use separate rows with a 10 px gap at every width, correcting the overlap left above the mobile cutoff. Only small screens shorten tag labels. The Controls label is now “Height limit” to prevent horizontal scrolling. Browser regression checks cover 320, 600 and 1024 px, including menu overflow.
+Deployed in v0.7.40: Titles-view titles and tags use separate rows with a 10 px gap at every width, correcting the overlap left above the mobile cutoff. Only small screens shorten tag labels. The Controls label is now “Height limit” to prevent horizontal scrolling. Browser regression checks cover 320, 600 and 1024 px, including menu overflow.
 
 Deployed in v0.7.39: state-dependent Archive, Search, Recycle and Account/Profile header icons with subtle tinted fills; lid/reflection details distinguish their roles. Titles-view actions use 18 px icons and 36 px circles. Small screens up to 700 px get explicit title/tag rows with a 10 px gap and shortened tag previews (10 name characters plus ellipsis), preserving full names for accessibility, filtering and desktop display.
 
