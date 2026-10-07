@@ -14,6 +14,7 @@
   const selectionIgnore = document.getElementById('selection-ignore');
   const contextMenu = document.getElementById('note-context-menu');
   const noteTextSelector = '.note-content, .tiptap, .note-view > h2';
+  const textInputSelector = '#title, .edit-title, #content, .edit-content';
   let contextWord = '', contextText = '', contextEditor = null;
   let lastPointerType = '';
   document.addEventListener('pointerdown', event => { lastPointerType = event.pointerType; }, { capture: true, passive: true });
@@ -327,20 +328,24 @@
     closeContext();
     // Long presses and selection handles belong to the phone's native text
     // controls. Some mobile browsers report long presses as MouseEvents.
+    // Use the actual input before falling back to device capabilities: a
+    // touchscreen laptop can still receive a mouse or trackpad right-click.
+    const mouseContext = event.pointerType === 'mouse' ||
+      (!event.pointerType && lastPointerType === 'mouse' && event.button === 2);
     if (event.shiftKey || event.pointerType === 'touch' || event.pointerType === 'pen' ||
-        lastPointerType === 'touch' || lastPointerType === 'pen' ||
-        matchMedia('(hover: none) and (pointer: coarse)').matches) return;
-    const titleInput = event.target.closest('#title, .edit-title');
-    const root = titleInput || event.target.closest(noteTextSelector);
-    if (!currentUser || !root || event.target.closest('a, button, pre, code') || (!titleInput && event.target.closest('input'))) return;
+        (!mouseContext && (lastPointerType === 'touch' || lastPointerType === 'pen' ||
+          matchMedia('(hover: none) and (pointer: coarse)').matches))) return;
+    const textInput = event.target.closest(textInputSelector);
+    const root = textInput || event.target.closest(noteTextSelector);
+    if (!currentUser || !root || event.target.closest('a, button, pre, code') || (!textInput && event.target.closest('input'))) return;
     let word = '', selectedText = '';
     const selection = window.getSelection();
-    if (titleInput) {
-      const from = titleInput.selectionStart ?? 0, to = titleInput.selectionEnd ?? from;
-      selectedText = titleInput.value.slice(from, to);
+    if (textInput) {
+      const from = textInput.selectionStart ?? 0, to = textInput.selectionEnd ?? from;
+      selectedText = textInput.value.slice(from, to);
       word = selectableWord(selectedText);
       if (!word && !selectedText) {
-        for (const match of titleInput.value.matchAll(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)) {
+        for (const match of textInput.value.matchAll(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)) {
           if (from >= match.index && from <= match.index + match[0].length) { word = selectableWord(match[0]); break; }
         }
       }
@@ -348,7 +353,7 @@
       if (selection?.rangeCount && root.contains(selection.anchorNode) && root.contains(selection.focusNode) && !selection.isCollapsed) selectedText = selection.toString();
       if (selectedNoteWord() && [...selection.getRangeAt(0).getClientRects()].some((rect) => event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom)) word = selectedNoteWord();
     }
-    if (!word && !titleInput) {
+    if (!word && !textInput) {
       const position = document.caretPositionFromPoint?.(event.clientX, event.clientY);
       const range = !position ? document.caretRangeFromPoint?.(event.clientX, event.clientY) : null;
       const node = position?.offsetNode || range?.startContainer;
@@ -359,10 +364,12 @@
         }
       }
     }
-    if (!word && !selectedText) return;
+    const editable = Boolean(textInput) || root.matches('.tiptap');
+    if (!word && !selectedText && !editable) return;
     event.preventDefault(); hideRichContext(); hideSelectionActions();
     contextWord = word; contextText = selectedText || word;
-    contextEditor = root.matches('.tiptap, #title, .edit-title') ? root : null;
+    contextEditor = editable ? root : null;
+    document.getElementById('note-context-copy').disabled = !contextText;
     document.getElementById('note-context-dictionary').disabled = !word;
     document.getElementById('note-context-ignore').disabled = !spellingReady || spellingBusy || !spellingWord(word) || ignoredSpellingWords.includes(spellingWord(word));
     contextMenu.hidden = false;
@@ -370,7 +377,7 @@
     const x = event.clientX || rect.left, y = event.clientY || rect.top;
     contextMenu.style.left = `${Math.max(8, Math.min(x, innerWidth - contextMenu.offsetWidth - 8))}px`;
     contextMenu.style.top = `${Math.max(8, Math.min(y, innerHeight - contextMenu.offsetHeight - 8))}px`;
-    document.getElementById('note-context-copy').focus({ preventScroll: true });
+    contextMenu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
   });
 
   function reset() {

@@ -1,6 +1,10 @@
 # gnotes status
 
-Updated: 2026-10-06
+Updated: 2026-10-07
+
+`v0.7.37` prepared for release: PC mouse/trackpad right-click takes priority over touch detection. The three-item Copy/Dictionary/Always ignore menu covers source editors and rich-editor whitespace, with unavailable actions disabled. The editor's bottom-left Copy uses the current highlighted body/source/title text; without a selection it copies the current title and body separated by a blank line. Pointer interactions preserve the selection until Copy reads it.
+
+Done and outside-click close the editor and display edits immediately, with serialized background writes. Pending edits survive reopening and list refreshes; failed saves retain the attempted text, reopen the editor when available, and show a retry message. Single-note pin, color, archive/unarchive, and recycle changes appear immediately and roll back on failure. Bulk moves wait for outstanding edit saves. New delayed-request browser checks cover rapid re-editing, actual persistence, failure/retry, rollback, and blocking bulk archive after a failed edit save. All Go/browser tests, vet, syntax and diff checks passed, including focused checks after the final bulk-save guard. Narrow-screen fixes hide the closed Markdown guide and let the note action row wrap while keeping its menu aligned within the viewport. Production remains on v0.7.36 until the v0.7.37 deployment is verified. New tests: `cmd/server/optimistic_browser_test.go`.
 
 `v0.7.36` deployed: https://gnotes.rickd.dev. Spellcheck now includes search for personal Names and ignored words, lists displayed in batches of 50, JSON export, and JSON/text import. Imports merge without replacing existing entries or name types; validation and server failures preserve the chosen file for retry. Exports include the complete account lists regardless of search filters. Browser checks at 320px and 1024px covered search, pagination, imports, failure/retry, actual downloaded exports, and account isolation. All browser workflows, standard tests, release checks, restore rehearsal, validated backup, live page/style checksums, and health checks passed. Real Pixel 6a verification remains open.
 

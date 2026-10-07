@@ -876,6 +876,10 @@
         position: relative;
       }
 
+      .markdown-help:not([open]) .markdown-guide {
+        display: none;
+      }
+
       .account-menu .markdown-help summary {
         display: flex;
         width: 100%;
@@ -3818,6 +3822,11 @@
 
         .note-actions {
           opacity: 0.82;
+          margin-left: auto;
+        }
+
+        .note-top-row {
+          flex-wrap: wrap;
         }
 
         .site-header {
@@ -4596,7 +4605,7 @@
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
-        <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Copy the current text at the bottom left, or choose the green check mark to save and return to your notes.</p></div>
+        <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Copy highlighted text at the bottom left, or copy the whole note, including its title, when nothing is selected. Choose the green check mark to save and return to your notes.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
         <div><h3>Change the view</h3><p>Use the controls above your notes to change density and date sections. Unhide brings back hidden notes. Open Controls to choose quick actions, note font, and size.</p></div>
       </div>
@@ -4771,6 +4780,9 @@
       let editReturnScrollY = 0;
       let editSaveTimer;
       let editSaveChain = Promise.resolve();
+      const pendingNoteEdits = new Map();
+      const pendingNoteActions = new Set();
+      let noteViewRevision = 0;
       let collapsedDateSections = new Set();
       let rolledNoteIds = new Set();
       let markdownSource = false;
@@ -5720,6 +5732,9 @@
         document.getElementById("markdown-help").open = false;
         csrfToken = "";
         currentUser = null;
+        pendingNoteEdits.clear();
+        pendingNoteActions.clear();
+        noteViewRevision++;
         notesLoading = false;
         trashLoading = false;
         notesNextCursor = "";
@@ -6172,40 +6187,70 @@
         if (!noteColorKeys.has(color)) return;
         const menu = document.getElementById(`note-colors-${id}`);
         if (!menu || menu.dataset.saving === "true") return;
-        menu.dataset.saving = "true";
-        menu.querySelectorAll(".note-color-swatch").forEach((swatch) => { swatch.disabled = true; });
-        try {
-          const response = await apiFetch(`/api/notes/color?id=${id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ color }),
-          });
-          if (!response.ok) throw new Error("Color update failed");
+        const previous = loadedNotes.get(id)?.background_color || '';
+        const apply = (choice) => {
           const note = loadedNotes.get(id);
-          if (note) note.background_color = color;
+          if (note) note.background_color = choice;
           const card = document.getElementById(`note-${id}`);
-          if (card) {
-            noteColorOptions.forEach(([key]) => {
-              if (key) card.classList.remove(`note-color-${key}`);
-            });
-            if (color) card.classList.add(`note-color-${color}`);
-            card.querySelectorAll(".note-color-swatch").forEach((swatch) => {
-              swatch.setAttribute("aria-pressed", String(swatch.dataset.color === color));
-            });
-            setNoteActionsOpen(card, false);
-          }
+          if (!card) return;
+          noteColorOptions.forEach(([key]) => { if (key) card.classList.remove(`note-color-${key}`); });
+          if (choice) card.classList.add(`note-color-${choice}`);
+          card.querySelectorAll('.note-color-swatch').forEach(swatch => swatch.setAttribute('aria-pressed', String(swatch.dataset.color === choice)));
+          setNoteActionsOpen(card, false);
+        };
+        menu.dataset.saving = "true";
+        menu.hidden = true;
+        menu.closest('.note-color-control')?.querySelector('.color-btn')?.setAttribute('aria-expanded', 'false');
+        await optimisticNoteAction(id, `/api/notes/color?id=${id}`, () => apply(color), () => apply(previous), 'Could not change the note color.', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ color }),
+        });
+        delete menu.dataset.saving;
+      }
+
+      async function optimisticNoteAction(id, path, apply, rollback, message, options = { method: 'POST' }) {
+        if (!currentUser || pendingNoteActions.has(id)) return false;
+        const owner = currentUser;
+        pendingNoteActions.add(id);
+        noteViewRevision++;
+        apply();
+        try {
+          await editSaveChain.catch(() => false);
+          if (currentUser !== owner) return false;
+          if (pendingNoteEdits.has(id)) throw new Error('Unsaved edits');
+          const response = await apiFetch(path, { ...options, keepalive: true });
+          if (currentUser !== owner) return false;
+          if (!response.ok) throw new Error('Update failed');
+          return true;
         } catch {
-          alert("Could not change the note color.");
+          if (currentUser === owner) {
+            noteViewRevision++;
+            rollback();
+            showNoteActionDialog('Change not saved', message + ' Please check your connection and try again.');
+          }
+          return false;
         } finally {
-          delete menu.dataset.saving;
-          menu.querySelectorAll(".note-color-swatch").forEach((swatch) => { swatch.disabled = false; });
-          menu.hidden = true;
-          menu.closest(".note-color-control")?.querySelector(".color-btn")?.setAttribute("aria-expanded", "false");
+          if (currentUser === owner) {
+            pendingNoteActions.delete(id);
+            if (!pendingNoteActions.size && !pendingNoteEdits.size && editingNoteId === null) loadNotes();
+          }
         }
       }
 
+      function optimisticallyRemoveNote(id) {
+        const note = loadedNotes.get(id);
+        loadedNotes.delete(id);
+        notesTotal = Math.max(0, notesTotal - 1);
+        renderLoadedNotes();
+        return () => {
+          if (note) loadedNotes.set(id, note);
+          notesTotal++;
+          renderLoadedNotes();
+        };
+      }
+
       async function loadNotes(append = false) {
-        if (notesLoading) return false;
+        if (notesLoading || pendingNoteActions.size) return false;
+        const revision = noteViewRevision;
         if (append && !notesNextCursor) return true;
         notesLoading = true;
         const loadMore = document.getElementById("load-more-notes");
@@ -6236,6 +6281,12 @@
           return false;
         }
         const page = await res.json();
+        if (revision !== noteViewRevision) {
+          notesLoading = false;
+          loadMore.disabled = false;
+          loadMore.textContent = searchActive ? "More results" : "Load older";
+          return false;
+        }
         if (archiveMode && (page.view !== "archived" || (page.notes || []).some((note) => !note.archived_at || Number.isNaN(Date.parse(note.archived_at))))) {
           const message = "Archived notes need the updated local server. Restart the app, then refresh this page.";
           loadedNotes = new Map();
@@ -6250,11 +6301,24 @@
         }
         document.getElementById("notes-load-status").hidden = true;
         if (!append) loadedNotes = new Map();
-        (page.notes || []).forEach((note) => loadedNotes.set(note.id, note));
+        (page.notes || []).forEach((note) => loadedNotes.set(note.id, { ...note, ...pendingNoteEdits.get(note.id)?.edit }));
         if (!append && !archiveMode) await loadRememberedEditingNote();
         if (!append && !archiveMode && revealedNoteId && !loadedNotes.has(revealedNoteId)) {
           await loadNoteIntoView(revealedNoteId);
         }
+        notesNextCursor = page.next_cursor || "";
+        notesTotal = page.total || 0;
+        if (!searchActive && !archiveMode) {
+          setActiveNoteCount(notesTotal);
+          setPinnedNoteCount(page.pinned_total || 0);
+        }
+        const rendered = await renderLoadedNotes(page.match_count || 0);
+        notesLoading = false;
+        return rendered;
+      }
+
+      async function renderLoadedNotes(matchCount = 0) {
+        const loadMore = document.getElementById("load-more-notes");
         const notes = [...loadedNotes.values()].sort((left, right) => archiveMode
           ? new Date(right.archived_at) - new Date(left.archived_at) || right.id - left.id
           : Number(right.pinned) - Number(left.pinned) ||
@@ -6262,15 +6326,9 @@
         if (!archiveMode) notes.forEach((note) => {
           if (hiddenNoteIds.has(note.id)) hiddenNotes.set(note.id, note);
         });
-        notesNextCursor = page.next_cursor || "";
-        notesTotal = page.total || 0;
-        if (!searchActive && !archiveMode) {
-          setActiveNoteCount(notesTotal);
-          setPinnedNoteCount(page.pinned_total || 0);
-        }
         document.getElementById("notes-section").hidden = false;
         const searchSummary = highlightQuery
-          ? `${notesTotal} ${notesTotal === 1 ? "note" : "notes"} · ${page.match_count || 0} ${page.match_count === 1 ? "match" : "matches"}`
+          ? `${notesTotal} ${notesTotal === 1 ? "note" : "notes"} · ${matchCount} ${matchCount === 1 ? "match" : "matches"}`
           : String(notesTotal);
         document.getElementById("notes-heading").textContent = calendarActive
           ? `${selectedArchiveLabel || formatCalendarDate(selectedCalendarDate)} · ${notesTotal}`
@@ -6290,7 +6348,6 @@
             : archiveMode ? '<p class="empty-state">No archived notes yet.</p>' : "";
           loadMore.hidden = true;
           updateDateSectionsControl();
-          notesLoading = false;
           return true;
         }
 
@@ -6303,7 +6360,6 @@
           loadMore.disabled = false;
           loadMore.textContent = searchActive ? "More results" : "Load older";
           updateDateSectionsControl();
-          notesLoading = false;
           return true;
         }
 
@@ -6437,7 +6493,7 @@
         document.getElementById("notes-list").innerHTML = renderedNotes;
         enableNoteTaskCheckboxes();
         decorateNoteCodeBlocks();
-        await refreshTagOptions();
+        refreshTagOptions().catch(() => {});
         document.querySelectorAll("#notes-list .note-content a[href]").forEach((link) => {
           link.title = link.getAttribute("href");
         });
@@ -6454,7 +6510,6 @@
           document.getElementById(`note-${revealedNoteId}`)?.scrollIntoView({ block: "center" });
           revealedNoteId = null;
         }
-        notesLoading = false;
         return true;
       }
 
@@ -7015,19 +7070,19 @@
       }
 
       async function deleteNote(id) {
-        const res = await apiFetch(`/api/notes/delete?id=${id}`, {
-          method: "POST",
-        });
-        if (!res.ok) {
-          alert("Could not move this note to the recycle bin.");
-          return;
-        }
-
-        hiddenNoteIds.delete(id);
-        hiddenNotes.delete(id);
-        saveHiddenNoteIds();
-        setActiveNoteCount(activeNoteCount - 1);
-        await Promise.all([loadNotes(), loadTrash()]);
+        let undo;
+        const pinned = Boolean(loadedNotes.get(id)?.pinned);
+        const saved = await optimisticNoteAction(id, `/api/notes/delete?id=${id}`, () => {
+          undo = optimisticallyRemoveNote(id);
+          setActiveNoteCount(activeNoteCount - 1);
+          if (pinned) setPinnedNoteCount(pinnedNoteCount - 1);
+        }, () => {
+          undo(); setActiveNoteCount(activeNoteCount + 1);
+          if (pinned) setPinnedNoteCount(pinnedNoteCount + 1);
+        }, 'Could not move this note to the recycle bin.');
+        if (!saved) return;
+        hiddenNoteIds.delete(id); hiddenNotes.delete(id); saveHiddenNoteIds();
+        loadTrash();
         deletedNoteUndoId = id;
         document.getElementById("note-undo-toast").hidden = false;
         clearTimeout(deletedNoteUndoTimer);
@@ -7054,19 +7109,17 @@
       }
 
       async function archiveNote(id) {
-        try {
-          const response = await apiFetch(`/api/notes/archive?id=${id}`, { method: "POST" });
-          if (!response.ok) {
-            if (response.status !== 401) showNoteActionDialog("Could not archive note", "This note could not be archived. Please try again.");
-            return;
-          }
-        } catch {
-          showNoteActionDialog("Could not archive note", "Could not reach the server. Please try again.");
-          return;
-        }
-        loadedNotes.delete(id);
-        showNoteActionToast("Note archived");
-        await loadNotes();
+        let undo;
+        const pinned = Boolean(loadedNotes.get(id)?.pinned);
+        const saved = await optimisticNoteAction(id, `/api/notes/archive?id=${id}`, () => {
+          undo = optimisticallyRemoveNote(id);
+          setActiveNoteCount(activeNoteCount - 1);
+          if (pinned) setPinnedNoteCount(pinnedNoteCount - 1);
+        }, () => {
+          undo(); setActiveNoteCount(activeNoteCount + 1);
+          if (pinned) setPinnedNoteCount(pinnedNoteCount + 1);
+        }, 'Could not archive this note.');
+        if (saved) showNoteActionToast('Note archived');
       }
 
       async function toggleArchiveMode() {
@@ -7097,23 +7150,17 @@
       }
 
       async function unarchiveNote(id) {
-        const wasPinned = Boolean(loadedNotes.get(id)?.pinned);
-        try {
-          const response = await apiFetch(`/api/notes/unarchive?id=${id}`, { method: "POST" });
-          if (!response.ok) {
-            if (response.status !== 401) showNoteActionDialog("Could not unarchive note", response.status === 404
-              ? "This note is no longer in Archived notes. Refresh the page and try again."
-              : "This note could not be unarchived. Please try again.");
-            return;
-          }
-        } catch {
-          showNoteActionDialog("Could not unarchive note", "Could not reach the server. Please try again.");
-          return;
-        }
-        setActiveNoteCount(activeNoteCount + 1);
-        if (wasPinned) setPinnedNoteCount(pinnedNoteCount + 1);
-        showNoteActionToast("Note returned to Recent");
-        await loadNotes();
+        let undo;
+        const pinned = Boolean(loadedNotes.get(id)?.pinned);
+        const saved = await optimisticNoteAction(id, `/api/notes/unarchive?id=${id}`, () => {
+          undo = optimisticallyRemoveNote(id);
+          setActiveNoteCount(activeNoteCount + 1);
+          if (pinned) setPinnedNoteCount(pinnedNoteCount + 1);
+        }, () => {
+          undo(); setActiveNoteCount(activeNoteCount - 1);
+          if (pinned) setPinnedNoteCount(pinnedNoteCount - 1);
+        }, 'Could not unarchive this note.');
+        if (saved) showNoteActionToast('Note returned to Recent');
       }
 
       function promptArchiveRemoval(scope, date = "") {
@@ -7172,11 +7219,23 @@
         promptActiveRemoval(button.dataset.removeScope, button.dataset.noteDate);
       }
 
+      async function ensureNoteEditsSaved() {
+        const owner = currentUser;
+        await editSaveChain.catch(() => false);
+        if (currentUser !== owner) return false;
+        if (pendingNoteEdits.size) {
+          showNoteActionDialog('Note not saved', 'Save your outstanding edits before moving notes. Your edits are still available in the editor.');
+          return false;
+        }
+        return true;
+      }
+
       async function archiveAllActiveNotes() {
         if (!currentUser || archiveMode || activeRemovalBusy) return;
         const owner = currentUser;
         activeRemovalBusy = true;
         try {
+          if (!await ensureNoteEditsSaved()) return;
           const response = await apiFetch('/api/notes/archive?id=all', { method: 'POST' });
           if (currentUser !== owner) return;
           if (!response.ok) {
@@ -7197,6 +7256,7 @@
         activeRemovalBusy = true;
         const owner = currentUser;
         try {
+          if (!await ensureNoteEditsSaved()) return;
           const response = await apiFetch(`/api/notes/delete-active?${params}`, { method: 'POST' });
           if (currentUser !== owner) return;
           if (!response.ok) {
@@ -7220,6 +7280,7 @@
       async function moveArchivedNotesToTrash(params) {
         let response;
         try {
+          if (!await ensureNoteEditsSaved()) return;
           response = await apiFetch(`/api/notes/delete-archived?${params}`, { method: "POST" });
         } catch {
           showNoteActionDialog("Could not move archived notes", "Could not reach the server. Please try again.");
@@ -7272,16 +7333,19 @@
       }
 
       async function togglePin(id) {
-        const wasPinned = Boolean(loadedNotes.get(id)?.pinned);
-        const res = await apiFetch(`/api/notes/pin?id=${id}`, {
-          method: "POST",
-        });
-        if (!res.ok) {
-          alert("Could not change this note's pin.");
-          return;
-        }
-        if (searchActive) setPinnedNoteCount(pinnedNoteCount + (wasPinned ? -1 : 1));
-        await loadNotes();
+        const note = loadedNotes.get(id);
+        if (!note) return;
+        const wasPinned = Boolean(note.pinned);
+        const delta = archiveMode ? 0 : wasPinned ? -1 : 1;
+        await optimisticNoteAction(id, `/api/notes/pin?id=${id}`, () => {
+          note.pinned = !wasPinned;
+          setPinnedNoteCount(pinnedNoteCount + delta);
+          renderLoadedNotes();
+        }, () => {
+          if (loadedNotes.has(id)) loadedNotes.get(id).pinned = wasPinned;
+          setPinnedNoteCount(pinnedNoteCount - delta);
+          renderLoadedNotes();
+        }, "Could not change this note's pin.");
       }
 
       async function unpinAllNotes() {
@@ -7995,6 +8059,7 @@
         if (!note || !view || !editor) return false;
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
+        noteViewRevision++;
         titleInput.value = note.title;
         contentInput.value = note.content;
         view.hidden = true;
@@ -8107,10 +8172,21 @@
       function copyEditedNoteText(id, button) {
         const card = document.getElementById(`note-${id}`);
         if (!card || editingNoteId !== id) return;
+        const editor = card.querySelector('.note-editor');
+        const input = document.activeElement;
+        let selectedText = '';
+        if (editor.contains(input) && input.matches('.edit-title, .edit-content') &&
+            input.selectionStart !== input.selectionEnd) {
+          selectedText = input.value.slice(input.selectionStart, input.selectionEnd);
+        } else {
+          const selection = window.getSelection();
+          if (selection && !selection.isCollapsed && editor.contains(selection.anchorNode) &&
+              editor.contains(selection.focusNode)) selectedText = selection.toString();
+        }
         const richText = card.querySelector(".rich-editor-container:not([hidden]) .tiptap")?.innerText.trim();
         const sourceText = card.querySelector(".edit-content")?.value.trim() || "";
         const title = card.querySelector(".edit-title")?.value.trim() || "";
-        copyNoteText(id, button, (richText ?? sourceText) || title);
+        copyNoteText(id, button, selectedText || [title, richText ?? sourceText].filter(Boolean).join('\n\n'));
       }
 
       let noteSwipeStart = null;
@@ -8118,6 +8194,12 @@
       let suppressNoteClick = false;
       const notesList = document.getElementById("notes-list");
       let tagsNoteID = null;
+
+      // Keep the active title/source field and rich-text selection intact until
+      // the Copy click reads it, including when tapping the button on a phone.
+      notesList.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('.edit-copy')) event.preventDefault();
+      });
 
       async function refreshTagOptions() {
         const owner = currentUser;
@@ -8461,13 +8543,14 @@
           });
           const hint = document.getElementById(`note-editor-${id}`)?.querySelector(".edit-hint");
           if (hint) hint.textContent = response.ok ? "Saved" : "Could not autosave";
-          if (response.ok && loadedNotes.has(id)) Object.assign(loadedNotes.get(id), edit);
+          if (response.ok && loadedNotes.has(id) && !pendingNoteEdits.has(id)) Object.assign(loadedNotes.get(id), edit);
           return response.ok;
         });
         return editSaveChain;
       }
 
       async function updateNote(id) {
+        if (editingNoteId !== id) return true;
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
         const title = titleInput.value;
@@ -8480,24 +8563,43 @@
           return false;
         }
         clearTimeout(editSaveTimer);
-        await editSaveChain.catch(() => false);
-        const res = await apiFetch(`/api/notes/update?id=${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, content }),
-        });
-
-        if (!res.ok) {
-          alert("Could not update this note.");
-          return false;
-        }
-
+        const owner = currentUser;
+        const html_content = richEdit && sameMarkdown(richEdit.getMarkdown(), content) ? richEdit.editor.getHTML()
+          : `<p>${escapeHTML(content).replace(/\r?\n/g, '<br>')}</p>`;
+        const pending = { edit: { title, content, html_content } };
+        pendingNoteEdits.set(id, pending);
+        noteViewRevision++;
+        Object.assign(loadedNotes.get(id), pending.edit);
+        const returnScroll = editReturnScrollY;
         destroyEditRichEditor();
         closeFocusedNote();
         editingNoteId = null;
         forgetEditingNote();
-        await loadNotes();
-        window.scrollTo(0, editReturnScrollY);
+        renderLoadedNotes();
+        window.scrollTo(0, returnScroll);
+        // Serialize writes so a previous autosave cannot overwrite Done's text.
+        // The editor closes above, before any network request is awaited.
+        editSaveChain = editSaveChain.catch(() => false).then(async () => {
+          if (currentUser !== owner) return false;
+          try {
+            const res = await apiFetch(`/api/notes/update?id=${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title, content }),
+            });
+            if (currentUser !== owner) return false;
+            if (!res.ok) throw new Error('Save failed');
+            if (pendingNoteEdits.get(id) === pending) pendingNoteEdits.delete(id);
+            if (editingNoteId === null && !pendingNoteEdits.size) loadNotes();
+            return true;
+          } catch {
+            if (currentUser === owner && pendingNoteEdits.get(id) === pending) {
+              if (editingNoteId === null) openNoteEditor(id, false);
+              showNoteActionDialog('Note not saved', 'Your edits are still available here. Check your connection, then close the editor to retry saving.');
+            }
+            return false;
+          }
+        });
         return true;
       }
 
@@ -9065,6 +9167,13 @@
       window.addEventListener("pagehide", () => {
         if (!csrfToken) return;
         saveUIState();
+        for (const [id, pending] of pendingNoteEdits) {
+          if (id === editingNoteId) continue;
+          fetch(`/api/notes/update?id=${id}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: JSON.stringify({ title: pending.edit.title, content: pending.edit.content }), keepalive: true,
+          });
+        }
         if (editingNoteId !== null) {
           const edit = currentEdit(editingNoteId);
           if (edit && (edit.title.trim() || edit.content.trim())) {

@@ -1,6 +1,6 @@
 # gnotes roadmap
 
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-07
 
 ## Current production milestone
 
@@ -32,6 +32,13 @@ The current release includes:
 - Ordinary line breaks preserved in the saved view and rich editor. Harmless changes to source escaping or spacing retain rich text editing; unsupported formatting retains the protective source fallback.
 - Untitled notes show body text once in Full and Compact views; their first-line preview appears only when folded or in titles-only view, without adding a stored title.
 - A one-command release updater and operational checker.
+
+## Prepared for v0.7.37
+
+- Desktop mouse/trackpad context menus work alongside touch input; source editors and rich-editor whitespace use the three-item text menu.
+- The editor Copy button copies highlighted body/source/title text, or the whole current title and body when no text is selected.
+- Done and outside-click close the editor immediately; background saves retain edits on failure. Single-note pin, color, archive/unarchive, and recycle update immediately and roll back failed writes. Bulk moves wait for outstanding edits to save.
+- Narrow-phone action rows wrap with their menus aligned inside the viewport; closed Markdown guides do not affect page width.
 
 ## Recovery tooling
 

@@ -76,7 +76,7 @@ func TestActiveBulkRemovalBrowser(t *testing.T) {
 			browser.script(`if(document.querySelectorAll('.note-card').length>=66) throw new Error('Fixture must span multiple pages');hiddenNoteIds.add(1);saveHiddenNoteIds();`)
 			click(`[data-remove-scope="date"]`)
 			browser.wait(`document.getElementById('archive-remove-dialog').open`)
-			browser.script(`if(!document.getElementById('archive-remove-message').textContent.includes('Pinned notes stay'))throw new Error('Missing scope explanation');if(document.activeElement.id!=='archive-remove-cancel')throw new Error('Cancel should have focus');if(document.documentElement.scrollWidth>innerWidth)throw new Error('Overflow');`)
+			browser.script(`if(!document.getElementById('archive-remove-message').textContent.includes('Pinned notes stay'))throw new Error('Missing scope explanation');if(document.activeElement.id!=='archive-remove-cancel')throw new Error('Cancel should have focus');if(document.documentElement.scrollWidth>innerWidth)throw new Error('Overflow: '+JSON.stringify([...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).slice(0,12).map(e=>[e.tagName,e.id,e.className,e.getBoundingClientRect().right])));`)
 			browser.script(`const s=getComputedStyle(document.getElementById('archive-remove-cancel'));if(s.borderStyle==='none'||parseFloat(s.borderWidth)<1||s.backgroundColor==='rgba(0, 0, 0, 0)')throw new Error('Cancel must look like a button');`)
 			outsideClick()
 			browser.wait(`!document.getElementById('archive-remove-dialog').open`)
