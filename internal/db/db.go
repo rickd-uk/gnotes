@@ -175,6 +175,7 @@ func InitDB(filepath string) {
 	ensureColumn("deleted_at", "DATETIME")
 	ensureColumn("archived_at", "DATETIME")
 	ensureColumn("pinned", "INTEGER NOT NULL DEFAULT 0")
+	ensureColumn("favorited", "INTEGER NOT NULL DEFAULT 0")
 	ensureColumn("background_color", "TEXT NOT NULL DEFAULT ''")
 	ensureColumn("tags", "TEXT NOT NULL DEFAULT '[]'")
 	ensureColumn("user_id", "INTEGER")
@@ -192,6 +193,9 @@ func InitDB(filepath string) {
     ON notes (user_id, deleted_at, pinned, created_at);
   CREATE INDEX IF NOT EXISTS idx_notes_user_active_page
     ON notes (user_id, deleted_at, pinned DESC, created_at DESC, id DESC);
+  CREATE INDEX IF NOT EXISTS idx_notes_user_favorites_page
+    ON notes (user_id, pinned DESC, unixepoch(created_at) DESC, id DESC)
+    WHERE favorited = 1 AND deleted_at IS NULL;
   CREATE INDEX IF NOT EXISTS idx_notes_user_trash_page
     ON notes (user_id, deleted_at DESC, id DESC);
   CREATE INDEX IF NOT EXISTS idx_notes_user_active_absolute_page

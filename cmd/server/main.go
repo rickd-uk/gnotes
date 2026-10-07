@@ -139,6 +139,7 @@ func run() error {
 	mux.HandleFunc("/api/tags", protect(tagsHandler, false))
 	registerDictionaryRoutes(mux)
 	mux.HandleFunc("/api/notes/color", protect(updateNoteColorHandler, true))
+	mux.HandleFunc("/api/notes/favorite", protect(favoriteNoteHandler, true))
 	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
 	mux.HandleFunc("/api/notes/unpin-all", protect(unpinAllNotesHandler, true))
 	mux.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
@@ -290,7 +291,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// quey db
-	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color, tags FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
+	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color, tags, favorited FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Query error", 500)
 		return
@@ -302,7 +303,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var n models.Note
 		// scan cols. into struct fields
-		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags)
+		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited)
 		if err != nil {
 			log.Println("Scan error:", err)
 			http.Error(w, "Could not load notes", http.StatusInternalServerError)
@@ -392,7 +393,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	query := "SELECT id, title, content, created_at, pinned, background_color, tags FROM notes WHERE " +
+	query := "SELECT id, title, content, created_at, pinned, background_color, tags, favorited FROM notes WHERE " +
 		strings.Join(conditions, " AND ") +
 		" ORDER BY pinned DESC, created_at DESC"
 	rows, err := db.DB.Query(query, args...)
@@ -405,7 +406,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	matches := make([]models.Note, 0)
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited); err != nil {
 			log.Println("Search scan error:", err)
 			http.Error(w, "Search failed", http.StatusInternalServerError)
 			return

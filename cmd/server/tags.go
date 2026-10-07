@@ -48,6 +48,9 @@ func tagsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	archiveCondition := "n.archived_at IS NULL"
+	if r.URL.Query().Get("favorites") == "1" {
+		archiveCondition = "n.favorited = 1"
+	}
 	if r.URL.Query().Get("archive") == "1" {
 		archiveCondition = "n.archived_at IS NOT NULL"
 	}

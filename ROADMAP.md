@@ -33,6 +33,10 @@ The current release includes:
 - Untitled notes show body text once in Full and Compact views; their first-line preview appears only when folded or in titles-only view, without adding a stored title.
 - A one-command release updater and operational checker.
 
+## Favorites and note display
+
+Prepared for v0.7.38: Favorites from the header and note More menu, with optional placement in quick actions. Tags organize Favorites, including archived notes. Controls → Appearance sets the maximum displayed note text height (160–800 px; default 360 px). Long notes and focused rich/source editors scroll internally. Titles icons follow title text size while retaining their click targets. On screens up to 560 px, tags have a gap below titles and long tag labels use ellipsis without changing stored names.
+
 ## Immediate note actions and editor controls
 
 - Desktop mouse/trackpad context menus work alongside touch input; source editors and rich-editor whitespace use the three-item text menu.
@@ -92,7 +96,7 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 
 ## Product backlog
 
-- Proposed Favorites collection, separate from Pin and Archive, with search and category filters using existing tags. The user selected a diamond icon; outline when off and muted gold when favorited is proposed. Remaining design and implementation are open.
+- Favorites collection implemented for v0.7.38, separate from Pin and Archive, including archived favorites, text search and tag categories. A thin diamond uses icy blue fill and small glow strokes when selected. Favorites is optimistic with rollback and account isolation; JSON and ZIP transfers preserve the flag. Browser checks cover narrow/desktop layouts, filtering and failure recovery.
 
 - [x] Export and import notes. Account-menu export supports one, selected, or all notes as readable Markdown or plain text, or versioned gnotes JSON. Multi-note readable exports include a JSON manifest for lossless reimport. Import supports all three formats and the ZIP archive; duplicate handling is explicit. Device review remains open.
 - [x] Rich text editing. Selecting text offers bold, italic, and link; typing `/` at the start of a paragraph offers headings, lists, and checklists. Markdown source is available through Account → Advanced. Existing global font and size settings remain available. Device review remains open before expanding formatting tools.

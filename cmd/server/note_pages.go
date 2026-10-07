@@ -59,7 +59,7 @@ func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	notes, _, err := queryActiveNotePage(`SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags
+	notes, _, err := queryActiveNotePage(`SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, archived_at
 	    FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL LIMIT ?`,
 		[]any{id, userIDFromRequest(r)}, 1)
 	if err != nil {
@@ -91,9 +91,16 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	archived := r.URL.Query().Get("archive") == "1"
+	favorites := r.URL.Query().Get("favorites") == "1"
 	archiveCondition := "archived_at IS NULL"
+	if favorites {
+		archiveCondition = "favorited = 1"
+	}
 	if archived {
 		archiveCondition = "archived_at IS NOT NULL"
+		if favorites {
+			archiveCondition += " AND favorited = 1"
+		}
 	}
 	conditions := []string{"user_id = ?", "deleted_at IS NULL", archiveCondition}
 	args := []any{userIDFromRequest(r)}
@@ -110,10 +117,9 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	columns := "id, title, content, rendered_content, created_at, pinned, background_color, tags"
+	columns := "id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, archived_at"
 	order := "pinned DESC, unixepoch(created_at) DESC, id DESC"
 	if archived {
-		columns += ", archived_at"
 		order = "unixepoch(archived_at) DESC, id DESC"
 	}
 	query := "SELECT " + columns + " FROM notes WHERE " + strings.Join(conditions, " AND ") +
@@ -145,6 +151,9 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 	if archived {
 		view = "archived"
 	}
+	if favorites {
+		view = "favorites"
+	}
 	writeNotePage(w, notePage{Notes: notes, View: view, NextCursor: nextCursor, Total: total, Pinned: pinned})
 }
 
@@ -171,6 +180,7 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	countConditions := append([]string(nil), conditions...)
 	countArgs := append([]any(nil), args...)
 	archived := r.URL.Query().Get("archive") == "1"
+	favorites := r.URL.Query().Get("favorites") == "1"
 	if hasCursor {
 		if archived {
 			conditions = append(conditions, "(unixepoch(n.archived_at) < ? OR (unixepoch(n.archived_at) = ? AND n.id < ?))")
@@ -185,10 +195,9 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fromClause := " FROM notes n " + join + " WHERE " + strings.Join(conditions, " AND ")
-	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color, n.tags"
+	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color, n.tags, n.favorited, n.archived_at"
 	order := "n.pinned DESC, unixepoch(n.created_at) DESC, n.id DESC"
 	if archived {
-		columns += ", n.archived_at"
 		order = "unixepoch(n.archived_at) DESC, n.id DESC"
 	}
 	query := "SELECT " + columns + fromClause + " ORDER BY " + order + " LIMIT ?"
@@ -213,6 +222,9 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	view := "recent"
 	if archived {
 		view = "archived"
+	}
+	if favorites {
+		view = "favorites"
 	}
 	writeNotePage(w, notePage{Notes: notes, View: view, NextCursor: nextCursor, Total: total, MatchCount: matchCount})
 }
@@ -329,10 +341,17 @@ func pagedSearchFilter(r *http.Request) (string, []string, []any, error) {
 	}
 
 	archived := r.URL.Query().Get("archive") == "1"
+	favorites := r.URL.Query().Get("favorites") == "1"
 	archiveCondition := "n.archived_at IS NULL"
+	if favorites {
+		archiveCondition = "n.favorited = 1"
+	}
 	dateColumn := "n.created_at"
 	if archived {
 		archiveCondition = "n.archived_at IS NOT NULL"
+		if favorites {
+			archiveCondition += " AND n.favorited = 1"
+		}
 		dateColumn = "n.archived_at"
 	}
 	conditions := []string{"n.user_id = ?", "n.deleted_at IS NULL", archiveCondition}
@@ -455,11 +474,9 @@ func queryNotePage(query string, args []any, limit int, archived bool) ([]models
 	for rows.Next() {
 		var note models.Note
 		var rendered sql.NullString
-		fields := []any{&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor, &note.Tags}
+		fields := []any{&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited}
 		var archivedAt sql.NullTime
-		if archived {
-			fields = append(fields, &archivedAt)
-		}
+		fields = append(fields, &archivedAt)
 		if err := rows.Scan(fields...); err != nil {
 			rows.Close()
 			return nil, "", err

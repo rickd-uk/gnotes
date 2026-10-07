@@ -14,6 +14,7 @@ type Note struct {
 	CreatedAt       time.Time     `json:"created_at"`
 	DeletedAt       *time.Time    `json:"deleted_at,omitempty"`
 	ArchivedAt      *time.Time    `json:"archived_at,omitempty"`
+	Favorited       bool          `json:"favorited"`
 	Pinned          bool          `json:"pinned"`
 	BackgroundColor string        `json:"background_color,omitempty"`
 	Tags            Tags          `json:"tags"`

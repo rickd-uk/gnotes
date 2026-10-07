@@ -1034,6 +1034,20 @@
         cursor: pointer;
       }
 
+      .favorite-diamond .diamond-glow { opacity: 0; }
+      .favorite-btn.is-favorited, #favorites-quick-open[aria-pressed="true"], .favorite-mark { color: #327b91; }
+      .is-favorited .diamond-body, #favorites-quick-open[aria-pressed="true"] .diamond-body, .favorite-mark .diamond-body { fill: #c2e7ef; }
+      .is-favorited .diamond-glow, #favorites-quick-open[aria-pressed="true"] .diamond-glow, .favorite-mark .diamond-glow { opacity: 1; }
+      .favorite-mark .icon { width: 18px; height: 18px; }
+      .favorites-filters { display: flex; flex: 1; flex-wrap: wrap; gap: 12px; align-items: center; min-width: 0; }
+      .favorites-filters label { flex: 1 1 220px; display: flex; gap: 8px; align-items: center; font-size: 0.8rem; min-width: 0; }
+      .favorites-filters input, .favorites-filters select { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); }
+      .favorites-filters input { flex: 1 1 180px; }
+      #app-shell.favorites-mode #note-form, #app-shell.favorites-mode #active-notes-bulk-actions, #app-shell.favorites-mode #hidden-notes-control, #app-shell.favorites-mode .active-section-remove, #app-shell.favorites-mode #delete-all-notes { display: none; }
+      .note-card.is-archived { cursor: default; }
+      .note-action[hidden] { display: none; }
+      .archived-note-label { font-size: 0.7rem; color: var(--muted); }
+
       .archived-quick-open:hover {
         background: #e9e5dc;
         color: var(--accent);
@@ -2399,6 +2413,9 @@
         flex: 1;
         overflow: auto;
       }
+      .note-card.is-editing .edit-content,
+      .note-card.is-editing .tiptap { overscroll-behavior: contain; }
+
       .note-card.is-editing .rich-format-control,
       .note-card.is-editing .editor-actions { flex: 0 0 auto; }
 
@@ -2424,6 +2441,8 @@
       }
 
       .date-row {
+        min-width: 0;
+        flex-wrap: wrap;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2446,6 +2465,9 @@
       }
 
       .note-content {
+        max-height: var(--note-max-height, 360px);
+        overflow: auto;
+        overscroll-behavior: contain;
         max-width: 680px;
         margin: 0 auto;
         font-family: var(--note-body-font);
@@ -2677,6 +2699,12 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+
+      #notes-list.density-titles .note-quick-actions .note-action .icon {
+        width: calc(0.92rem * var(--note-title-scale));
+        height: calc(0.92rem * var(--note-title-scale));
+      }
+      #notes-list.density-titles .note-actions-toggle { font-size: calc(0.92rem * var(--note-title-scale)); }
 
       #notes-list.density-titles.tool-all-hidden .note-card {
         padding-right: 12px;
@@ -3830,10 +3858,23 @@
         }
 
         .site-header {
+          flex-wrap: wrap;
           gap: 4px;
           margin: 0 -16px;
           padding: 6px 10px 6px 56px;
         }
+
+        .note-tag {
+          min-width: 0;
+          max-width: min(12ch, 100%);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        #notes-list.density-titles .note-card.has-tags:not(.is-editing) .note-view > h2 {
+          position: static;
+        }
+        #notes-list.density-titles .note-card.has-tags .note-tags { margin-top: 10px; }
 
         .view-control {
           position: absolute;
@@ -3842,6 +3883,7 @@
         }
 
         .header-actions {
+          margin-left: auto;
           gap: 2px;
           flex-shrink: 0;
         }
@@ -4172,6 +4214,7 @@
             <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Quick note actions">
               <span title="Choosing a fourth quick action replaces the first">Quick actions · up to 3</span>
               <button class="tool-choice" type="button" data-tool="archive"><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="favorite"><span>Favorites</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="pin"><span>Pin</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="hide"><span>Hide</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="color"><span>Color</span><span class="tool-state" aria-hidden="true"></span></button>
@@ -4199,6 +4242,10 @@
               <div class="note-size-control">
                 <label for="note-title-size">Title size <output id="note-title-size-value" for="note-title-size">100%</output></label>
                 <input type="range" id="note-title-size" min="65" max="175" step="5" value="100" />
+              </div>
+              <div class="note-size-control">
+                <label for="note-max-height">Maximum note text height <output id="note-max-height-value" for="note-max-height">360 px</output></label>
+                <input type="range" id="note-max-height" min="160" max="800" step="40" value="360" />
               </div>
               <div class="note-size-control">
                 <label for="note-body-size">Text size <output id="note-body-size-value" for="note-body-size">100%</output></label>
@@ -4229,6 +4276,8 @@
               <path d="m15.5 15.5 5 5" />
             </svg>
           </button>
+
+          <button class="archived-quick-open" id="favorites-quick-open" type="button" aria-pressed="false" aria-controls="notes-section" aria-label="Show Favorites" title="Show Favorites"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>
 
           <button class="archived-quick-open" id="archived-quick-open" type="button" aria-pressed="false" aria-controls="notes-section" aria-label="Show archived notes" title="Show archived notes">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" /></svg>
@@ -4360,6 +4409,10 @@
         </form>
       </section>
 
+      <div class="archive-mode-banner" id="favorites-mode-banner" hidden>
+        <div><strong>Favorites</strong><span>Keep important notes together. Use tags as categories.</span></div>
+        <div class="favorites-filters"><input id="favorites-query" type="search" placeholder="Search Favorites" aria-label="Search Favorites"><label>Category<select id="favorites-category"><option value="">All categories</option></select></label></div>
+      </div>
       <div class="archive-mode-banner" id="archive-mode-banner" hidden>
         <div><strong>Archived notes</strong><span>Saved for later · select the archive icon to return to recent notes</span></div>
         <button class="archive-remove-all" type="button" onclick="promptArchiveRemoval('all')">Move all to recycle bin</button>
@@ -4604,6 +4657,7 @@
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done.</p></div>
+        <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
         <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Copy highlighted text at the bottom left, or copy the whole note, including its title, when nothing is selected. Choose the green check mark to save and return to your notes.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
@@ -4744,6 +4798,7 @@
       let fontMode = "balanced";
       let titleSize = 100;
       let bodySize = 100;
+      let maxNoteHeight = 360;
       let linkUnderlines = true;
       let timeZoneChoice = "";
       const noteColorOptions = [
@@ -4756,10 +4811,12 @@
         ["rose", "Rose"],
       ];
       const noteColorKeys = new Set(noteColorOptions.map(([key]) => key));
-      const noteTools = ["pin", "hide", "archive", "color", "copy", "delete"];
+      const noteTools = ["favorite", "pin", "hide", "archive", "color", "copy", "delete"];
       let quickActions = ["archive", "delete"];
       let showNoteTools = true;
       let archiveMode = false;
+      let favoritesMode = false;
+      let favoritesFilterTimer;
       let menuOpacity = 88;
       let searchActive = false;
       let activeSearchURL = "";
@@ -5193,6 +5250,7 @@
           fontMode,
           titleSize,
           bodySize,
+          maxNoteHeight,
           linkUnderlines,
           spellcheckEnabled,
           builtinSpellingEnabled,
@@ -5206,7 +5264,7 @@
           adminUserFilter,
           adminUserSort,
           searchActive,
-          activeSearchURL,
+          activeSearchURL: favoritesMode ? "" : activeSearchURL,
           calendarActive,
           selectedCalendarDate,
           selectedArchiveLabel,
@@ -5248,10 +5306,11 @@
           const divider = menu.querySelector(".note-action-divider");
           const actions = new Map([...card.querySelectorAll("[data-note-action]")]
             .map((element) => [element.dataset.noteAction, element]));
-          if (archiveMode) {
-            quick.append(actions.get("archive"), actions.get("copy"), actions.get("delete"));
-            menu.hidden = true;
-            card.querySelector(".note-actions-toggle").hidden = true;
+          if (archiveMode || card.classList.contains("is-archived")) {
+            card.style.setProperty("--quick-action-count", "4");
+            quick.append(actions.get("favorite"), actions.get("archive"), actions.get("copy"), actions.get("delete"));
+            actions.forEach((element) => { if (menu.contains(element)) element.hidden = true; });
+            divider.hidden = true;
             return;
           }
           noteTools.forEach((key) => {
@@ -5544,6 +5603,14 @@
         } finally { if (currentUser === owner) { spellingBusy = false; refreshSpellingControls(); } }
       }
 
+      function applyMaxNoteHeight(value) {
+        const number = Number(value);
+        maxNoteHeight = Number.isFinite(number) ? Math.max(160, Math.min(800, Math.round(number / 40) * 40)) : 360;
+        document.body.style.setProperty('--note-max-height', `${maxNoteHeight}px`);
+        document.getElementById('note-max-height').value = String(maxNoteHeight);
+        document.getElementById('note-max-height-value').value = `${maxNoteHeight} px`;
+      }
+
       function applyNoteSizes(title, body) {
         const clampSize = (value) => {
           const number = Number(value);
@@ -5617,6 +5684,7 @@
         applyDensityMode(Number(state.densityIndex));
         applyFontMode(state.fontMode);
         applyNoteSizes(state.titleSize, state.bodySize);
+        applyMaxNoteHeight(state.maxNoteHeight);
         applyLinkStyle(state.linkUnderlines);
         spellingListsMigrated = state.spellingListsMigrated === true;
         builtinSpellingEnabled = state.builtinSpellingEnabled !== false;
@@ -5747,6 +5815,11 @@
         selectedArchiveLabel = "";
         highlightQuery = "";
         archiveMode = false;
+        favoritesMode = false;
+        clearTimeout(favoritesFilterTimer);
+        document.getElementById("favorites-query").value = "";
+        document.getElementById("favorites-category").replaceChildren(new Option("All categories", ""));
+        updateFavoritesView();
         document.getElementById("app-shell").classList.remove("archive-mode");
         document.getElementById("archive-mode-banner").hidden = true;
         const archiveToggle = document.getElementById("archived-quick-open");
@@ -6260,6 +6333,7 @@
           ? new URL(activeSearchURL || buildSearchURL(), location.origin)
           : new URL("/api/notes/page", location.origin);
         if (archiveMode) pageURL.searchParams.set("archive", "1");
+        if (favoritesMode) pageURL.searchParams.set("favorites", "1");
         pageURL.searchParams.set("limit", "50");
         if (append) pageURL.searchParams.set("cursor", notesNextCursor);
         let res;
@@ -6302,13 +6376,13 @@
         document.getElementById("notes-load-status").hidden = true;
         if (!append) loadedNotes = new Map();
         (page.notes || []).forEach((note) => loadedNotes.set(note.id, { ...note, ...pendingNoteEdits.get(note.id)?.edit }));
-        if (!append && !archiveMode) await loadRememberedEditingNote();
-        if (!append && !archiveMode && revealedNoteId && !loadedNotes.has(revealedNoteId)) {
+        if (!append && !archiveMode && !favoritesMode) await loadRememberedEditingNote();
+        if (!append && !archiveMode && !favoritesMode && revealedNoteId && !loadedNotes.has(revealedNoteId)) {
           await loadNoteIntoView(revealedNoteId);
         }
         notesNextCursor = page.next_cursor || "";
         notesTotal = page.total || 0;
-        if (!searchActive && !archiveMode) {
+        if (!searchActive && !archiveMode && !favoritesMode) {
           setActiveNoteCount(notesTotal);
           setPinnedNoteCount(page.pinned_total || 0);
         }
@@ -6333,10 +6407,10 @@
         document.getElementById("notes-heading").textContent = calendarActive
           ? `${selectedArchiveLabel || formatCalendarDate(selectedCalendarDate)} · ${notesTotal}`
           : searchActive
-            ? `${archiveMode ? "Archived " : ""}search results · ${searchSummary}`
-            : archiveMode ? `Archived notes · ${notesTotal}` : "Recent notes";
+            ? `${favoritesMode ? "Favorites " : archiveMode ? "Archived " : ""}search results · ${searchSummary}`
+            : favoritesMode ? `Favorites · ${notesTotal}` : archiveMode ? `Archived notes · ${notesTotal}` : "Recent notes";
         document.getElementById("calendar-clear").hidden = !searchActive;
-        document.getElementById("calendar-clear").textContent = archiveMode ? "All archived" : "Recent";
+        document.getElementById("calendar-clear").textContent = favoritesMode ? "All favorites" : archiveMode ? "All archived" : "Recent";
         updateSearchToggleState();
 
         updateHiddenNotesControl();
@@ -6344,14 +6418,14 @@
         if (!notes.length) {
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML = searchActive
-            ? `<div class="empty-state"><p>${calendarActive ? "No notes for this date." : "No matching notes."}</p><button type="button" onclick="showRecentNotes()">${archiveMode ? "Show all archived notes" : "Show recent notes"}</button></div>`
-            : archiveMode ? '<p class="empty-state">No archived notes yet.</p>' : "";
+            ? `<div class="empty-state"><p>${calendarActive ? "No notes for this date." : "No matching notes."}</p><button type="button" onclick="showRecentNotes()">${favoritesMode ? "Show all Favorites" : archiveMode ? "Show all archived notes" : "Show recent notes"}</button></div>`
+            : favoritesMode ? '<p class="empty-state">No Favorites yet. Open a note’s More menu and choose the diamond to add it.</p>' : archiveMode ? '<p class="empty-state">No archived notes yet.</p>' : "";
           loadMore.hidden = true;
           updateDateSectionsControl();
           return true;
         }
 
-        const visibleNotes = archiveMode ? notes : notes.filter((note) => !hiddenNoteIds.has(note.id));
+        const visibleNotes = archiveMode || favoritesMode ? notes : notes.filter((note) => !hiddenNoteIds.has(note.id));
         if (!visibleNotes.length) {
           noteObserver?.disconnect();
           document.getElementById("notes-list").innerHTML =
@@ -6373,6 +6447,7 @@
         let dateSectionIndex = -1;
 
         visibleNotes.forEach((n) => {
+            const isArchived = Boolean(n.archived_at);
             const noteDate = archiveMode ? n.archived_at : n.created_at;
             const dateSection = !archiveMode && n.pinned
               ? "Pinned"
@@ -6406,9 +6481,11 @@
             const isRolledUp = canRoll && rolledNoteIds.has(n.id);
 
             renderedNotes += `
-            <article class="note-card ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
+            <article class="note-card ${(n.tags || []).length ? "has-tags" : ""} ${isArchived ? "is-archived" : ""} ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
               <div class="note-top-row">
                 <div class="date-row">
+                  ${n.favorited ? `<span class="favorite-mark" aria-label="Favorite" title="Favorite"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></span>` : ""}
+                  ${isArchived && !archiveMode ? '<span class="archived-note-label">Archived</span>' : ""}
                   ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
                   <span class="note-time-controls">
                   ${canRoll ? `<button class="note-roll-toggle" type="button" onclick="toggleNoteRoll(${n.id})" aria-controls="note-content-${n.id}" aria-expanded="${String(!isRolledUp)}" aria-label="${isRolledUp ? "Expand" : "Roll up"} note" title="${isRolledUp ? "Expand" : "Roll up"} note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>` : ""}
@@ -6421,6 +6498,7 @@
                   <div class="note-tools" id="note-tools-${n.id}">
                   <div class="note-safe-actions">
                   <button class="note-action" type="button" onclick="openNoteTags(${n.id})" aria-label="Edit note tags" title="Edit tags"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7l11 11-7 7L3 10Z"/><circle cx="7" cy="7" r="1"/></svg><span class="visually-hidden">Tags</span></button>
+                  <button class="note-action favorite-btn ${n.favorited ? "is-favorited" : ""}" data-note-action="favorite" onclick="toggleFavorite(${n.id})" aria-pressed="${Boolean(n.favorited)}" aria-label="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}" title="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>
                   <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" data-note-action="pin" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" />
@@ -6434,7 +6512,7 @@
                     </svg>
                     <span class="visually-hidden">Hide note</span>
                   </button>
-                  <button class="note-action archive-btn" data-note-action="archive" onclick="${archiveMode ? "unarchiveNote" : "archiveNote"}(${n.id})" aria-label="${archiveMode ? "Unarchive" : "Archive"} note" title="${archiveMode ? "Unarchive" : "Archive"} note">
+                  <button class="note-action archive-btn" data-note-action="archive" onclick="${isArchived ? "unarchiveNote" : "archiveNote"}(${n.id})" aria-label="${isArchived ? "Unarchive" : "Archive"} note" title="${isArchived ? "Unarchive" : "Archive"} note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" />
                     </svg>
@@ -6458,7 +6536,7 @@
                   </button>
                   </div>
                   <span class="note-action-divider" aria-hidden="true"></span>
-                  <button class="note-action delete-btn" data-note-action="delete" onclick="${archiveMode ? "removeArchivedNote" : "deleteNote"}(${n.id})" aria-label="${archiveMode ? "Move archived note to recycle bin" : "Delete note"}" title="${archiveMode ? "Move to recycle bin" : "Delete note"}">
+                  <button class="note-action delete-btn" data-note-action="delete" onclick="${isArchived ? "removeArchivedNote" : "deleteNote"}(${n.id})" aria-label="${isArchived ? "Move archived note to recycle bin" : "Delete note"}" title="${isArchived ? "Move to recycle bin" : "Delete note"}">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" />
                     </svg>
@@ -6469,7 +6547,7 @@
               </div>
                 <div class="note-view" id="note-view-${n.id}">
                   <h2 class="${hasTitle ? "" : `fallback-title${canRoll ? " note-preview-title" : ""}`}">${escapeHTML(displayTitle)}</h2>
-                  ${(n.tags || []).length ? `<div class="note-tags" id="note-tags-${n.id}" aria-label="Note tags">${n.tags.map((tag, index) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}"${index >= 3 ? ' data-extra-tag hidden' : ''}>#${escapeHTML(tag)}</button>`).join("")}${n.tags.length > 3 ? `<button class="note-tags-toggle" type="button" aria-expanded="false" aria-controls="note-tags-${n.id}">+${n.tags.length - 3} more</button>` : ''}</div>` : ""}
+                  ${(n.tags || []).length ? `<div class="note-tags" id="note-tags-${n.id}" aria-label="Note tags">${n.tags.map((tag, index) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}" title="#${escapeHTML(tag)}"${index >= 3 ? ' data-extra-tag hidden' : ''}>#${escapeHTML(tag)}</button>`).join("")}${n.tags.length > 3 ? `<button class="note-tags-toggle" type="button" aria-expanded="false" aria-controls="note-tags-${n.id}">+${n.tags.length - 3} more</button>` : ''}</div>` : ""}
                   <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
                 </div>
                 <div class="note-editor" id="note-editor-${n.id}" hidden>
@@ -6505,7 +6583,7 @@
 
         updateDateSectionsControl();
         observeNoteCards();
-        if (!archiveMode) restoreRememberedEditingNote();
+        if (!archiveMode && !favoritesMode) restoreRememberedEditingNote();
         if (revealedNoteId) {
           document.getElementById(`note-${revealedNoteId}`)?.scrollIntoView({ block: "center" });
           revealedNoteId = null;
@@ -7112,7 +7190,11 @@
         let undo;
         const pinned = Boolean(loadedNotes.get(id)?.pinned);
         const saved = await optimisticNoteAction(id, `/api/notes/archive?id=${id}`, () => {
-          undo = optimisticallyRemoveNote(id);
+          if (favoritesMode) {
+            const note = loadedNotes.get(id), oldValue = note.archived_at;
+            note.archived_at = new Date().toISOString(); renderLoadedNotes();
+            undo = () => { note.archived_at = oldValue; renderLoadedNotes(); };
+          } else undo = optimisticallyRemoveNote(id);
           setActiveNoteCount(activeNoteCount - 1);
           if (pinned) setPinnedNoteCount(pinnedNoteCount - 1);
         }, () => {
@@ -7122,8 +7204,64 @@
         if (saved) showNoteActionToast('Note archived');
       }
 
+      function updateFavoritesView() {
+        document.getElementById('app-shell').classList.toggle('favorites-mode', favoritesMode);
+        document.getElementById('favorites-mode-banner').hidden = !favoritesMode;
+        const button = document.getElementById('favorites-quick-open');
+        button.setAttribute('aria-pressed', String(favoritesMode));
+        button.setAttribute('aria-label', favoritesMode ? 'Show recent notes' : 'Show Favorites');
+        button.title = favoritesMode ? 'Show recent notes' : 'Show Favorites';
+        document.getElementById('search-all').textContent = favoritesMode ? 'All favorites' : archiveMode ? 'All archived' : 'All notes';
+      }
+
+      async function toggleFavoritesMode() {
+        if (notesLoading || pendingNoteActions.size) { setTimeout(toggleFavoritesMode, 150); return; }
+        if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
+        closeAdminPanel(); closeProfilePanel(); closeHelpPanel(); closeArchiveOverview(); closeSearchPanel(); closeTrashPanel(); closeHiddenNotesPanel();
+        document.getElementById('account-control').open = false;
+        favoritesMode = !favoritesMode;
+        archiveMode = false;
+        document.getElementById('app-shell').classList.remove('archive-mode');
+        document.getElementById('archive-mode-banner').hidden = true;
+        const archiveButton = document.getElementById('archived-quick-open');
+        archiveButton.setAttribute('aria-pressed', 'false');
+        archiveButton.setAttribute('aria-label', 'Show archived notes');
+        archiveButton.title = 'Show archived notes';
+        notesList.style.setProperty('--quick-action-count', String(quickActions.length));
+        document.getElementById('favorites-query').value = '';
+        document.getElementById('favorites-category').value = '';
+        updateFavoritesView();
+        await showRecentNotes();
+      }
+
+      async function applyFavoritesFilters() {
+        if (!favoritesMode) return;
+        if (notesLoading || pendingNoteActions.size) { favoritesFilterTimer = setTimeout(applyFavoritesFilters, 100); return; }
+        document.getElementById('search-query').value = document.getElementById('favorites-query').value;
+        document.getElementById('search-tag').value = document.getElementById('favorites-category').value;
+        syncSearchClear();
+        if (document.getElementById('search-query').value.trim() || document.getElementById('search-tag').value) await runTextSearch();
+        else await showRecentNotes();
+      }
+
+      async function toggleFavorite(id) {
+        const note = loadedNotes.get(id);
+        if (!note) return;
+        const previous = Boolean(note.favorited), removeFromView = favoritesMode && previous;
+        const saved = await optimisticNoteAction(id, `/api/notes/favorite?id=${id}`, () => {
+          note.favorited = !previous;
+          if (removeFromView) { loadedNotes.delete(id); notesTotal = Math.max(0, notesTotal - 1); }
+          renderLoadedNotes();
+        }, () => {
+          note.favorited = previous;
+          if (removeFromView) { loadedNotes.set(id, note); notesTotal++; }
+          renderLoadedNotes();
+        }, 'Could not update Favorites.', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ favorited: !previous }) });
+        if (saved) showNoteActionToast(previous ? 'Removed from Favorites' : 'Added to Favorites');
+      }
+
       async function toggleArchiveMode() {
-        if (notesLoading) {
+        if (notesLoading || pendingNoteActions.size) {
           setTimeout(toggleArchiveMode, 150);
           return;
         }
@@ -7136,6 +7274,8 @@
         closeTrashPanel();
         closeHiddenNotesPanel();
         document.getElementById("account-control").open = false;
+        favoritesMode = false;
+        updateFavoritesView();
         archiveMode = !archiveMode;
         const shell = document.getElementById("app-shell");
         shell.classList.toggle("archive-mode", archiveMode);
@@ -7145,7 +7285,7 @@
         toggle.setAttribute("aria-label", archiveMode ? "Show recent notes" : "Show archived notes");
         toggle.title = archiveMode ? "Show recent notes" : "Show archived notes";
         document.getElementById("search-all").textContent = archiveMode ? "All archived" : "All notes";
-        document.getElementById("notes-list").style.setProperty("--quick-action-count", String(archiveMode ? 3 : quickActions.length));
+        document.getElementById("notes-list").style.setProperty("--quick-action-count", String(archiveMode ? 4 : quickActions.length));
         await showRecentNotes();
       }
 
@@ -7153,7 +7293,11 @@
         let undo;
         const pinned = Boolean(loadedNotes.get(id)?.pinned);
         const saved = await optimisticNoteAction(id, `/api/notes/unarchive?id=${id}`, () => {
-          undo = optimisticallyRemoveNote(id);
+          if (favoritesMode) {
+            const note = loadedNotes.get(id), oldValue = note.archived_at;
+            note.archived_at = null; renderLoadedNotes();
+            undo = () => { note.archived_at = oldValue; renderLoadedNotes(); };
+          } else undo = optimisticallyRemoveNote(id);
           setActiveNoteCount(activeNoteCount + 1);
           if (pinned) setPinnedNoteCount(pinnedNoteCount + 1);
         }, () => {
@@ -7185,7 +7329,7 @@
       }
 
       async function promptActiveRemoval(scope, date = "", owner = currentUser, action = 'recycle') {
-        if (!currentUser || currentUser !== owner || archiveMode || activeRemovalBusy || !['all', 'date', 'pinned'].includes(scope)) return;
+        if (!currentUser || currentUser !== owner || archiveMode || favoritesMode || activeRemovalBusy || !['all', 'date', 'pinned'].includes(scope)) return;
         if (draftFinalizing || notesLoading) {
           setTimeout(() => promptActiveRemoval(scope, date, owner, action), 150);
           return;
@@ -7296,7 +7440,7 @@
       }
 
       function removeArchivedNote(id) {
-        if (!archiveMode) return;
+        if (!archiveMode && !loadedNotes.get(id)?.archived_at) return;
         moveArchivedNotesToTrash(new URLSearchParams({ id: String(id) }));
       }
 
@@ -7336,7 +7480,7 @@
         const note = loadedNotes.get(id);
         if (!note) return;
         const wasPinned = Boolean(note.pinned);
-        const delta = archiveMode ? 0 : wasPinned ? -1 : 1;
+        const delta = archiveMode || note.archived_at ? 0 : wasPinned ? -1 : 1;
         await optimisticNoteAction(id, `/api/notes/pin?id=${id}`, () => {
           note.pinned = !wasPinned;
           setPinnedNoteCount(pinnedNoteCount + delta);
@@ -8056,7 +8200,7 @@
         const note = loadedNotes.get(id);
         const view = document.getElementById(`note-view-${id}`);
         const editor = document.getElementById(`note-editor-${id}`);
-        if (!note || !view || !editor) return false;
+        if (!note || note.archived_at || !view || !editor) return false;
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
         noteViewRevision++;
@@ -8205,16 +8349,23 @@
         const owner = currentUser;
         if (!owner) return;
         const select = document.getElementById('search-tag');
-        const selected = select.value;
+        const view = favoritesMode ? 'favorites' : archiveMode ? 'archive' : 'recent';
         try {
-          const response = await apiFetch(`/api/tags${archiveMode ? '?archive=1' : ''}`);
+          const response = await apiFetch(`/api/tags${favoritesMode ? '?favorites=1' : archiveMode ? '?archive=1' : ''}`);
           if (!response.ok || currentUser !== owner) return;
           const tags = await response.json();
-          if (currentUser !== owner) return;
+          if (currentUser !== owner || view !== (favoritesMode ? 'favorites' : archiveMode ? 'archive' : 'recent')) return;
+          const selected = select.value;
           select.replaceChildren(new Option('All tags', ''));
           for (const tag of tags) select.add(new Option(`#${tag.name} (${tag.count})`, tag.name));
           if (selected && !tags.some((tag) => tag.name === selected)) select.add(new Option(`#${selected} (0)`, selected));
           select.value = selected;
+          if (favoritesMode) {
+            const category = document.getElementById('favorites-category'), choice = selected;
+            category.replaceChildren(new Option('All categories', ''));
+            for (const option of [...select.options].slice(1)) category.add(new Option(option.textContent, option.value));
+            category.value = choice;
+          }
         } catch { /* Keep the current selection when the tag list cannot load. */ }
       }
 
@@ -8295,11 +8446,13 @@
       }
 
       function enableNoteTaskCheckboxes() {
-        if (archiveMode) return;
         notesList.querySelectorAll(".note-card").forEach((card) => {
           const note = loadedNotes.get(Number(card.id.slice(5)));
-          if (!note) return;
           const checkboxes = [...card.querySelectorAll(".note-view .note-content input[type='checkbox']")];
+          if (!note || note.archived_at || archiveMode) {
+            checkboxes.forEach((checkbox) => { checkbox.disabled = true; });
+            return;
+          }
           if (!checkboxes.length) return;
           const { tasks } = taskLinesInMarkdown(note.content);
           if (tasks.length !== checkboxes.length || tasks.some((task, index) => task.checked !== checkboxes[index].checked)) return;
@@ -8321,7 +8474,7 @@
           button.textContent = pre.dataset.codeLanguage || 'Plain text';
           button.title = 'Edit code block and language';
           button.setAttribute('aria-label', `Edit ${button.textContent} code block`);
-          button.disabled = archiveMode;
+          button.disabled = archiveMode || pre.closest(".note-card").classList.contains("is-archived");
           button.addEventListener('click', async () => {
             const body = wrapper.closest('.note-content');
             const blockIndex = [...body.children].findIndex((block) => block.contains(wrapper));
@@ -8407,7 +8560,7 @@
         const target = event.target;
         if (!(target instanceof Element) || suppressNoteClick || archiveMode) return;
         const card = target.closest(".note-card");
-        if (!card || card.classList.contains("is-editing") ||
+        if (!card || card.classList.contains("is-editing") || card.classList.contains("is-archived") ||
             target.closest("a, button, input, textarea, select, label, summary, [contenteditable], .note-actions")) return;
         if (window.getSelection()?.toString().trim()) return;
         const body = target.closest(".note-content");
@@ -8632,6 +8785,11 @@
       const newNoteContent = document.getElementById("content");
 
       function resizeTextareaToContent(textarea) {
+        if (textarea.closest(".note-card.is-editing")) {
+          textarea.style.height = "";
+          textarea.style.overflowY = "auto";
+          return;
+        }
         textarea.style.height = "auto";
         const nextHeight = Math.min(textarea.scrollHeight, 320);
         textarea.style.height = `${nextHeight}px`;
@@ -8713,6 +8871,8 @@
         applyNoteSizes(event.target.value, bodySize);
         saveUIState();
       });
+
+      document.getElementById("note-max-height").addEventListener("input", event => { applyMaxNoteHeight(event.target.value); saveUIState(); });
 
       document.getElementById("note-body-size").addEventListener("input", (event) => {
         applyNoteSizes(titleSize, event.target.value);
@@ -8898,6 +9058,10 @@
 
       async function showRecentNotes() {
         clearTimeout(liveSearchTimer);
+        if (favoritesMode) {
+          document.getElementById('favorites-query').value = '';
+          document.getElementById('favorites-category').value = '';
+        }
         document.getElementById("search-form").reset();
         setSearchScope("all");
         syncSearchClear();
@@ -9524,6 +9688,9 @@
 
       document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
       document.getElementById("unpin-all-notes").addEventListener("click", unpinAllNotes);
+      document.getElementById('favorites-quick-open').addEventListener('click', toggleFavoritesMode);
+      document.getElementById('favorites-query').addEventListener('input', () => { clearTimeout(favoritesFilterTimer); favoritesFilterTimer = setTimeout(applyFavoritesFilters, 200); });
+      document.getElementById('favorites-category').addEventListener('change', () => { clearTimeout(favoritesFilterTimer); applyFavoritesFilters(); });
       document.getElementById("archived-quick-open").addEventListener("click", toggleArchiveMode);
       document.getElementById("date-sections-toggle").addEventListener("click", toggleAllDateSections);
 
