@@ -4,7 +4,7 @@ Last reviewed: 2026-10-07
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.36`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.37`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -33,7 +33,7 @@ The current release includes:
 - Untitled notes show body text once in Full and Compact views; their first-line preview appears only when folded or in titles-only view, without adding a stored title.
 - A one-command release updater and operational checker.
 
-## Prepared for v0.7.37
+## Immediate note actions and editor controls
 
 - Desktop mouse/trackpad context menus work alongside touch input; source editors and rich-editor whitespace use the three-item text menu.
 - The editor Copy button copies highlighted body/source/title text, or the whole current title and body when no text is selected.
@@ -67,7 +67,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Mobile verification
 
-1. Retest v0.7.36 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Use the bottom Dictionary/Save word and Always ignore buttons on displayed text, titles, and rich edits, including with the keyboard open; check editor Copy/Done remain accessible. Check personal Names and ignored-word search, Show more, file import, and export downloads. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, Aa formatting, quick actions, and the code language picker.
+1. Retest v0.7.37 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Use the bottom Dictionary/Save word and Always ignore buttons on displayed text, titles, and rich edits, including with the keyboard open; check editor Copy/Done remain accessible. Check personal Names and ignored-word search, Show more, file import, and export downloads. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, Aa formatting, quick actions, and the code language picker.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 
@@ -91,6 +91,8 @@ An independently trusted client is required if the threat model includes an acti
 SQLite remains appropriate for the current modest, single-instance deployment. Do not operate multiple writable application instances against independent SQLite databases. Consider PostgreSQL and shared rate limiting only when horizontal scaling becomes necessary.
 
 ## Product backlog
+
+- Proposed Favorites collection, separate from Pin and Archive, with search and category filters using existing tags. A bookmark-ribbon icon with a muted gold selected state is suggested; design and implementation remain open.
 
 - [x] Export and import notes. Account-menu export supports one, selected, or all notes as readable Markdown or plain text, or versioned gnotes JSON. Multi-note readable exports include a JSON manifest for lossless reimport. Import supports all three formats and the ZIP archive; duplicate handling is explicit. Device review remains open.
 - [x] Rich text editing. Selecting text offers bold, italic, and link; typing `/` at the start of a paragraph offers headings, lists, and checklists. Markdown source is available through Account → Advanced. Existing global font and size settings remain available. Device review remains open before expanding formatting tools.
