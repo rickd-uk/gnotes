@@ -2733,6 +2733,17 @@
         white-space: nowrap;
       }
 
+      #notes-list.density-titles .note-card:not(.is-editing) .note-view {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+      }
+      #notes-list.density-titles .note-card:not(.is-editing) .note-view > h2 {
+        position: static;
+      }
+      #notes-list.density-titles .note-card .note-tags { margin-top: 0; }
+
       #notes-list.density-titles .note-quick-actions .note-action .icon {
         width: 18px;
         height: 18px;
@@ -3743,16 +3754,6 @@
         }
         .note-tag .note-tag-label { display: none; }
         .note-tag::after { content: attr(data-short-label); }
-        #notes-list.density-titles .note-card:not(.is-editing) .note-view {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          min-width: 0;
-        }
-        #notes-list.density-titles .note-card:not(.is-editing) .note-view > h2 {
-          position: static;
-        }
-        #notes-list.density-titles .note-card .note-tags { margin-top: 0; }
       }
 
       @media (min-width: 561px) {
@@ -4301,7 +4302,7 @@
                 <input type="range" id="note-title-size" min="65" max="175" step="5" value="100" />
               </div>
               <div class="note-size-control">
-                <label for="note-max-height">Maximum note text height <output id="note-max-height-value" for="note-max-height">360 px</output></label>
+                <label for="note-max-height">Height limit <output id="note-max-height-value" for="note-max-height">360 px</output></label>
                 <input type="range" id="note-max-height" min="160" max="800" step="40" value="360" />
               </div>
               <div class="note-size-control">
