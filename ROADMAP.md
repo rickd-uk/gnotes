@@ -4,7 +4,7 @@ Last reviewed: 2026-10-07
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.37`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.38`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -35,7 +35,7 @@ The current release includes:
 
 ## Favorites and note display
 
-Prepared for v0.7.38: Favorites from the header and note More menu, with optional placement in quick actions. Tags organize Favorites, including archived notes. Controls → Appearance sets the maximum displayed note text height (160–800 px; default 360 px). Long notes and focused rich/source editors scroll internally. Titles icons follow title text size while retaining their click targets. On screens up to 560 px, tags have a gap below titles and long tag labels use ellipsis without changing stored names.
+Deployed in v0.7.38: Favorites from the header and note More menu, with optional placement in quick actions. Tags organize Favorites, including archived notes. Controls → Appearance sets the maximum displayed note text height (160–800 px; default 360 px). Long notes and focused rich/source editors scroll internally. Titles icons follow title text size while retaining their click targets. On screens up to 560 px, tags have a gap below titles and long tag labels use ellipsis without changing stored names.
 
 ## Immediate note actions and editor controls
 
