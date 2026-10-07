@@ -16,7 +16,7 @@ Session handoff: the connected Pixel 6a loaded the live site in Chrome, but nati
 
 Remaining:
 
-- Favorites proposal: a separate important-note collection, category filters using existing tags, and a possible bookmark-ribbon icon. This is a design discussion; no Favorites feature has been implemented.
+- Favorites proposal: a separate important-note collection, category filters using existing tags, and the user-selected diamond icon (outline when off, muted gold when favorited). This is a design discussion; no Favorites feature has been implemented.
 - Verify the live admin recovery email in Profile and test a real reset email.
 - Retest on Pixel 6a browsers.
 - Configure encrypted off-server backups and alerts; improve CSP, auditing, and admin MFA.

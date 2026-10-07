@@ -92,7 +92,7 @@ SQLite remains appropriate for the current modest, single-instance deployment. D
 
 ## Product backlog
 
-- Proposed Favorites collection, separate from Pin and Archive, with search and category filters using existing tags. A bookmark-ribbon icon with a muted gold selected state is suggested; design and implementation remain open.
+- Proposed Favorites collection, separate from Pin and Archive, with search and category filters using existing tags. The user selected a diamond icon; outline when off and muted gold when favorited is proposed. Remaining design and implementation are open.
 
 - [x] Export and import notes. Account-menu export supports one, selected, or all notes as readable Markdown or plain text, or versioned gnotes JSON. Multi-note readable exports include a JSON manifest for lossless reimport. Import supports all three formats and the ZIP archive; duplicate handling is explicit. Device review remains open.
 - [x] Rich text editing. Selecting text offers bold, italic, and link; typing `/` at the start of a paragraph offers headings, lists, and checklists. Markdown source is available through Account → Advanced. Existing global font and size settings remain available. Device review remains open before expanding formatting tools.
