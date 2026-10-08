@@ -102,6 +102,9 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 			archiveCondition += " AND favorited = 1"
 		}
 	}
+	if !favorites && r.URL.Query().Get("hide_favorites") == "1" {
+		archiveCondition += " AND favorited = 0"
+	}
 	conditions := []string{"user_id = ?", "deleted_at IS NULL", archiveCondition}
 	args := []any{userIDFromRequest(r)}
 	if hasCursor {
@@ -138,9 +141,13 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var pinned int
+	pinnedCondition := ""
+	if !favorites && r.URL.Query().Get("hide_favorites") == "1" {
+		pinnedCondition = " AND favorited = 0"
+	}
 	if !archived {
 		if err := db.DB.QueryRow(
-			"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND pinned = 1",
+			"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND pinned = 1"+pinnedCondition,
 			userIDFromRequest(r),
 		).Scan(&pinned); err != nil {
 			http.Error(w, "Could not count pinned notes", http.StatusInternalServerError)
@@ -355,6 +362,9 @@ func pagedSearchFilter(r *http.Request) (string, []string, []any, error) {
 		dateColumn = "n.archived_at"
 	}
 	conditions := []string{"n.user_id = ?", "n.deleted_at IS NULL", archiveCondition}
+	if !favorites && r.URL.Query().Get("hide_favorites") == "1" {
+		conditions = append(conditions, "n.favorited = 0")
+	}
 	args := []any{userIDFromRequest(r)}
 	if condition, tagArgs, err := tagSearchFilter(r, "n.tags"); err != nil {
 		return "", nil, nil, err

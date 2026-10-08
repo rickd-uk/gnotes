@@ -140,6 +140,7 @@ func run() error {
 	registerDictionaryRoutes(mux)
 	mux.HandleFunc("/api/notes/color", protect(updateNoteColorHandler, true))
 	mux.HandleFunc("/api/notes/favorite", protect(favoriteNoteHandler, true))
+	mux.HandleFunc("/api/notes/favorite-date", protect(favoriteDateNotesHandler, true))
 	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
 	mux.HandleFunc("/api/notes/unpin-all", protect(unpinAllNotesHandler, true))
 	mux.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))

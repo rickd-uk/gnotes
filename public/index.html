@@ -1039,10 +1039,27 @@
       .is-favorited .diamond-body, #favorites-quick-open[aria-pressed="true"] .diamond-body, .favorite-mark .diamond-body { fill: #c2e7ef; }
       .is-favorited .diamond-glow, #favorites-quick-open[aria-pressed="true"] .diamond-glow, .favorite-mark .diamond-glow { opacity: 1; }
       .favorite-mark .icon { width: 18px; height: 18px; }
-      .favorites-filters { display: flex; flex: 1; flex-wrap: wrap; gap: 12px; align-items: center; min-width: 0; }
-      .favorites-filters label { flex: 1 1 220px; display: flex; gap: 8px; align-items: center; font-size: 0.8rem; min-width: 0; }
-      .favorites-filters input, .favorites-filters select { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); }
-      .favorites-filters input { flex: 1 1 180px; }
+      #favorites-mode-banner {
+        padding: 10px 12px;
+        gap: 12px;
+        border: 1px solid #c8dde2;
+        border-radius: 10px;
+        background: #eef6f7;
+        color: #327b91;
+      }
+      #favorites-mode-banner strong { font-size: 0.86rem; font-weight: 600; line-height: 1.3; }
+      .favorites-filters { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(110px, 170px); flex: 1; gap: 8px; align-items: center; min-width: 0; }
+      .favorites-filters input, .favorites-filters select {
+        width: 100%; min-width: 0; height: 34px; margin: 0; padding: 6px 10px;
+        border: 1px solid #c8dde2; border-radius: 7px;
+        background: var(--paper); color: var(--ink); font: inherit; font-size: 0.8rem;
+      }
+      .favorites-filters input::placeholder { color: var(--muted); }
+      .favorites-filters input:focus-visible, .favorites-filters select:focus-visible { outline: 2px solid #327b91; outline-offset: 2px; }
+      @media (max-width: 520px) {
+        #favorites-mode-banner { gap: 8px; }
+        .favorites-filters { flex-basis: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      }
       #app-shell.favorites-mode #note-form, #app-shell.favorites-mode #active-notes-bulk-actions, #app-shell.favorites-mode #hidden-notes-control, #app-shell.favorites-mode .active-section-remove, #app-shell.favorites-mode #delete-all-notes { display: none; }
       .note-card.is-archived { cursor: default; }
       .note-action[hidden] { display: none; }
@@ -1272,7 +1289,7 @@
         background: rgba(49, 91, 76, 0.065);
       }
 
-      .archive-date-heading { display: flex; align-items: center; }
+      .archive-date-heading { display: flex; align-items: center; gap: 12px; padding-right: 6px; }
       .archive-date-heading .date-section-toggle { width: auto; min-width: 0; flex: 1; }
       .archive-date-remove {
         display: grid;
@@ -1289,6 +1306,13 @@
       .archive-date-remove:hover { background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
       .archive-date-remove .icon { width: 18px; height: 18px; }
 
+      .date-section-favorite {
+        display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center;
+        padding: 0; border: 0; border-radius: 6px; background: transparent; color: #327b91; cursor: pointer;
+      }
+      .date-section-favorite .icon { width: 18px; height: 18px; }
+      .date-section-favorite:hover { background: #dceff3; }
+      .date-section-favorite:disabled { opacity: 0.5; cursor: wait; }
       .date-section-chevron {
         width: 16px;
         height: 16px;
@@ -4171,6 +4195,40 @@
         }
       }
 
+      @media (max-width: 560px) {
+        html { scroll-padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+        #app-shell { padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
+        #notes-list button, #active-notes-bulk-actions button, .load-more { scroll-margin-bottom: calc(80px + env(safe-area-inset-bottom)); }
+        .site-header { padding: 10px 16px; }
+        #primary-navigation {
+          position: fixed; z-index: 80; inset: auto 0 0;
+          display: flex; justify-content: space-around; gap: 2px;
+          margin: 0; padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+          border-top: 1px solid #cec7ba; background: #f0ede6;
+          box-shadow: 0 -4px 18px rgba(51, 45, 35, 0.08);
+        }
+        #primary-navigation > * { flex: 0 0 46px; min-width: 0; }
+        #primary-navigation .view-control { position: static; }
+        #primary-navigation .view-toggle,
+        #primary-navigation .search-toggle,
+        #primary-navigation .archived-quick-open,
+        #primary-navigation .trash-toggle,
+        #primary-navigation .account-control > summary {
+          width: 46px; height: 48px; min-height: 48px; margin: 0; padding: 0;
+          display: grid; place-items: center; border-radius: 10px;
+        }
+        #primary-navigation .icon { width: 28px; height: 28px; margin: 0; }
+        #primary-navigation .trash-control, #primary-navigation .account-control { margin: 0; padding: 0; }
+        #primary-navigation .account-menu, #primary-navigation .trash-panel {
+          position: fixed; top: auto; bottom: calc(72px + env(safe-area-inset-bottom));
+          right: 12px; left: 12px; width: auto; min-width: 0;
+          max-height: calc(100dvh - 96px - env(safe-area-inset-bottom)); overflow-y: auto;
+          border-radius: 12px;
+        }
+        .note-card.is-editing { height: calc(var(--edit-viewport-height, 100dvh) - 64px - env(safe-area-inset-bottom)); }
+        .note-undo-toast, .note-action-toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .view-menu {
           transition: none;
@@ -4251,7 +4309,7 @@
     <main class="shell" id="app-shell" hidden>
       <header class="site-header">
         <h1>gnotes</h1>
-        <div class="header-actions">
+        <nav class="header-actions" id="primary-navigation" aria-label="Main navigation">
           <div class="view-control" id="view-control">
             <button class="view-toggle" id="view-toggle" type="button" aria-controls="view-menu" aria-expanded="false" aria-label="Open controls menu" title="Open controls menu">
               <svg class="icon view-slider-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -4282,6 +4340,9 @@
           </section>
           <section class="controls-group" aria-label="Appearance">
             <h2 class="controls-group-title">Appearance</h2>
+            <button class="link-style-toggle" id="new-note-area-toggle" type="button" aria-pressed="true" aria-controls="note-form">
+              <span>New note area</span><span class="tool-state" id="new-note-area-state">On</span>
+            </button>
             <div class="time-zone-control">
               <label for="note-time-zone">Time zone</label>
               <select id="note-time-zone" aria-label="Time zone for notes and dates"></select>
@@ -4314,6 +4375,10 @@
               <strong>A note title</strong>
               <span>A quiet place to write.</span>
             </div>
+            <button class="link-style-toggle" id="favorites-main-toggle" type="button" aria-pressed="false">
+              <span>Show Favorites in main and Archive</span>
+              <span class="tool-state" id="favorites-main-state">Off</span>
+            </button>
             <button class="link-style-toggle" id="link-style-toggle" type="button" aria-pressed="true" aria-label="Link underlines: on">
               <span>Link underlines</span>
               <span class="tool-state" id="link-style-state">On</span>
@@ -4420,7 +4485,7 @@
               </div>
             </div>
           </details>
-        </div>
+        </nav>
       </header>
 
       <section class="search-panel" id="search-panel" aria-label="Find notes" hidden>
@@ -4471,8 +4536,8 @@
       </section>
 
       <div class="archive-mode-banner" id="favorites-mode-banner" hidden>
-        <div><strong>Favorites</strong><span>Keep important notes together. Use tags as categories.</span></div>
-        <div class="favorites-filters"><input id="favorites-query" type="search" placeholder="Search Favorites" aria-label="Search Favorites"><label>Category<select id="favorites-category"><option value="">All categories</option></select></label></div>
+        <strong>Favorites</strong>
+        <div class="favorites-filters"><input id="favorites-query" type="search" placeholder="Search Favorites" aria-label="Search Favorites"><select id="favorites-category" aria-label="Filter Favorites by category"><option value="">All categories</option></select></div>
       </div>
       <div class="archive-mode-banner" id="archive-mode-banner" hidden>
         <div><strong>Archived notes</strong><span>Saved for later · select the archive icon to return to recent notes</span></div>
@@ -4607,6 +4672,7 @@
     </div>
     <div class="dictionary-ui" id="note-context-menu" role="menu" aria-label="Text actions" hidden>
       <button id="note-context-copy" type="button" role="menuitem">Copy</button>
+      <button id="note-context-paste" type="button" role="menuitem">Paste</button>
       <button id="note-context-dictionary" type="button" role="menuitem">Dictionary</button>
       <button id="note-context-ignore" type="button" role="menuitem">Always ignore spelling</button>
       <span>Shift + right-click for browser menu</span>
@@ -4718,7 +4784,7 @@
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done.</p></div>
-        <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
+        <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Favorites are hidden from the main view and Archive by default. To show them there too, enable Controls → Appearance → Show Favorites in main and Archive. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
         <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Copy highlighted text at the bottom left, or copy the whole note, including its title, when nothing is selected. Choose the green check mark to save and return to your notes.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
@@ -4860,6 +4926,8 @@
       let titleSize = 100;
       let bodySize = 100;
       let maxNoteHeight = 360;
+      let showFavoritesInMain = false;
+      let showNewNoteArea = true;
       let linkUnderlines = true;
       let timeZoneChoice = "";
       const noteColorOptions = [
@@ -5312,6 +5380,8 @@
           titleSize,
           bodySize,
           maxNoteHeight,
+          showFavoritesInMain,
+          showNewNoteArea,
           linkUnderlines,
           spellcheckEnabled,
           builtinSpellingEnabled,
@@ -5664,6 +5734,31 @@
         } finally { if (currentUser === owner) { spellingBusy = false; refreshSpellingControls(); } }
       }
 
+      function applyNewNoteArea(shown) {
+        showNewNoteArea = shown !== false;
+        document.getElementById('note-form').hidden = !showNewNoteArea;
+        document.getElementById('new-note-area-toggle').setAttribute('aria-pressed', String(showNewNoteArea));
+        document.getElementById('new-note-area-state').textContent = showNewNoteArea ? 'On' : 'Off';
+      }
+
+      function applyFavoritesInMain(show) {
+        showFavoritesInMain = show === true;
+        const button = document.getElementById('favorites-main-toggle');
+        button.setAttribute('aria-pressed', String(showFavoritesInMain));
+        document.getElementById('favorites-main-state').textContent = showFavoritesInMain ? 'On' : 'Off';
+      }
+
+      async function toggleFavoritesInMain() {
+        if (notesLoading || pendingNoteActions.size || pendingNoteEdits.size) {
+          setTimeout(toggleFavoritesInMain, 150);
+          return;
+        }
+        if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
+        applyFavoritesInMain(!showFavoritesInMain);
+        saveUIState();
+        if (!favoritesMode) await loadNotes();
+      }
+
       function applyMaxNoteHeight(value) {
         const number = Number(value);
         maxNoteHeight = Number.isFinite(number) ? Math.max(160, Math.min(800, Math.round(number / 40) * 40)) : 360;
@@ -5746,6 +5841,8 @@
         applyFontMode(state.fontMode);
         applyNoteSizes(state.titleSize, state.bodySize);
         applyMaxNoteHeight(state.maxNoteHeight);
+        applyFavoritesInMain(state.showFavoritesInMain === true);
+        applyNewNoteArea(state.showNewNoteArea !== false);
         applyLinkStyle(state.linkUnderlines);
         spellingListsMigrated = state.spellingListsMigrated === true;
         builtinSpellingEnabled = state.builtinSpellingEnabled !== false;
@@ -6395,6 +6492,8 @@
           : new URL("/api/notes/page", location.origin);
         if (archiveMode) pageURL.searchParams.set("archive", "1");
         if (favoritesMode) pageURL.searchParams.set("favorites", "1");
+        pageURL.searchParams.delete('hide_favorites');
+        if (!favoritesMode && !showFavoritesInMain) pageURL.searchParams.set('hide_favorites', '1');
         pageURL.searchParams.set("limit", "50");
         if (append) pageURL.searchParams.set("cursor", notesNextCursor);
         let res;
@@ -6528,6 +6627,7 @@
                       <span>${escapeHTML(dateSection)}</span>
                       <svg class="date-section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                     </button>
+                    ${!favoritesMode && (archiveMode || !n.pinned) ? `<button class="date-section-favorite" type="button" data-note-date="${formatLocalDateKey(noteDate)}" onclick="favoriteDateNotes(this)" aria-label="Add all notes ${archiveMode ? 'archived on' : 'dated'} ${formatLocalDateKey(noteDate)} to Favorites" title="Add this date to Favorites"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>` : ''}
                     ${archiveMode ? `<button class="archive-date-remove" type="button" data-archive-date="${formatLocalDateKey(noteDate)}" onclick="promptArchiveDateRemoval(this)" aria-label="Move notes archived on ${formatLocalDateKey(noteDate)} to recycle bin" title="Move this archive date to recycle bin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>` : `<button class="archive-date-remove active-section-remove" type="button" data-remove-scope="${n.pinned ? 'pinned' : 'date'}" data-note-date="${n.pinned ? '' : formatLocalDateKey(noteDate)}" onclick="promptActiveSectionRemoval(this)" aria-label="${n.pinned ? 'Move all pinned notes to recycle bin' : `Move unpinned notes dated ${formatLocalDateKey(noteDate)} to recycle bin`}" title="${n.pinned ? 'Move all pinned notes to recycle bin' : 'Move this date section to recycle bin'}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>`}
                   </h3>`;
             }
@@ -7305,10 +7405,40 @@
         else await showRecentNotes();
       }
 
+      async function favoriteDateNotes(button) {
+        if (!currentUser || favoritesMode || notesLoading || pendingNoteActions.size || activeRemovalBusy) return;
+        const owner = currentUser, date = button.dataset.noteDate, archived = archiveMode;
+        if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
+        await editSaveChain.catch(() => false);
+        if (currentUser !== owner || pendingNoteEdits.size || archived !== archiveMode || favoritesMode) return;
+        const actionKey = 'favorite-date';
+        pendingNoteActions.add(actionKey);
+        noteViewRevision++;
+        button.disabled = true;
+        const params = new URLSearchParams({ date, timezone: noteTimeZone() });
+        if (archived) params.set('archive', '1');
+        try {
+          const response = await apiFetch(`/api/notes/favorite-date?${params}`, { method: 'POST' });
+          if (!response.ok) throw new Error('Update failed');
+          const result = await response.json();
+          if (currentUser !== owner) return;
+          showNoteActionToast(`${result.added} ${result.added === 1 ? 'note added' : 'notes added'} to Favorites`);
+        } catch {
+          if (currentUser === owner) showNoteActionDialog('Change not saved', 'Could not add this date to Favorites. Please try again.');
+        } finally {
+          if (currentUser === owner) {
+            pendingNoteActions.delete(actionKey);
+            button.disabled = false;
+            await loadNotes();
+            await refreshTagOptions();
+          }
+        }
+      }
+
       async function toggleFavorite(id) {
         const note = loadedNotes.get(id);
         if (!note) return;
-        const previous = Boolean(note.favorited), removeFromView = favoritesMode && previous;
+        const previous = Boolean(note.favorited), removeFromView = (favoritesMode && previous) || (!favoritesMode && !showFavoritesInMain && !previous);
         const saved = await optimisticNoteAction(id, `/api/notes/favorite?id=${id}`, () => {
           note.favorited = !previous;
           if (removeFromView) { loadedNotes.delete(id); notesTotal = Math.max(0, notesTotal - 1); }
@@ -8220,6 +8350,10 @@
         }
         if (response.ok) {
           const note = await response.json();
+          if (note.favorited && !favoritesMode && !showFavoritesInMain) {
+            if (forgetMissingEdit) forgetEditingNote();
+            return;
+          }
           loadedNotes.set(note.id, note);
         } else if (response.status === 404 && forgetMissingEdit) {
           forgetEditingNote();
@@ -8933,6 +9067,20 @@
         saveUIState();
       });
 
+      const smallScreenNavigation = matchMedia('(max-width: 560px)');
+      function placeMainNavigation() {
+        const navigation = document.getElementById('primary-navigation');
+        const shell = document.getElementById('app-shell');
+        (smallScreenNavigation.matches ? shell : shell.querySelector('.site-header')).append(navigation);
+      }
+      smallScreenNavigation.addEventListener('change', placeMainNavigation);
+      placeMainNavigation();
+
+      document.getElementById('new-note-area-toggle').addEventListener('click', () => {
+        applyNewNoteArea(!showNewNoteArea);
+        saveUIState();
+      });
+      document.getElementById("favorites-main-toggle").addEventListener("click", toggleFavoritesInMain);
       document.getElementById("note-max-height").addEventListener("input", event => { applyMaxNoteHeight(event.target.value); saveUIState(); });
 
       document.getElementById("note-body-size").addEventListener("input", (event) => {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -47,6 +48,7 @@ func TestActiveBulkRemovalBrowser(t *testing.T) {
 			browser.call("POST", "/goog/cdp/execute", map[string]any{"cmd": "Emulation.setDeviceMetricsOverride", "params": map[string]any{"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": false}})
 			click := func(selector string) {
 				t.Helper()
+				browser.script("document.querySelector(" + strconv.Quote(selector) + ").scrollIntoView({block:'center'});")
 				node := browser.call("POST", "/element", map[string]string{"using": "css selector", "value": selector}).(map[string]any)
 				browser.call("POST", "/element/"+node["element-6066-11e4-a52e-4f735466cecf"].(string)+"/click", nil)
 			}

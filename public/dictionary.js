@@ -15,7 +15,7 @@
   const contextMenu = document.getElementById('note-context-menu');
   const noteTextSelector = '.note-content, .tiptap, .note-view > h2';
   const textInputSelector = '#title, .edit-title, #content, .edit-content';
-  let contextWord = '', contextText = '', contextEditor = null;
+  let contextWord = '', contextText = '', contextEditor = null, contextPaste = null;
   let lastPointerType = '';
   document.addEventListener('pointerdown', event => { lastPointerType = event.pointerType; }, { capture: true, passive: true });
 
@@ -37,6 +37,33 @@
       if (owner === currentUser) showNoteActionToast('Copied');
     } catch {
       if (owner === currentUser) showNoteActionDialog('Could not copy', 'Use Ctrl+C or Command+C to copy selected text, or Shift + right-click for the browser menu.');
+    }
+  });
+  document.getElementById('note-context-paste').addEventListener('click', async () => {
+    const target = contextPaste, owner = currentUser;
+    closeContext();
+    if (!target) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (owner !== currentUser || !target.root.isConnected || !text) return;
+      if (target.editor) {
+        if (target.editor.isDestroyed) return;
+        const content = text.includes('\n')
+          ? text.replace(/\r\n/g, '\n').split('\n').map(line => ({ type: 'paragraph', content: line ? [{ type: 'text', text: line }] : [] }))
+          : { type: 'text', text };
+        target.editor.chain().focus().setTextSelection(target.selection).insertContent(content).run();
+      } else {
+        if (target.root.disabled || target.root.readOnly) return;
+        target.root.focus({ preventScroll: true });
+        target.root.setRangeText(text, target.from, target.to, 'end');
+        target.root.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    } catch {
+      if (owner === currentUser) {
+        target.root.focus({ preventScroll: true });
+        if (!target.editor) target.root.setSelectionRange(target.from, target.to);
+        showNoteActionDialog('Could not paste', 'Allow clipboard access, or use Ctrl+V or Command+V to paste. Shift + right-click opens the browser menu.');
+      }
     }
   });
   contextMenu.addEventListener('keydown', event => {
@@ -306,6 +333,8 @@
     selectionActions.style.left = `${docked ? viewportLeft + Math.max(8, (viewportWidth - width) / 2) : Math.max(8, Math.min(rect.left, innerWidth - width - 8))}px`;
     let bottom = viewportBottom - 12;
     if (docked) {
+      const navigation = document.getElementById('primary-navigation');
+      if (navigation && getComputedStyle(navigation).position === 'fixed') bottom = Math.min(bottom, navigation.getBoundingClientRect().top - 8);
       const footer = document.querySelector('.note-card.is-editing .editor-actions')?.getBoundingClientRect();
       if (footer && footer.top > viewportTop && footer.top < viewportBottom) bottom = Math.min(bottom, footer.top - 8);
     }
@@ -369,6 +398,11 @@
     event.preventDefault(); hideRichContext(); hideSelectionActions();
     contextWord = word; contextText = selectedText || word;
     contextEditor = editable ? root : null;
+    const editor = root.matches('.tiptap') ? [richEdit?.editor, richDraft?.editor].find(editor => editor && editor.view.dom === root) : null;
+    contextPaste = textInput && !textInput.disabled && !textInput.readOnly
+      ? { root, from: textInput.selectionStart ?? 0, to: textInput.selectionEnd ?? 0 }
+      : editor ? { root, editor, selection: { from: editor.state.selection.from, to: editor.state.selection.to } } : null;
+    document.getElementById('note-context-paste').disabled = !contextPaste || !navigator.clipboard?.readText;
     document.getElementById('note-context-copy').disabled = !contextText;
     document.getElementById('note-context-dictionary').disabled = !word;
     document.getElementById('note-context-ignore').disabled = !spellingReady || spellingBusy || !spellingWord(word) || ignoredSpellingWords.includes(spellingWord(word));
@@ -381,7 +415,7 @@
   });
 
   function reset() {
-    closeContext(); contextWord = ''; contextText = ''; contextEditor = null;
+    closeContext(); contextWord = ''; contextText = ''; contextEditor = null; contextPaste = null;
     generation++;
     lookupController?.abort(); listController?.abort(); clearTimeout(filterTimer);
     if (dialog.open) dialog.close();
