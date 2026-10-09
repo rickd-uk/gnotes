@@ -58,3 +58,15 @@ The current rate limiter is suitable for one SQLite-backed instance, not a horiz
 ## Reporting a vulnerability
 
 Do not include real note contents, passwords, session cookies, setup tokens, or private keys in an issue or log excerpt. Contact the operator privately with reproduction steps and sanitized evidence.
+
+## Opt-in offline reading
+
+Offline reading is disabled until the user explicitly saves a device copy. `/api/notes/offline` requires a live session, is read-only and returns only that account’s active/archived notes with `Cache-Control: no-store`. The response identifies its account atomically with the notes. Recycled notes and drafts are excluded; limits are 10,000 notes and 64 MB.
+
+The browser persists one encrypted snapshot in IndexedDB. AES-256-GCM uses a fresh random 96-bit IV and 128-bit salt on each save; the key is derived from a separate offline passphrase with PBKDF2-HMAC-SHA-256 (600,000 iterations). The record contains only a format version, salt, IV and ciphertext; titles, content, tags, account identity and timestamps are encrypted. Keys and passphrases are not persisted. See [Web Crypto key derivation](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/deriveKey).
+
+The service worker caches only the dedicated static reader HTML, CSS and two scripts. API responses and the signed-in application are never added to Cache Storage. Root navigation uses a network request with HTTP caching bypassed, falling back to the locked reader on network failure. Bump the reader cache version when changing its files. Saved notes render with `textContent`, without executing note markup or fetching embedded images/links.
+
+Locking clears displayed note DOM and the in-memory snapshot. The reader locks on page hiding, page exit, after five minutes of inactivity, and when another tab changes/removes the copy. Explicit sign-out removes the snapshot before signing out; a storage failure still signs out and reports that the encrypted copy could not be removed. A revision guard prevents pending saves from recreating a copy after removal/sign-out. Failed refreshes preserve the old encrypted copy; replacing another account’s copy requires explicit removal first.
+
+This is device encryption, not end-to-end encryption or secure erasure. An unlocked browser or compromised same-origin script can read decrypted notes. A saved copy remains usable with its passphrase after server-side password/session changes or account deletion; remote revocation cannot erase an offline device. Online changes/deletions reach the snapshot only on explicit refresh. Browser storage eviction can remove the copy. Server backups remain authoritative, and offline copies are not synced or included in them.

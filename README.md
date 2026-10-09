@@ -46,6 +46,14 @@ The desktop right-click menu includes Copy, Paste, Dictionary, and Always ignore
 - User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion
 - Account-menu export of all or selected notes and import of gnotes JSON, Markdown, plain text, or a gnotes export ZIP
 
+### Offline reading
+
+Choose **Account → Offline reading** while signed in. Set and confirm a separate offline passphrase (at least 12 characters), opt in to device storage, and select **Save offline copy**. The copy includes active and archived notes, Favorites and tags; recycled notes and unfinished drafts are excluded. Notes are shown as text with local search and collection filters. Editing is available online.
+
+After saving, bookmark `/offline.html`. Opening the main site without a connection also opens the offline reader. Enter your offline passphrase to unlock the copy. **Refresh saved copy** replaces it with your current notes while online; it requires the existing offline passphrase. The saved date identifies its age. Changes and deletions made online do not reach an existing copy until you refresh it. A failed refresh preserves the previous copy.
+
+The passphrase cannot be recovered. If forgotten, remove the copy and save a new one while signed in online. **Remove saved copy** removes it from this browser, and signing out also removes it. The reader locks when hidden or after five minutes without activity. Browser storage can be cleared or evicted, so offline copies supplement server backups. Enabling is separate for each browser/device.
+
 ### Export and import
 
 Open **Account → Export & import**. Choose gnotes JSON for a complete copy of active, archived, and recycled notes, including dates, pinning, and colors. Plain text exports contain readable note bodies. Markdown export and import appear after enabling **Edit Markdown source** under **Account → Advanced**. When exporting multiple notes in a readable format, gnotes creates a ZIP with a JSON manifest that preserves note details for reimport. Keep the manifest with the files; the importer reads it as the source of record.

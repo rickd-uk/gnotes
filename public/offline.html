@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer"><title>gnotes — Offline reading</title>
+  <link rel="stylesheet" href="/offline.css">
+  <script src="/offline-store.js" defer></script><script src="/offline-reader.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><h1>gnotes</h1><a href="/">Online notes</a></header>
+    <h2>Offline reading</h2>
+    <p>Read a saved copy of your active and archived notes on this device. Changes made online appear here after you refresh the copy.</p>
+    <p id="offline-status" role="status" aria-live="polite">Checking this device…</p>
+    <section id="offline-setup" hidden>
+      <form id="offline-save-form">
+        <p id="offline-account"></p>
+        <label>Offline passphrase<input id="offline-new-passphrase" type="password" minlength="12" maxlength="256" autocomplete="new-password" required></label>
+        <label>Confirm passphrase<input id="offline-confirm-passphrase" type="password" minlength="12" maxlength="256" autocomplete="new-password" required></label>
+        <p>Choose at least 12 characters. This passphrase unlocks the copy on this device and cannot be recovered. It can be different from your sign-in password.</p>
+        <label class="check"><input id="offline-consent" type="checkbox" required>Save an encrypted copy on this device. Signing out removes it.</label>
+        <button id="offline-save" type="submit">Save offline copy</button>
+      </form>
+    </section>
+    <form id="offline-unlock-form" hidden>
+      <label>Offline passphrase<input id="offline-passphrase" type="password" maxlength="256" autocomplete="off" required></label>
+      <button type="submit">Unlock saved notes</button>
+    </form>
+    <div class="actions"><button id="offline-cancel-setup" type="button" hidden>Use saved copy</button><button id="offline-lock" type="button" hidden>Lock</button><button id="offline-refresh" type="button" hidden>Refresh saved copy</button><button id="offline-forget" type="button" hidden>Remove saved copy</button></div>
+    <section id="offline-reading" hidden>
+      <p id="offline-copy-details"></p>
+      <label>Search saved notes<input id="offline-search" type="search" placeholder="Search titles, text and tags" autocomplete="off"></label>
+      <label>Collection<select id="offline-collection"><option value="all">All saved notes</option><option value="active">Active</option><option value="archived">Archive</option><option value="favorites">Favorites</option></select></label>
+      <p id="offline-count" role="status"></p><div id="offline-notes"></div><button id="offline-more" type="button" hidden>Show more</button>
+    </section>
+  </main>
+</body>
+</html>

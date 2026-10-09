@@ -2984,6 +2984,9 @@
         box-shadow: 0 16px 38px rgba(51, 45, 35, 0.18);
       }
 
+      .account-menu .offline-reading-link { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; color: inherit; font-size: 0.85rem; text-decoration: none; }
+      .account-menu .offline-reading-link:hover { background: #e9e5dc; }
+
       .account-menu button {
         width: 100%;
         min-height: 38px;
@@ -4478,6 +4481,7 @@
               <div class="account-menu-section" id="account-data-section">
                 <span class="account-menu-label">Data</span>
                 <button id="transfer-open" type="button">Export &amp; import</button>
+                <a href="/offline.html" class="offline-reading-link">Offline reading</a>
                 <button class="account-danger" id="delete-all-notes" type="button" hidden>Delete all notes</button>
               </div>
               <div class="account-menu-section">
@@ -9854,8 +9858,10 @@
       });
 
       document.getElementById("logout-button").addEventListener("click", async () => {
+        let offlineRemoved = true;
+        try { await window.GnotesOfflineStore.clear(); } catch { offlineRemoved = false; }
         await apiFetch("/api/auth/logout", { method: "POST" });
-        showAuth("Signed out.");
+        showAuth(offlineRemoved ? "Signed out." : "Signed out. The offline copy could not be removed; open Offline reading to remove it.");
       });
 
       function setTransferStatus(message, isError = false) {
@@ -10148,5 +10154,6 @@
       initializeAuth();
     </script>
     <script src="/dictionary.js"></script>
+    <script src="/offline-store.js"></script>
   </body>
 </html>

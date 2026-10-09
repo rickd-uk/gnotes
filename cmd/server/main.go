@@ -154,6 +154,7 @@ func run() error {
 	mux.HandleFunc("/api/notes/unarchive", protect(unarchiveNoteHandler, true))
 	mux.HandleFunc("/api/notes/restore", protect(restoreNotesHandler, true))
 	mux.HandleFunc("/api/notes/empty-trash", protect(emptyTrashHandler, true))
+	mux.HandleFunc("/api/notes/offline", protect(offlineSnapshotHandler, false))
 	mux.HandleFunc("/api/notes/export", protect(exportNotesHandler, false))
 	mux.HandleFunc("/api/notes/import", protect(importNotesHandler, true))
 	mux.HandleFunc("/api/notes/transfer-list", protect(transferListHandler, false))

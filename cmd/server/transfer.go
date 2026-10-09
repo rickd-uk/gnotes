@@ -215,8 +215,15 @@ func parseTransferIDs(raw string) ([]int, error) {
 }
 
 func loadTransferNotes(userID int, ids []int) ([]transferNote, error) {
+	return loadTransferNotesFiltered(userID, ids, false)
+}
+
+func loadTransferNotesFiltered(userID int, ids []int, readableOnly bool) ([]transferNote, error) {
 	query := "SELECT id, title, content, created_at, deleted_at, archived_at, pinned, background_color, tags, favorited FROM notes WHERE user_id = ?"
 	args := []any{userID}
+	if readableOnly {
+		query += " AND deleted_at IS NULL"
+	}
 	if ids != nil {
 		query += " AND id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")"
 		for _, id := range ids {
