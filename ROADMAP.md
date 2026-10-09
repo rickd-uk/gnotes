@@ -4,7 +4,7 @@ Last reviewed: 2026-10-09
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.42`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.43`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -35,7 +35,7 @@ The current release includes:
 
 ## Favorites and note display
 
-Local changes awaiting release: keyboard-aware bottom navigation and panels; two-column note-action controls with icons; “Show new note box” label and a direct collapse/expand arrow beside “New note”; bounded automatic draft-save retries for temporary failures, clearer permanent errors, and session/version guards. Chromium coverage simulates keyboard viewport shrink/pan, verifies draft recovery, and checks collapse persistence and draft preservation. Real-device verification remains open.
+Deployed in v0.7.43: keyboard-aware bottom navigation and panels; two-column note-action controls with icons; “Show new note box” label and a direct collapse/expand arrow beside “New note”; bounded automatic draft-save retries for temporary failures, clearer permanent errors, and session/version guards. Chromium coverage simulates keyboard viewport shrink/pan, verifies draft recovery, and checks collapse persistence and draft preservation. Real-device verification remains open.
 
 Deployed in v0.7.42: Favorites are hidden from main and Archive by default, with an optional Appearance setting to show them there too. The compact Favorites bar has search and an accessible category dropdown without a visible label. Date-heading diamonds add an entire active/archive date to Favorites across pages; active date sections exclude pinned notes. Screens up to 560 px use persistent bottom navigation with Profile on the right; larger displays retain the header. Controls → Appearance → New note area persists per account in this browser. Paste appears directly below Copy in the right-click menu and works in rich text, source and titles. Phone panels and selection controls clear the bottom navigation. Real-device review remains open.
 
