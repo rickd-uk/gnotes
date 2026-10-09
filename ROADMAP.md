@@ -4,7 +4,7 @@ Last reviewed: 2026-10-09
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.44`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.45`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -92,7 +92,7 @@ The notification provider and off-server storage destination require an explicit
 
 ## Offline access and encryption
 
-Read-only offline snapshots are implemented locally for the next release: opt-in device encryption, separate unlock passphrase, manual online refresh, local search/collections, and removal on sign-out. Offline editing and conflict synchronization remain out of scope.
+Read-only offline snapshots are deployed in v0.7.45: opt-in device encryption, separate unlock passphrase, manual online refresh, local search/collections, and removal on sign-out. Offline editing and conflict synchronization remain out of scope.
 
 Offline storage must be opt-in and encrypted locally. Private notes should not be copied into IndexedDB or a service-worker cache in plaintext, especially on shared or stolen devices.
 
