@@ -65,6 +65,7 @@ func TestRecoveryBrowser(t *testing.T) {
 			browser.wait(`!notesLoading && noteTimeZone()==='UTC' && formatNoteTime('2025-01-01T08:27:00Z')==='8:27' && formatDateSection('2025-01-01T08:27:00Z',new Date('2026-01-01T00:00:00Z')).includes('25')`)
 			browser.navigate(server.URL)
 			browser.wait(`!document.getElementById('app-shell').hidden && !notesLoading && document.getElementById('note-time-zone').value==='UTC' && document.querySelectorAll('.note-card').length===2`)
+			browser.script(`const startup=getComputedStyle(document.querySelector('.startup-brand')),header=getComputedStyle(document.querySelector('.site-header h1'));for(const key of ['fontFamily','fontSize','fontWeight','color','letterSpacing','lineHeight','textShadow','webkitTextFillColor']){if(startup[key]!==header[key])throw new Error('Opening-screen branding differs: '+key);}`)
 			mainBrand := browser.script(`const s=getComputedStyle(document.querySelector('.site-header h1')); return [s.fontFamily,s.color,s.fontWeight,s.textShadow].join('|');`).(string)
 			if brand != mainBrand {
 				t.Fatal("sign-in and main-screen branding differ")

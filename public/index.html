@@ -91,6 +91,7 @@
       }
 
       .site-header h1,
+      .startup-brand,
       .auth-card h1 {
         flex-shrink: 0;
         margin: 0;
@@ -104,15 +105,6 @@
         text-shadow:
           0 1px 0 rgba(255, 255, 255, 0.45),
           0 1px 2px rgba(40, 40, 38, 0.12);
-      }
-
-      @supports ((background-clip: text) or (-webkit-background-clip: text)) {
-        .startup-brand {
-          background: linear-gradient(165deg, #244a3d 12%, #587467 54%, #29483e 88%);
-          background-clip: text;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
       }
 
       .header-actions {
@@ -2834,19 +2826,6 @@
         color: var(--muted);
       }
 
-      .startup-brand {
-        color: #315b4c;
-        font-family: "Snell Roundhand", "Segoe Script", "Apple Chancery",
-          "URW Chancery L", Z003, "Brush Script MT", cursive;
-        font-size: 2rem;
-        font-weight: 500;
-        letter-spacing: 0.01em;
-        line-height: 0.9;
-        text-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.72),
-          0 2px 3px rgba(55, 47, 36, 0.2);
-      }
-
       .startup-status {
         font-size: 0.76rem;
         letter-spacing: 0.04em;
@@ -3807,7 +3786,7 @@
 
       @media (min-width: 561px) {
         .site-header { padding: 12px 20px 13px; }
-        .site-header h1 { font-size: clamp(2rem, 4.8vw, 2.5rem); }
+        .site-header h1, .startup-brand { font-size: clamp(2rem, 4.8vw, 2.5rem); }
         .view-menu { width: min(280px, calc(100vw - 32px)); }
         .tool-visibility {
           display: grid;
@@ -3995,7 +3974,7 @@
           flex-shrink: 0;
         }
 
-        .site-header h1 {
+        .site-header h1, .startup-brand {
           font-size: clamp(2rem, 9vw, 2.15rem);
         }
 
