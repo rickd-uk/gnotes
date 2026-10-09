@@ -353,6 +353,28 @@
         text-transform: uppercase;
       }
 
+      .new-note-collapse {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 36px;
+        margin: 10px 0 0;
+        padding: 0 6px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.78rem;
+        cursor: pointer;
+      }
+      .new-note-collapse:hover { background: #e9e5dc; }
+      .new-note-collapse .icon { width: 16px; height: 16px; }
+      .new-note-collapse[aria-expanded="true"] .icon { transform: rotate(180deg); }
+      #app-shell.archive-mode #new-note-collapse,
+      #app-shell.favorites-mode #new-note-collapse { display: none; }
+      .new-note-collapse + .form-container { margin-top: 0; }
+
       .form-container {
         position: relative;
         margin: 22px 0 24px;
@@ -1146,7 +1168,10 @@
       }
 
       .tool-visibility {
-        padding: 2px 5px 8px 16px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 2px;
+        padding: 2px 5px 8px;
       }
 
       .tool-visibility > span {
@@ -1161,10 +1186,10 @@
       .tool-visibility .tool-choice {
         display: flex;
         width: 100%;
-        min-height: 38px;
+        min-height: 44px;
         align-items: center;
-        gap: 10px;
-        padding: 3px 8px;
+        gap: 5px;
+        padding: 3px 5px;
         border: 0;
         border-radius: 5px;
         background: transparent;
@@ -4201,7 +4226,7 @@
         #notes-list button, #active-notes-bulk-actions button, .load-more { scroll-margin-bottom: calc(80px + env(safe-area-inset-bottom)); }
         .site-header { padding: 10px 16px; }
         #primary-navigation {
-          position: fixed; z-index: 80; inset: auto 0 0;
+          position: fixed; z-index: 80; inset: auto 0 var(--keyboard-inset, 0px);
           display: flex; justify-content: space-around; gap: 2px;
           margin: 0; padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
           border-top: 1px solid #cec7ba; background: #f0ede6;
@@ -4220,13 +4245,14 @@
         #primary-navigation .icon { width: 28px; height: 28px; margin: 0; }
         #primary-navigation .trash-control, #primary-navigation .account-control { margin: 0; padding: 0; }
         #primary-navigation .account-menu, #primary-navigation .trash-panel {
-          position: fixed; top: auto; bottom: calc(72px + env(safe-area-inset-bottom));
+          position: fixed; top: auto; bottom: calc(var(--keyboard-inset, 0px) + 72px + env(safe-area-inset-bottom));
           right: 12px; left: 12px; width: auto; min-width: 0;
-          max-height: calc(100dvh - 96px - env(safe-area-inset-bottom)); overflow-y: auto;
+          max-height: calc(var(--visible-screen-height, 100dvh) - 96px - env(safe-area-inset-bottom)); overflow-y: auto;
           border-radius: 12px;
         }
-        .info-panel, .archive-panel { max-height: calc(100dvh - 142px - env(safe-area-inset-bottom)); }
-        .note-card.is-editing { height: calc(var(--edit-viewport-height, 100dvh) - 64px - env(safe-area-inset-bottom)); }
+        .info-panel, .archive-panel { max-height: calc(var(--visible-screen-height, 100dvh) - 142px - env(safe-area-inset-bottom)); }
+        .view-menu { top: var(--visible-screen-top, 0px); bottom: calc(var(--keyboard-inset, 0px) + 72px + env(safe-area-inset-bottom)); }
+        .note-card.is-editing { height: calc(var(--edit-viewport-height, 100dvh) - 80px - env(safe-area-inset-bottom)); }
         .note-undo-toast, .note-action-toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
       }
 
@@ -4330,19 +4356,19 @@
             <h2 class="controls-group-title">Note actions</h2>
             <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Quick note actions">
               <span title="Choosing a fourth quick action replaces the first">Quick actions · up to 3</span>
-              <button class="tool-choice" type="button" data-tool="archive"><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
-              <button class="tool-choice" type="button" data-tool="favorite"><span>Favorites</span><span class="tool-state" aria-hidden="true"></span></button>
-              <button class="tool-choice" type="button" data-tool="pin"><span>Pin</span><span class="tool-state" aria-hidden="true"></span></button>
-              <button class="tool-choice" type="button" data-tool="hide"><span>Hide</span><span class="tool-state" aria-hidden="true"></span></button>
-              <button class="tool-choice" type="button" data-tool="color"><span>Color</span><span class="tool-state" aria-hidden="true"></span></button>
-              <button class="tool-choice" type="button" data-tool="copy"><span>Copy</span><span class="tool-state" aria-hidden="true"></span></button>
-              <button class="tool-choice" type="button" data-tool="delete"><span>Delete</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="archive"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3ZM9 11h6"/></svg><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="favorite"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5 6 7-6 7-6-7ZM12 1v2M12 21v2M1 12h2M21 12h2"/></svg><span>Favorites</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="pin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8"/></svg><span>Pin</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="hide"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg><span>Hide</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="color"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z"/><circle cx="8" cy="9" r="1"/><circle cx="13" cy="7" r="1"/></svg><span>Color</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2"/><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1"/></svg><span>Copy</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="delete"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/></svg><span>Delete</span><span class="tool-state" aria-hidden="true"></span></button>
             </div>
           </section>
           <section class="controls-group" aria-label="Appearance">
             <h2 class="controls-group-title">Appearance</h2>
-            <button class="link-style-toggle" id="new-note-area-toggle" type="button" aria-pressed="true" aria-controls="note-form">
-              <span>New note area</span><span class="tool-state" id="new-note-area-state">On</span>
+            <button class="link-style-toggle" id="new-note-area-toggle" type="button" aria-pressed="true" aria-controls="note-form" title="Show or hide the box at the top for writing a new note">
+              <span>Show new note box</span><span class="tool-state" id="new-note-area-state">On</span>
             </button>
             <div class="time-zone-control">
               <label for="note-time-zone">Time zone</label>
@@ -4545,6 +4571,9 @@
         <button class="archive-remove-all" type="button" onclick="promptArchiveRemoval('all')">Move all to recycle bin</button>
       </div>
 
+      <button class="new-note-collapse" id="new-note-collapse" type="button" aria-controls="note-form" aria-expanded="true" aria-label="Collapse new note box" title="Collapse new note box">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg><span>New note</span>
+      </button>
       <form class="form-container" id="note-form" aria-label="Create a note">
         <input type="text" id="title" placeholder="Note title" aria-label="Note title" />
         <textarea id="content" rows="2" placeholder="Start writing…" aria-label="Note content"></textarea>
@@ -4904,6 +4933,10 @@
       let trashedNoteCount = 0;
       let draftVersion = 0;
       let draftSaveTimer;
+      let draftRetryTimer;
+      let draftRetryAttempt = 0;
+      let draftRetryPending = false;
+      let draftSavedVersion = 0;
       let draftStatusResetTimer;
       let draftSaveChain = Promise.resolve();
       let draftFinalizing = false;
@@ -5738,6 +5771,10 @@
       function applyNewNoteArea(shown) {
         showNewNoteArea = shown !== false;
         document.getElementById('note-form').hidden = !showNewNoteArea;
+        const collapse = document.getElementById('new-note-collapse');
+        collapse.setAttribute('aria-expanded', String(showNewNoteArea));
+        collapse.setAttribute('aria-label', showNewNoteArea ? 'Collapse new note box' : 'Expand new note box');
+        collapse.title = showNewNoteArea ? 'Collapse new note box' : 'Expand new note box';
         document.getElementById('new-note-area-toggle').setAttribute('aria-pressed', String(showNewNoteArea));
         document.getElementById('new-note-area-state').textContent = showNewNoteArea ? 'On' : 'Off';
       }
@@ -5922,6 +5959,9 @@
       }
 
       function showAuth(message = "") {
+        clearTimeout(draftSaveTimer);
+        clearTimeout(draftRetryTimer);
+        draftRetryPending = false;
         spellingReady = false; spellingBusy = false; spellingListsMigrated = false;
         document.getElementById('spelling-sync-status').textContent = '';
         document.getElementById('spelling-retry').hidden = true;
@@ -7206,44 +7246,82 @@
         document.getElementById("content").value = draft.content || "";
         if (!markdownSource) mountDraftRichEditor();
         draftVersion = Number(draft.version) || 0;
+        draftSavedVersion = draftVersion;
+        draftRetryPending = false;
+        draftRetryAttempt = 0;
+        clearTimeout(draftRetryTimer);
         resizeNewNoteEditor();
         setDraftStatus(draftHasText() ? "Draft restored" : "");
       }
 
       function scheduleDraftSave() {
+        draftRetryPending = false;
+        clearTimeout(draftRetryTimer);
+        draftRetryAttempt = 0;
         draftVersion = Math.max(Date.now(), draftVersion + 1);
         setDraftStatus("Saving draft…");
         clearTimeout(draftSaveTimer);
         draftSaveTimer = setTimeout(queueDraftSave, 300);
       }
 
+      function retryDraftSave(draft, token) {
+        if (token !== csrfToken || draft.version !== draftVersion) return;
+        draftRetryPending = true;
+        if (draftRetryAttempt >= 5) {
+          setDraftStatus("Draft not saved. Text is still here; check your connection and try again.", true);
+          return;
+        }
+        setDraftStatus("Draft not saved yet. Retrying…", true);
+        clearTimeout(draftRetryTimer);
+        draftRetryTimer = setTimeout(queueDraftSave, Math.min(1000 * 2 ** draftRetryAttempt++, 16000));
+      }
+
       function queueDraftSave() {
         clearTimeout(draftSaveTimer);
+        clearTimeout(draftRetryTimer);
         const draft = currentDraft();
+        const token = csrfToken;
         draftSaveChain = draftSaveChain.catch(() => false).then(async () => {
+          // A queued write must not restore a finished draft or cross accounts.
+          if (!token || token !== csrfToken || draft.version < 1 || draft.version !== draftVersion) return false;
           try {
             const response = await apiFetch("/api/draft/update", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(draft),
             });
+            if (token !== csrfToken || draft.version !== draftVersion) return false;
             if (!response.ok) {
-              setDraftStatus(response.status === 409
-                ? "Newer draft open in another tab"
-                : "Draft save failed", true);
+              if (response.status === 408 || response.status === 429 || response.status >= 500) {
+                retryDraftSave(draft, token);
+              } else {
+                draftRetryPending = false;
+                const detail = response.status === 400 ? (await response.text()).trim().slice(0, 200) : "";
+                setDraftStatus(response.status === 409 ? "Newer draft open in another tab"
+                  : response.status === 401 || response.status === 403 ? "Sign in again to save your draft"
+                  : detail || "Draft not saved. Text is still here; try again.", true);
+              }
               return false;
             }
-            if (draft.version === draftVersion) {
-              setDraftStatus(draftHasText() ? "Draft saved" : "");
-            }
+            draftSavedVersion = draft.version;
+            draftRetryPending = false;
+            draftRetryAttempt = 0;
+            setDraftStatus(draftHasText() ? "Draft saved" : "");
             return true;
           } catch {
-            setDraftStatus("Draft save failed", true);
+            retryDraftSave(draft, token);
             return false;
           }
         });
         return draftSaveChain;
       }
+
+      window.addEventListener("online", () => {
+        if (csrfToken && draftRetryPending && draftVersion > draftSavedVersion && !draftFinalizing) {
+          draftRetryAttempt = 0;
+          queueDraftSave();
+        }
+      });
 
       async function finalizeDraft() {
         if (draftFinalizing) return;
@@ -7284,6 +7362,10 @@
           closeFormattingToolbar("new-note-format-control");
           contentInput.style.height = "";
           contentInput.style.overflowY = "hidden";
+          clearTimeout(draftRetryTimer);
+          draftRetryAttempt = 0;
+          draftSavedVersion = 0;
+          draftRetryPending = false;
           draftVersion = 0;
           setDraftStatus(createdNote ? "✓ Note saved" : "");
           if (createdNote) {
@@ -8362,8 +8444,14 @@
       }
 
       function syncFocusedEditViewport() {
-        if (editingNoteId === null) return;
         const viewport = window.visualViewport;
+        const top = viewport?.offsetTop || 0;
+        const height = viewport?.height || innerHeight;
+        const style = document.documentElement.style;
+        style.setProperty("--keyboard-inset", `${Math.max(0, innerHeight - top - height)}px`);
+        style.setProperty("--visible-screen-height", `${height}px`);
+        style.setProperty("--visible-screen-top", `${top}px`);
+        if (editingNoteId === null) return;
         document.documentElement.style.setProperty("--edit-viewport-top", `${viewport?.offsetTop || 0}px`);
         document.documentElement.style.setProperty("--edit-viewport-left", `${viewport?.offsetLeft || 0}px`);
         document.documentElement.style.setProperty("--edit-viewport-width", `${viewport?.width || innerWidth}px`);
@@ -9076,7 +9164,12 @@
       }
       smallScreenNavigation.addEventListener('change', placeMainNavigation);
       placeMainNavigation();
+      syncFocusedEditViewport();
 
+      document.getElementById('new-note-collapse').addEventListener('click', () => {
+        applyNewNoteArea(!showNewNoteArea);
+        saveUIState();
+      });
       document.getElementById('new-note-area-toggle').addEventListener('click', () => {
         applyNewNoteArea(!showNewNoteArea);
         saveUIState();
@@ -9531,6 +9624,7 @@
         }
         if (
           !noteForm.contains(event.target) &&
+          !event.target.closest('#new-note-collapse') &&
           !draftFinalizing &&
           (draftHasText() || draftVersion > 0)
         ) {

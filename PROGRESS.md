@@ -1,6 +1,10 @@
 # gnotes status
 
-Updated: 2026-10-08
+Updated: 2026-10-09
+
+Current local work (not deployed): user confirmed the phone bottom menu is good but reported it being covered by the keyboard and an intermittent “Draft save failed” message. The phone navigation now follows the visual viewport above the keyboard; Controls/Profile panels and the focused editor fit the available space. Quick note actions use two columns with icons on phones and desktop. “New note area” is renamed “Show new note box.” A small arrow beside “New note” collapses/reopens the writing box directly, preserves its draft without finalizing it, and remembers the existing per-account browser preference. Draft writes retry transient network/408/429/5xx failures with bounded backoff and on reconnection; conflicts and validation failures remain explicit and do not automatically retry. Stale queued writes and results are guarded by session token and draft version. The original reported live failure has not been independently reproduced or attributed to a specific server response. Regression coverage is in `draft_browser_test.go` and `favorites_browser_test.go`; real phone keyboard review remains open. Validation passed: complete Chromium/server suite (including the new arrow/draft/keyboard checks), `go test ./...`, server race checks, `go vet ./...`, inline JavaScript syntax and diff checks. Production remains v0.7.42.
+
+Previous handoff (before the local work above):
 
 Session saved at user sign-off. All requested work is deployed through v0.7.42, with no pending code or deployment. Resume from this release. Real-phone confirmation of the latest layout remains open. Recommended next priorities: test the phone navigation, persisted New note area toggle, Favorites/date actions and Paste on the Pixel; configure encrypted off-server backups and alerts; verify a real recovery-email/reset flow; define database/search-index/backup handling before promising secure deletion. These follow-ups have not been started or authorized as new implementation work. The user asked whether deletion was secure and accepted the explanation that ordinary app deletion is not secure erasure; no deletion changes were requested.
 

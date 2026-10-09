@@ -12,7 +12,7 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 
 Favorites appear only in the Favorites collection by default. Enable **Controls → Appearance → Show Favorites in main and Archive** to include them in those views too. This preference is saved per account in the current browser. Removing the diamond returns a note to its original active or archived view. The diamond beside a date heading adds that entire date section to Favorites, including later pages; active date sections exclude pinned notes. Archive dates use the archive date.
 
-On small screens (up to 560 px), Controls, Search, Favorites, Archive, Recycle Bin, and Profile stay in a larger bottom navigation bar. Tablet and desktop retain the header controls. **Controls → Appearance → New note area** hides the writing area while browsing and remembers the choice per account in this browser.
+On small screens (up to 560 px), Controls, Search, Favorites, Archive, Recycle Bin, and Profile stay in a larger bottom navigation bar. Tablet and desktop retain the header controls. The small arrow beside **New note** collapses or reopens the writing box without discarding the draft. **Controls → Appearance → Show new note box** controls the same setting. The choice is remembered per account in this browser.
 
 The desktop right-click menu includes Copy, Paste, Dictionary, and Always ignore spelling. Paste works in rich text, Markdown source, and note titles. Clipboard access may require browser permission; keyboard paste and Shift + right-click remain available.
 

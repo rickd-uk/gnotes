@@ -1,6 +1,6 @@
 # gnotes roadmap
 
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-09
 
 ## Current production milestone
 
@@ -34,6 +34,8 @@ The current release includes:
 - A one-command release updater and operational checker.
 
 ## Favorites and note display
+
+Local changes awaiting release: keyboard-aware bottom navigation and panels; two-column note-action controls with icons; “Show new note box” label and a direct collapse/expand arrow beside “New note”; bounded automatic draft-save retries for temporary failures, clearer permanent errors, and session/version guards. Chromium coverage simulates keyboard viewport shrink/pan, verifies draft recovery, and checks collapse persistence and draft preservation. Real-device verification remains open.
 
 Deployed in v0.7.42: Favorites are hidden from main and Archive by default, with an optional Appearance setting to show them there too. The compact Favorites bar has search and an accessible category dropdown without a visible label. Date-heading diamonds add an entire active/archive date to Favorites across pages; active date sections exclude pinned notes. Screens up to 560 px use persistent bottom navigation with Profile on the right; larger displays retain the header. Controls → Appearance → New note area persists per account in this browser. Paste appears directly below Copy in the right-click menu and works in rich text, source and titles. Phone panels and selection controls clear the bottom navigation. Real-device review remains open.
 
