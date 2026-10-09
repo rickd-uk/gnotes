@@ -16,6 +16,8 @@ On small screens (up to 560 px), Controls, Search, Favorites, Archive, Recycle B
 
 The desktop right-click menu includes Copy, Paste, Dictionary, and Always ignore spelling. Paste works in rich text, Markdown source, and note titles. Clipboard access may require browser permission; keyboard paste and Shift + right-click remain available.
 
+The rarely used **Delete all notes** action is under **Account → Manage notes**. Its confirmation dialog still lets you cancel before moving active notes to the recycle bin.
+
 - Per-user accounts, sessions, CSRF protection, and note isolation
 - Note tags: open a note’s tools menu → Tags, enter comma-separated labels, and save. Click a tag or choose one in Search to filter; combine tags with text/date searches. Up to 10 tags per note; labels are lowercase, spaces become hyphens, and tags remain with archived/recycled notes. JSON exports and readable ZIP manifests preserve tags
 - Protected `rick` administrator account and signup controls

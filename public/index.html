@@ -1074,7 +1074,7 @@
         #favorites-mode-banner { gap: 8px; }
         .favorites-filters { flex-basis: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
       }
-      #app-shell.favorites-mode #note-form, #app-shell.favorites-mode #active-notes-bulk-actions, #app-shell.favorites-mode #hidden-notes-control, #app-shell.favorites-mode .active-section-remove, #app-shell.favorites-mode #delete-all-notes { display: none; }
+      #app-shell.favorites-mode #note-form, #app-shell.favorites-mode #active-notes-bulk-actions, #app-shell.favorites-mode #hidden-notes-control, #app-shell.favorites-mode .active-section-remove, #app-shell.favorites-mode #account-maintenance-section { display: none; }
       .note-card.is-archived { cursor: default; }
       .note-action[hidden] { display: none; }
       .archived-note-label { font-size: 0.7rem; color: var(--muted); }
@@ -4482,12 +4482,17 @@
                 <span class="account-menu-label">Data</span>
                 <button id="transfer-open" type="button">Export &amp; import</button>
                 <a href="/offline.html" class="offline-reading-link">Offline reading</a>
-                <button class="account-danger" id="delete-all-notes" type="button" hidden>Delete all notes</button>
               </div>
               <div class="account-menu-section">
                 <details class="account-advanced" id="account-advanced">
                   <summary>Advanced</summary>
                   <label><input id="markdown-source-enabled" type="checkbox" />Edit Markdown source</label>
+                </details>
+              </div>
+              <div class="account-menu-section" id="account-maintenance-section" hidden>
+                <details class="account-advanced" id="account-maintenance">
+                  <summary>Manage notes</summary>
+                  <button class="account-danger" id="delete-all-notes" type="button" hidden>Delete all notes</button>
                 </details>
               </div>
               <div class="account-menu-section">
@@ -7109,6 +7114,8 @@
       function setActiveNoteCount(count) {
         activeNoteCount = Math.max(0, count);
         document.getElementById("delete-all-notes").hidden = activeNoteCount === 0;
+        document.getElementById("account-maintenance-section").hidden = activeNoteCount === 0;
+        if (activeNoteCount === 0) document.getElementById("account-maintenance").open = false;
         document.getElementById("active-notes-remove-all").hidden = activeNoteCount === 0;
         document.getElementById("active-notes-archive-all").hidden = activeNoteCount === 0;
         document.getElementById("active-notes-bulk-actions").hidden = activeNoteCount === 0;
@@ -9725,6 +9732,7 @@
           closeHelpPanel();
         } else {
           document.getElementById("markdown-help").open = false;
+          document.getElementById("account-maintenance").open = false;
         }
         saveUIState();
       });
