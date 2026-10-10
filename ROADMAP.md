@@ -1,10 +1,10 @@
 # gnotes roadmap
 
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.46`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.48`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -85,7 +85,7 @@ Wasabi was selected on 2026-10-10. A first all-account snapshot is encrypted in 
 
 ## Browser and account security
 
-Prepared for v0.7.47: Profile backup/recovery downloads for personal encrypted note snapshots and an admin-only whole-site Wasabi recovery file, with password reauthentication, CSRF, attempt limits and no-store responses. Personal keys are independent of the site Restic key; encrypted import rejects mismatches/tampering and stops if the signed-in session changes during decryption. This does not change the pending whole-site replication schedule or add per-user automatic Wasabi backups.
+Deployed in v0.7.48: Profile backup/recovery downloads for personal encrypted note snapshots and an admin-only whole-site Wasabi recovery file, with password reauthentication, CSRF, attempt limits and no-store responses. Personal keys are independent of the site Restic key; encrypted import rejects mismatches/tampering and stops if the signed-in session changes during decryption. This does not change the pending whole-site replication schedule or add per-user automatic Wasabi backups.
 
 1. Move inline JavaScript and CSS into versioned static files, then remove `unsafe-inline` from the Content Security Policy.
 2. Add user data export and complete self-service account deletion.
