@@ -4,7 +4,7 @@ Last reviewed: 2026-10-10
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.48`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.50`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -77,7 +77,7 @@ After recovery tooling:
 
 Wasabi was selected on 2026-10-10. A first all-account snapshot is encrypted in a separate `arcomain-backup/gnotes` Restic repository and passed full data checking plus download/hash/database verification. A single private recovery file is available locally outside Git. Automatic Kagoya replication tooling is prepared and locally tested; activation awaits the choice of a dedicated gnotes credential or the existing broader bucket credential. The alert destination remains undecided. See OPERATIONS for setup and recovery.
 
-Admin backup wizard/dashboard prepared: four-step Wasabi location/permissions/credentials/verified-test setup, with password-protected scheduling/run/stop controls and snapshot history. Bucket and IAM creation remain in the Wasabi administrator console; the app stores only the backup identity and can create an encrypted repository. Activation still requires the user's storage credentials through the wizard. External alerts remain open.
+Admin backup wizard/dashboard deployed in v0.7.50: four-step Wasabi location/permissions/credentials/verified-test setup, with password-protected scheduling/run/stop controls and snapshot history. Bucket and IAM creation remain in the Wasabi administrator console; the app stores only the backup identity and can create an encrypted repository. Activation still requires the user's storage credentials through the wizard. External alerts remain open.
 
 ## Mobile verification
 
