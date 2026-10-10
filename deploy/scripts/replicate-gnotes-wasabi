@@ -12,7 +12,9 @@ fail() { echo "replicate-gnotes-wasabi: $*" >&2; exit 1; }
 [ -n "${RESTIC_REPOSITORY:-}" ] || fail "RESTIC_REPOSITORY is required"
 [ -n "${RESTIC_PASSWORD_FILE:-}${RESTIC_PASSWORD:-}" ] || fail "an encryption password is required"
 [ -x "$restorer" ] || fail "restore verifier is missing"
-[ -d "$backup_directory" ] && [ ! -L "$backup_directory" ] || fail "backup directory must be a real directory"
+if [ ! -d "$backup_directory" ] || [ -L "$backup_directory" ]; then
+    fail "backup directory must be a real directory"
+fi
 command -v "$restic" >/dev/null 2>&1 || fail "restic is missing"
 
 # Select only published daily snapshots, never a live SQLite database or WAL.
