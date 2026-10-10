@@ -86,6 +86,28 @@ Check the newest archive with `restore-gnotes-podman --verify`. A successful tim
 
 The timer was enabled on Kagoya on 2026-09-29. Its first manual run passed the restore verifier and produced a private `0600` archive; the next scheduled run was shown for 2026-09-30 at 03:18 JST.
 
+## Encrypted Wasabi copy
+
+The first all-account backup was uploaded and restore-verified on 2026-10-10 in a separate Restic repository at `s3:https://s3.ap-northeast-2.wasabisys.com/arcomain-backup/gnotes`. It uses its own encryption password, separate from workstation backups. The recovery file is stored locally at `backups/gnotes-wasabi/gnotes-backup-recovery.env` with mode `0600`; this directory is ignored by Git. Download and keep the file outside Kagoya. It contains the repository address, encryption password and restore instructions, but no Wasabi access credentials. Restoring also requires access to the Wasabi account or a valid access key for this prefix. It unlocks the complete database for **all accounts**, not an individual account export. Never publish the recovery file or include it in the backup repository.
+
+The first copy was made from the workstation using its existing Wasabi profile. Automatic Kagoya replication is **not enabled yet**: the credential choice and alert destination remain pending. The existing Wasabi backup identity was denied IAM policy inspection, so dedicated credentials have not been provisioned. A dedicated user can be created through an administrator's Wasabi console with the policy in `deploy/gnotes-wasabi-policy.json`, granting access only to the `gnotes/` prefix. The alternative is installing the existing broader bucket credential on Kagoya, which requires an explicit user choice.
+
+Profile downloads are separate from automatic replication. For the whole-site admin download, keep a mode `0600` copy of the recovery file in `~/apps/gnotes/backup-recovery` (directory mode `0700`), bind-mount that directory to `/run/gnotes-backup:ro`, and set `GNOTES_SITE_BACKUP_RECOVERY_FILE=/run/gnotes-backup/gnotes-backup-recovery.env`. The file contains the encryption password and restore instructions, not Wasabi access credentials. The app serves it only through the protected POST download endpoint after admin role, CSRF and current-password checks; it is never a static asset. Regular users can download independent personal recovery keys and encrypted note backups, and restore them through Export & import. Those personal snapshots are not uploaded to Wasabi individually. The `backup_keys` table is included in future full database snapshots.
+
+Prepared automation: `deploy/scripts/replicate-gnotes-wasabi`, `deploy/systemd/gnotes-wasabi-backup.service` and its timer. The script selects a published daily archive no older than 36 hours, stages it privately, verifies its database schema/integrity, uploads it with host `kagoya-gnotes` and tag `gnotes`, checks all repository data, restores the latest snapshot to a temporary directory, compares SHA-256 hashes, and verifies the restored database. Any failure exits unsuccessfully for systemd to record. No automatic snapshot deletion or pruning is configured. The proposed daily timer runs at 04:15 server time plus up to 15 minutes, after the existing daily local backup.
+
+For activation, install Restic at `~/.local/bin/restic`, the script under `~/apps/gnotes/bin`, and both units under `~/.config/systemd/user`. Create `~/.config/gnotes-backup/wasabi.env` mode `0600` in a mode `0700` directory, containing `RESTIC_REPOSITORY`, `AWS_DEFAULT_REGION=ap-northeast-2`, the chosen `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, and `RESTIC_PASSWORD_FILE` pointing to a private file containing only the gnotes encryption password. Keep credentials out of unit files and logs. Manually run the service and verify its restore before enabling the timer. Configure alerts separately once their destination is chosen.
+
+To recover on a trusted machine, load the recovery file with `set -a; . ./gnotes-backup-recovery.env; set +a`, clear other password sources with `unset RESTIC_PASSWORD_FILE RESTIC_PASSWORD_COMMAND`, and supply Wasabi credentials securely. Then:
+
+```bash
+restic snapshots --host kagoya-gnotes --tag gnotes
+restic restore latest --host kagoya-gnotes --tag gnotes --target ./gnotes-restored
+deploy/scripts/restore-gnotes-podman --verify ./gnotes-restored/gnotes.db.gz
+```
+
+Use a new empty restore directory. This downloads a database archive without changing the running application. Replacing production remains a separate explicit operation through the existing restore procedure. Restic's [repository setup](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html) and [restore documentation](https://restic.readthedocs.io/en/stable/050_restore.html) describe password and Wasabi access requirements.
+
 ## Routine checks and rollback
 
 ```bash

@@ -1,0 +1,55 @@
+#!/bin/sh
+set -eu
+umask 077
+
+app_directory="${GNOTES_APP_DIRECTORY:-$HOME/apps/gnotes}"
+backup_directory="${BACKUP_DIRECTORY:-$app_directory/backups}"
+restorer="${GNOTES_RESTORER:-$app_directory/bin/restore-gnotes-podman}"
+restic="${GNOTES_RESTIC:-restic}"
+backup_host="${GNOTES_BACKUP_HOST:-kagoya-gnotes}"
+
+fail() { echo "replicate-gnotes-wasabi: $*" >&2; exit 1; }
+[ -n "${RESTIC_REPOSITORY:-}" ] || fail "RESTIC_REPOSITORY is required"
+[ -n "${RESTIC_PASSWORD_FILE:-}${RESTIC_PASSWORD:-}" ] || fail "an encryption password is required"
+[ -x "$restorer" ] || fail "restore verifier is missing"
+[ -d "$backup_directory" ] && [ ! -L "$backup_directory" ] || fail "backup directory must be a real directory"
+command -v "$restic" >/dev/null 2>&1 || fail "restic is missing"
+
+# Select only published daily snapshots, never a live SQLite database or WAL.
+archive="$(python3 - "$backup_directory" <<'PY'
+import pathlib, re, sys, time
+directory = pathlib.Path(sys.argv[1])
+files = [p for p in directory.iterdir()
+         if re.fullmatch(r'gnotes-daily-\d{8}T\d{6}Z\.db\.gz', p.name)
+         and p.is_file() and not p.is_symlink()]
+if not files:
+    sys.exit('No published daily backup is available')
+latest = max(files, key=lambda p: p.name)
+age = time.time() - latest.stat().st_mtime
+if age < -300 or age > 36 * 3600:
+    sys.exit('Newest daily backup is stale or has an invalid timestamp')
+print(latest)
+PY
+)"
+
+temporary_directory="$(mktemp -d /tmp/gnotes-wasabi.XXXXXX)"
+trap 'rm -rf "$temporary_directory"' EXIT
+trap 'exit 130' HUP INT TERM
+# Freeze the chosen archive so verification, upload and comparison use the same bytes.
+cp "$archive" "$temporary_directory/gnotes.db.gz"
+"$restorer" --verify "$temporary_directory/gnotes.db.gz"
+"$restic" backup --host "$backup_host" --tag gnotes \
+    --stdin --stdin-filename gnotes.db.gz < "$temporary_directory/gnotes.db.gz"
+"$restic" check --read-data
+"$restic" restore latest --host "$backup_host" --tag gnotes \
+    --target "$temporary_directory/restored"
+python3 - "$temporary_directory/gnotes.db.gz" "$temporary_directory/restored/gnotes.db.gz" <<'PY'
+import hashlib, pathlib, sys
+def digest(path):
+    with pathlib.Path(path).open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').digest()
+if digest(sys.argv[1]) != digest(sys.argv[2]):
+    sys.exit('Restored backup differs from uploaded archive')
+PY
+"$restorer" --verify "$temporary_directory/restored/gnotes.db.gz"
+echo "Encrypted off-server backup uploaded and restore-verified."

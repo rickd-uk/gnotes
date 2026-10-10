@@ -135,6 +135,9 @@ running_binary="$(podman exec gnotes sha256sum /app/gnotes | cut -d ' ' -f 1)"
 install -d "$app_directory/bin"
 install -m 0755 "$package_directory/bin/restore-gnotes-podman" "$app_directory/bin/restore-gnotes-podman"
 install -m 0755 "$package_directory/bin/backup-gnotes-podman" "$app_directory/bin/backup-gnotes-podman"
+if [ -x "$package_directory/bin/replicate-gnotes-wasabi" ]; then
+    install -m 0755 "$package_directory/bin/replicate-gnotes-wasabi" "$app_directory/bin/replicate-gnotes-wasabi"
+fi
 install -m 0755 "$package_directory/bin/update-gnotes-podman" "$app_directory/bin/update-gnotes-podman"
 
 deployment_started=false

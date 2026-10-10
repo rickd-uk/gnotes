@@ -48,6 +48,18 @@ The rarely used **Delete all notes** action is under **Account → Manage notes*
 - User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion
 - Account-menu export of all or selected notes and import of gnotes JSON, Markdown, plain text, or a gnotes export ZIP
 
+### Backup recovery keys
+
+Open **Account → Profile → Backup & recovery** and enter your current password before each download.
+
+- **Download my recovery key** saves a private key file for your personal encrypted note backups. The key stays the same when downloaded again, including from another device.
+- **Download my encrypted backup** saves your active, archived and recycled notes, including dates, tags, Favorites, pinning and colors. Drafts, dictionaries, account settings and login data are excluded. Keep this backup and its key in separate safe locations.
+- Admins also have **Download whole-site recovery key**, which unlocks the all-account database backup in Wasabi. Wasabi account access or valid storage credentials are required separately. Regular users cannot retrieve this key.
+
+To restore a personal backup, open **Account → Export & import**, choose the `.gnotes-backup` file, choose its recovery key when prompted, and select **Import file**. Restoration adds notes to the account currently signed in, with the existing duplicate-choice controls. A wrong key or damaged file is rejected before any notes are imported. Personal downloads are made on demand; they are separate from the whole-site Wasabi backup schedule. These keys do not reset your login password or unlock offline reading.
+
+Personal backups are encrypted on the server with an account-specific key retained in the database. This protects a downloaded backup without its key; it does not make the live server end-to-end encrypted. An account's complete deletion removes its retained key, so keep downloaded keys if you want to restore old backups later.
+
 ### Offline reading
 
 Choose **Account → Offline reading** while signed in. Set and confirm a separate offline passphrase (at least 12 characters), opt in to device storage, and select **Save offline copy**. The copy includes active and archived notes, Favorites and tags; recycled notes and unfinished drafts are excluded. Notes are shown as text with local search and collection filters. Editing is available online.
@@ -90,6 +102,7 @@ Supported environment variables:
 | `GNOTES_EMAIL_FROM` | none | Verified sender email address in Brevo |
 | `GNOTES_EMAIL_FROM_NAME` | `gnotes` | Sender display name |
 | `GNOTES_PUBLIC_URL` | none | Application origin for email links; HTTPS required except on localhost |
+| `GNOTES_SITE_BACKUP_RECOVERY_FILE` | none | Private recovery file offered only to reauthenticated admins; mount it read only outside public assets |
 
 gnotes JSON exports now use format version 2; version 1 remains importable. A tagged single-note Markdown/text export uses a ZIP with a metadata manifest so tags survive reimport.
 

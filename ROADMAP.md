@@ -75,7 +75,7 @@ After recovery tooling:
 4. Add privacy-conscious audit records for administrator actions and authentication security events, with a documented retention period.
 5. Periodically test restoration instead of treating backup creation alone as proof of recoverability.
 
-The notification provider and off-server storage destination require an explicit deployment choice before implementation. Wasabi is a possible destination, but no Wasabi backup is currently configured.
+Wasabi was selected on 2026-10-10. A first all-account snapshot is encrypted in a separate `arcomain-backup/gnotes` Restic repository and passed full data checking plus download/hash/database verification. A single private recovery file is available locally outside Git. Automatic Kagoya replication tooling is prepared and locally tested; activation awaits the choice of a dedicated gnotes credential or the existing broader bucket credential. The alert destination remains undecided. See OPERATIONS for setup and recovery.
 
 ## Mobile verification
 
@@ -84,6 +84,8 @@ The notification provider and off-server storage destination require an explicit
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 
 ## Browser and account security
+
+Prepared for v0.7.47: Profile backup/recovery downloads for personal encrypted note snapshots and an admin-only whole-site Wasabi recovery file, with password reauthentication, CSRF, attempt limits and no-store responses. Personal keys are independent of the site Restic key; encrypted import rejects mismatches/tampering and stops if the signed-in session changes during decryption. This does not change the pending whole-site replication schedule or add per-user automatic Wasabi backups.
 
 1. Move inline JavaScript and CSS into versioned static files, then remove `unsafe-inline` from the Content Security Policy.
 2. Add user data export and complete self-service account deletion.

@@ -82,6 +82,11 @@ func InitDB(filepath string) {
     updated_at DATETIME NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS backup_keys (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    key BLOB NOT NULL CHECK(length(key) = 32)
+  );
+
   CREATE TABLE IF NOT EXISTS saved_words (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     word TEXT NOT NULL,

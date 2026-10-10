@@ -3202,6 +3202,9 @@
         font-weight: 500;
       }
 
+      .profile-backups { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }
+      .profile-backups > summary { cursor: pointer; min-height: 44px; padding: 10px 0; color: var(--accent); font-weight: 700; }
+      .profile-backups p { font-size: 0.85rem; line-height: 1.5; }
       .profile-role {
         margin: 2px 0 16px;
         color: var(--accent);
@@ -4753,6 +4756,21 @@
         <div><dt>Active notes</dt><dd id="profile-active-notes"></dd></div>
         <div><dt>Recycled notes</dt><dd id="profile-recycled-notes"></dd></div>
       </dl>
+      <details id="profile-backups" class="profile-backups">
+        <summary>Backup &amp; recovery</summary>
+        <form class="auth-form" id="profile-backup-form">
+          <p>Download an encrypted copy of your notes and its recovery key. Save the key separately; it unlocks your personal backups.</p>
+          <label>Current password<input id="profile-backup-password" type="password" autocomplete="current-password" maxlength="72" required /></label>
+          <button class="primary-action" type="submit" value="personal-key">Download my recovery key</button>
+          <button class="primary-action" type="submit" value="personal-backup">Download my encrypted backup</button>
+          <div id="profile-site-backup" hidden>
+            <p><strong>Whole-site recovery · Admin only</strong><br>This key unlocks the Wasabi database backup for all accounts. Wasabi access is also required.</p>
+            <button class="primary-action" id="profile-site-key" type="submit" value="site-key">Download whole-site recovery key</button>
+            <p id="profile-site-key-unavailable" hidden>The whole-site recovery key has not been configured.</p>
+          </div>
+          <p class="auth-status" id="profile-backup-status" role="status" aria-live="polite"></p>
+        </form>
+      </details>
       <form class="auth-form recovery-email-form" id="recovery-email-form" hidden>
         <p class="auth-intro">Set or verify your password recovery email. A replacement takes effect only after you confirm the link.</p>
         <label>Recovery email<input id="profile-recovery-email" type="email" autocomplete="email" maxlength="254" required /></label>
@@ -4781,7 +4799,10 @@
         </div>
         <div class="transfer-note-list" id="transfer-note-list" role="group" aria-label="Select notes to export"></div>
         <label><span id="import-file-types">Import a .json, .zip, or .txt file</span>
-          <input id="import-file" type="file" accept=".json,.zip,.txt,application/json,application/zip,text/plain" />
+          <input id="import-file" type="file" accept=".gnotes-backup,.json,.zip,.txt,application/json,application/zip,text/plain" />
+        </label>
+        <label id="import-recovery-key-label" hidden>Recovery key for an encrypted backup
+          <input id="import-recovery-key" type="file" accept=".json,application/json" />
         </label>
         <label>When a matching note already exists
           <select id="import-duplicates">
@@ -5303,11 +5324,11 @@
           document.getElementById("transfer-format").value = "gnotes";
         }
         document.getElementById("import-file-types").textContent = enabled
-          ? "Import a .json, .zip, .md, or .txt file"
-          : "Import a .json, .zip, or .txt file";
+          ? "Import a .gnotes-backup, .json, .zip, .md, or .txt file"
+          : "Import a .gnotes-backup, .json, .zip, or .txt file";
         document.getElementById("import-file").accept = enabled
-          ? ".json,.zip,.md,.txt,application/json,application/zip,text/plain,text/markdown"
-          : ".json,.zip,.txt,application/json,application/zip,text/plain";
+          ? ".gnotes-backup,.json,.zip,.md,.txt,application/json,application/zip,text/plain,text/markdown"
+          : ".gnotes-backup,.json,.zip,.txt,application/json,application/zip,text/plain";
         if (enabled) {
           destroyDraftRichEditor();
           destroyEditRichEditor();
@@ -6026,6 +6047,8 @@
         document.getElementById("admin-panel").hidden = true;
         document.getElementById("archive-panel").hidden = true;
         document.getElementById("profile-panel").hidden = true;
+        document.getElementById('profile-backup-password').value = '';
+        document.getElementById('import-recovery-key').value = '';
         document.getElementById("transfer-panel").hidden = true;
         document.getElementById("help-panel").hidden = true;
         document.getElementById("welcome-overlay").hidden = true;
@@ -9938,17 +9961,19 @@
       }
 
       async function importNotes() {
+        const importOwner = currentUser?.username, importToken = csrfToken;
         const input = document.getElementById("import-file");
         const file = input.files?.[0];
         if (!file) { setTransferStatus("Choose a file to import.", true); return; }
         const extension = file.name.split(".").pop()?.toLowerCase();
-        const format = { json: "gnotes", zip: "zip", md: "markdown", txt: "text" }[extension];
-        if (!format) { setTransferStatus("Choose a .json, .zip, .md, or .txt file.", true); return; }
+        const format = { json: "gnotes", zip: "zip", md: "markdown", txt: "text", 'gnotes-backup': "gnotes" }[extension];
+        if (!format) { setTransferStatus("Choose a .gnotes-backup, .json, .zip, .md, or .txt file.", true); return; }
         if (format === "markdown" && !markdownSource) {
           setTransferStatus("Enable Markdown in Account → Advanced to import this file.", true);
           return;
         }
-        if (file.size > 64 * 1024 * 1024) { setTransferStatus("File exceeds the 64 MB limit.", true); return; }
+        const encrypted = extension === 'gnotes-backup';
+        if (file.size > (encrypted ? 90 : 64) * 1024 * 1024) { setTransferStatus("File exceeds the import size limit.", true); return; }
         const button = document.getElementById("import-start");
         button.disabled = true;
         setTransferStatus("Importing…");
@@ -9959,10 +9984,14 @@
           if (format === "markdown" || format === "text") {
             url.searchParams.set("title", file.name.slice(0, -(extension.length + 1)));
           }
-          const response = await apiFetch(url, { method: "POST", body: file });
+          const body = encrypted ? await decryptPersonalBackup(file, document.getElementById('import-recovery-key').files?.[0]) : file;
+          if (currentUser?.username !== importOwner || csrfToken !== importToken) throw new Error('Your session changed. Sign in and choose the backup again.');
+          const response = await apiFetch(url, { method: "POST", body });
           if (!response.ok) throw new Error((await response.text()).trim() || "Import failed.");
           const result = await response.json();
           input.value = "";
+          document.getElementById('import-recovery-key').value = '';
+          document.getElementById('import-recovery-key-label').hidden = true;
           await loadNotes();
           if (result.imported) await openTransferPanel();
           setTransferStatus(`Imported ${result.imported} note${result.imported === 1 ? "" : "s"}; skipped ${result.skipped} exact match${result.skipped === 1 ? "" : "es"}.`);
@@ -9973,6 +10002,55 @@
         }
       }
 
+      async function decryptPersonalBackup(file, keyFile) {
+        if (!keyFile) throw new Error('Choose the recovery key for this encrypted backup.');
+        if (keyFile.size > 16384) throw new Error('Recovery key file is too large.');
+        let backup, recovery;
+        try { backup = JSON.parse(await file.text()); recovery = JSON.parse(await keyFile.text()); }
+        catch { throw new Error('Choose a valid encrypted backup and recovery key.'); }
+        if (backup.format !== 'gnotes-encrypted-backup' || backup.version !== 1 || recovery.format !== 'gnotes-recovery-key' || recovery.version !== 1 || !backup.key_id || backup.key_id !== recovery.key_id) {
+          throw new Error('This recovery key does not match the encrypted backup.');
+        }
+        try {
+          const decode = value => Uint8Array.from(atob(value), c => c.charCodeAt(0));
+          const bytes = decode(recovery.key), nonce = decode(backup.nonce), ciphertext = decode(backup.ciphertext);
+          if (bytes.length !== 32 || nonce.length !== 12 || ciphertext.length > 64 * 1024 * 1024 + 16) throw new Error('Invalid backup parameters');
+          const key = await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['decrypt']);
+          const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce, additionalData: new TextEncoder().encode('gnotes-personal-backup-v1') }, key, ciphertext);
+          return new Blob([plain], { type: 'application/json' });
+        } catch { throw new Error('Could not unlock the backup. Check your recovery key and file.'); }
+      }
+
+      document.getElementById('profile-backup-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget, kind = event.submitter?.value;
+        if (!kind || form.dataset.busy) return;
+        const owner = currentUser?.username, token = csrfToken;
+        const password = document.getElementById('profile-backup-password');
+        const status = document.getElementById('profile-backup-status');
+        const buttons = [...form.querySelectorAll('button')];
+        form.dataset.busy = 'true';
+        buttons.forEach(button => { button.disabled = true; });
+        status.textContent = 'Preparing download…';
+        const requestBody = JSON.stringify({ kind, password: password.value });
+        password.value = '';
+        try {
+          const response = await apiFetch('/api/backups/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody });
+          if (!response.ok) throw new Error((await response.text()).trim() || 'Could not download backup.');
+          const blob = await response.blob();
+          if (currentUser?.username !== owner || csrfToken !== token || document.getElementById('profile-panel').hidden) return;
+          const filename = (response.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'gnotes-backup';
+          const url = URL.createObjectURL(blob), link = document.createElement('a');
+          link.href = url; link.download = filename; form.append(link); link.click(); link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+          status.textContent = kind === 'personal-backup' ? 'Encrypted backup downloaded. Keep your recovery key separately.' : 'Recovery key downloaded. Keep it private and separate from your backups.';
+        } catch (error) { if (currentUser?.username === owner) status.textContent = error.message || 'Download failed.'; }
+        finally {
+          delete form.dataset.busy;
+          buttons.forEach(button => { button.disabled = button.id === 'profile-site-key' && document.getElementById('profile-site-key-unavailable').hidden === false; });
+        }
+      });
+
       document.getElementById("transfer-open").addEventListener("click", openTransferPanel);
       document.getElementById("markdown-source-enabled").addEventListener("change", (event) => {
         applyEditorMode(event.target.checked);
@@ -9982,6 +10060,10 @@
       document.getElementById("export-all").addEventListener("click", () => exportNotes(false));
       document.getElementById("export-selected").addEventListener("click", () => exportNotes(true));
       document.getElementById("import-start").addEventListener("click", importNotes);
+      document.getElementById('import-file').addEventListener('change', event => {
+        document.getElementById('import-recovery-key-label').hidden = !event.target.files?.[0]?.name.toLowerCase().endsWith('.gnotes-backup');
+        document.getElementById('import-recovery-key').value = '';
+      });
 
       document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
       document.getElementById("unpin-all-notes").addEventListener("click", unpinAllNotes);
@@ -10008,6 +10090,10 @@
         document.getElementById("profile-panel").hidden = false;
         document.getElementById("profile-heading").textContent = currentUser.username;
         document.getElementById("profile-role").textContent = `${currentUser.role === "admin" ? "Admin" : "User"} · Signed in`;
+        document.getElementById('profile-backups').open = false;
+        document.getElementById('profile-backup-password').value = '';
+        document.getElementById('profile-backup-status').textContent = '';
+        document.getElementById('profile-site-backup').hidden = true;
         document.getElementById("recovery-email-form").hidden = true;
         document.getElementById("profile-recovery-status").textContent = "";
         for (const id of ["profile-email", "profile-joined", "profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
@@ -10017,6 +10103,9 @@
           const response = await apiFetch("/api/auth/me");
           if (!response.ok) throw new Error("Profile unavailable");
           const profile = await response.json();
+          document.getElementById('profile-site-backup').hidden = profile.role !== 'admin';
+          document.getElementById('profile-site-key').disabled = !profile.site_backup_key_available;
+          document.getElementById('profile-site-key-unavailable').hidden = !!profile.site_backup_key_available;
           document.getElementById("profile-email").textContent = profile.email
             ? `${profile.email} · ${profile.email_verified ? "Verified for recovery" : "Not verified"}` : "Not provided";
           document.getElementById("recovery-email-form").hidden = !profile.recovery_enabled;
@@ -10036,6 +10125,7 @@
       function closeProfilePanel() {
         document.getElementById("profile-panel").hidden = true;
         document.getElementById("profile-recovery-password").value = "";
+        document.getElementById('profile-backup-password').value = '';
       }
 
       function openHelpPanel() {

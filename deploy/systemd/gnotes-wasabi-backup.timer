@@ -1,0 +1,11 @@
+[Unit]
+Description=Copy verified gnotes backups to Wasabi daily
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=gnotes-wasabi-backup.service
+
+[Install]
+WantedBy=timers.target

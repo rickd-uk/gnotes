@@ -412,15 +412,16 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 	profile := map[string]any{
-		"username":            session.Username,
-		"role":                session.Role,
-		"csrf_token":          session.CSRFToken,
-		"created_at":          joinedAt,
-		"email":               email.String,
-		"email_verified":      emailVerified.Valid,
-		"recovery_enabled":    recoveryEnabled(),
-		"active_note_count":   activeNotes,
-		"recycled_note_count": recycledNotes,
+		"username":                  session.Username,
+		"role":                      session.Role,
+		"csrf_token":                session.CSRFToken,
+		"created_at":                joinedAt,
+		"email":                     email.String,
+		"email_verified":            emailVerified.Valid,
+		"recovery_enabled":          recoveryEnabled(),
+		"active_note_count":         activeNotes,
+		"recycled_note_count":       recycledNotes,
+		"site_backup_key_available": session.Role == "admin" && os.Getenv("GNOTES_SITE_BACKUP_RECOVERY_FILE") != "",
 	}
 	if lastLogin.Valid {
 		profile["last_login_at"] = lastLogin.String

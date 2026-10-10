@@ -38,13 +38,17 @@ jobs:
             exit 1
           fi
 
+      - name: Install backup test dependency
+        run: sudo apt-get update && sudo apt-get install -y restic
+
       - name: Test
         run: |
           go test ./...
           go test -race ./cmd/server
           go vet ./...
-          shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/backup-gnotes-podman deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/restore-gnotes-podman deploy/scripts/update-gnotes deploy/scripts/update-gnotes-podman deploy/tests/*.sh
+          shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/backup-gnotes-podman deploy/scripts/replicate-gnotes-wasabi deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/restore-gnotes-podman deploy/scripts/update-gnotes deploy/scripts/update-gnotes-podman deploy/tests/*.sh
           deploy/tests/backup-gnotes-podman-test.sh
+          deploy/tests/replicate-gnotes-wasabi-test.sh
           deploy/tests/update-gnotes-test.sh
           deploy/tests/restore-gnotes-test.sh
           deploy/tests/restore-gnotes-podman-test.sh
@@ -67,6 +71,7 @@ jobs:
           install -m 0755 deploy/scripts/restore-gnotes "$package_dir/bin/restore-gnotes"
           install -m 0755 deploy/scripts/restore-gnotes-podman "$package_dir/bin/restore-gnotes-podman"
           install -m 0755 deploy/scripts/backup-gnotes-podman "$package_dir/bin/backup-gnotes-podman"
+          install -m 0755 deploy/scripts/replicate-gnotes-wasabi "$package_dir/bin/replicate-gnotes-wasabi"
           install -m 0755 deploy/scripts/update-gnotes-podman "$package_dir/bin/update-gnotes-podman"
           printf '%s\n' "$RELEASE_VERSION" > "$package_dir/VERSION"
           cp LICENSE "$package_dir/LICENSE"
