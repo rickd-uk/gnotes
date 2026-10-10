@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""Private Unix-socket bridge for the gnotes admin backup wizard."""
+import datetime
+import http.server
+import json
+import os
+import pathlib
+import re
+import shlex
+import socketserver
+import subprocess
+import tempfile
+import threading
+
+HOME = pathlib.Path.home()
+APP = HOME / 'apps/gnotes'
+PRIVATE = HOME / '.config/gnotes-backup'
+CONTROL = APP / 'backup-control'
+RECOVERY = APP / 'backup-recovery/gnotes-backup-recovery.env'
+RESTIC = HOME / '.local/bin/restic'
+REGIONS = ('us-east-1', 'us-east-2', 'us-central-1', 'us-west-1', 'us-west-2', 'ca-central-1',
+           'eu-central-1', 'eu-central-2', 'eu-west-1', 'eu-west-2', 'eu-west-3',
+           'eu-south-1', 'ap-northeast-1', 'ap-northeast-2', 'ap-southeast-1',
+           'ap-southeast-2')
+LOCK = threading.Lock()
+JOB = {'busy': False, 'message': ''}
+
+
+def atomic(path, value):
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix='.' + path.name)
+    try:
+        with os.fdopen(fd, 'w') as stream:
+            stream.write(value)
+        os.chmod(name, 0o600)
+        os.replace(name, path)
+    finally:
+        pathlib.Path(name).unlink(missing_ok=True)
+
+
+def read_env(path):
+    result = {}
+    if path.exists():
+        for line in path.read_text().splitlines():
+            parts = shlex.split(line, comments=True)
+            if parts and '=' in parts[-1]:
+                key, value = parts[-1].split('=', 1)
+                result[key] = value
+    return result
+
+
+def environment(values):
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith(('AWS_', 'RESTIC_', 'GNOTES_'))}
+    env.update(values)
+    env['GNOTES_RESTIC'] = str(RESTIC)
+    env['GNOTES_APP_DIRECTORY'] = str(APP)
+    env['RESTIC_CACHE_DIR'] = str(PRIVATE / 'cache')
+    return env
+
+
+def run(args, env=None, timeout=120):
+    return subprocess.run([str(a) for a in args], env=env, stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          timeout=timeout, check=False)
+
+
+def systemctl(*args):
+    result = run(['systemctl', '--user', *args])
+    if result.returncode:
+        raise ValueError('The backup service could not complete this action. Check the server service status.')
+    return result.stdout.decode().strip()
+
+
+def properties(unit):
+    output = systemctl('show', unit, '-p', 'ActiveState', '-p', 'UnitFileState',
+                       '-p', 'Result', '-p', 'ExecMainStatus', '-p', 'ExecMainExitTimestamp',
+                       '-p', 'NextElapseUSecRealtime')
+    return dict(line.split('=', 1) for line in output.splitlines() if '=' in line)
+
+
+def validate(data):
+    region, bucket, prefix = (str(data.get(k, '')).strip() for k in ('region', 'bucket', 'prefix'))
+    if region not in REGIONS:
+        raise ValueError('Choose a supported Wasabi region.')
+    if not re.fullmatch(r'[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]', bucket) or '..' in bucket or re.fullmatch(r'[0-9.]+', bucket):
+        raise ValueError('Enter a valid bucket name (3–63 lowercase characters).')
+    if not re.fullmatch(r'[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*', prefix) or len(prefix) > 200:
+        raise ValueError('Enter a folder using letters, numbers, hyphens, underscores and optional subfolders.')
+    key, secret = (str(data.get(k, '')).strip() for k in ('access_key', 'secret_key'))
+    if not re.fullmatch(r'[A-Za-z0-9]{16,128}', key) or not re.fullmatch(r'[A-Za-z0-9/+=]{20,256}', secret):
+        raise ValueError('Enter the access key and secret key supplied by Wasabi.')
+    endpoint = 's3.wasabisys.com' if region == 'us-east-1' else f's3.{region}.wasabisys.com'
+    return {'RESTIC_REPOSITORY': f's3:https://{endpoint}/{bucket}/{prefix}',
+            'AWS_DEFAULT_REGION': region, 'AWS_ACCESS_KEY_ID': key,
+            'AWS_SECRET_ACCESS_KEY': secret}
+
+
+def status():
+    values = read_env(PRIVATE / 'wasabi.env')
+    metadata = json.loads((PRIVATE / 'verified.json').read_text()) if (PRIVATE / 'verified.json').exists() else {}
+    timer = properties('gnotes-wasabi-backup.timer')
+    service = properties('gnotes-wasabi-backup.service')
+    result = {'configured': bool(values), 'repository': values.get('RESTIC_REPOSITORY', ''),
+              'region': values.get('AWS_DEFAULT_REGION', 'ap-northeast-2'),
+              'schedule_enabled': timer.get('UnitFileState') == 'enabled',
+              'schedule_active': timer.get('ActiveState') == 'active',
+              'next_run': timer.get('NextElapseUSecRealtime', ''),
+              'service_state': service.get('ActiveState', ''),
+              'last_result': service.get('Result', ''),
+              'last_finished': service.get('ExecMainExitTimestamp', ''),
+              'verified_at': metadata.get('verified_at', ''),
+              'snapshots': metadata.get('snapshots', []),
+              'schedule': 'Daily 04:15–04:30 Asia/Tokyo',
+              'busy': JOB['busy'], 'message': JOB['message']}
+    return result
+
+
+def snapshots(env):
+    result = run([RESTIC, 'snapshots', '--host', 'kagoya-gnotes', '--tag', 'gnotes', '--json'], env)
+    if result.returncode:
+        raise ValueError('Could not list backup history. Check the storage credentials and permissions.')
+    items = json.loads(result.stdout)
+    return [{'id': x.get('short_id', x['id'][:8]), 'time': x['time'],
+             'bytes': x.get('summary', {}).get('total_bytes_processed')}
+            for x in sorted(items or [], key=lambda x: x['time'], reverse=True)[:20]]
+
+
+def configure(data):
+    values = validate(data)
+    if properties('gnotes-wasabi-backup.service').get('ActiveState') in ('activating', 'active', 'deactivating'):
+        raise ValueError('Wait for the current backup to finish before changing storage.')
+    # Keep the established site encryption key; changing the location must never rotate it silently.
+    recovery = read_env(RECOVERY)
+    password = recovery.get('RESTIC_PASSWORD', '')
+    if not password:
+        raise ValueError('The site recovery key must be installed by the server operator first.')
+    env = environment({**values, 'RESTIC_PASSWORD': password})
+    JOB['message'] = 'Checking the encrypted repository…'
+    probe = run([RESTIC, 'cat', 'config'], env)
+    if probe.returncode == 10:
+        if not data.get('allow_create'):
+            raise ValueError('No repository exists here. Confirm creation of a new encrypted repository and test again.')
+        if run([RESTIC, 'init'], env).returncode:
+            raise ValueError('Could not create the repository. Check the bucket, region and folder permissions.')
+    elif probe.returncode:
+        raise ValueError('Cannot open this repository. Check credentials, permissions, region and the site recovery key. Existing repositories are never overwritten.')
+    JOB['message'] = 'Creating a fresh local backup…'
+    if run([APP / 'bin/backup-gnotes-podman'], timeout=600).returncode:
+        raise ValueError('The local database backup failed verification. Storage settings were not changed.')
+    JOB['message'] = 'Uploading and downloading a test backup for verification…'
+    if run([APP / 'bin/replicate-gnotes-wasabi'], env, timeout=1800).returncode:
+        raise ValueError('Upload or restore verification failed. Check folder read, write, list and delete permissions. Storage settings were not changed.')
+    history = snapshots(env)
+    # Publish a verified configuration as a group, restoring the previous one on failure.
+    paths = [PRIVATE / 'restic-password', PRIVATE / 'wasabi.env', RECOVERY, PRIVATE / 'verified.json']
+    previous = {path: path.read_text() if path.exists() else None for path in paths}
+    was_enabled = properties('gnotes-wasabi-backup.timer').get('UnitFileState') == 'enabled'
+    systemctl('disable', '--now', 'gnotes-wasabi-backup.timer')
+    try:
+        if properties('gnotes-wasabi-backup.service').get('ActiveState') in ('activating', 'active', 'deactivating'):
+            raise ValueError('A scheduled backup started during testing. Wait for it to finish and test again.')
+        atomic(PRIVATE / 'restic-password', password + '\n')
+        values['RESTIC_PASSWORD_FILE'] = str(PRIVATE / 'restic-password')
+        atomic(PRIVATE / 'wasabi.env', ''.join(f'{k}={shlex.quote(v)}\n' for k, v in values.items()))
+        atomic(RECOVERY, '# Whole-site backup recovery. Keep private and separate from backups.\n'
+               '# Supply Wasabi access credentials separately; this file contains no access credentials.\n'
+               '# Load this file as environment variables, unset RESTIC_PASSWORD_FILE, then run:\n'
+               '# restic restore latest --host kagoya-gnotes --tag gnotes --target ./gnotes-restored\n'
+               + ''.join(f'{k}={shlex.quote(v)}\n' for k, v in {
+                   'RESTIC_REPOSITORY': values['RESTIC_REPOSITORY'],
+                   'AWS_DEFAULT_REGION': values['AWS_DEFAULT_REGION'], 'RESTIC_PASSWORD': password}.items()))
+        atomic(PRIVATE / 'verified.json', json.dumps({'verified_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                                                     'repository': values['RESTIC_REPOSITORY'], 'snapshots': history}))
+    except Exception:
+        for path, content in previous.items():
+            if content is None:
+                path.unlink(missing_ok=True)
+            else:
+                atomic(path, content)
+        if was_enabled:
+            systemctl('enable', '--now', 'gnotes-wasabi-backup.timer')
+        raise
+    JOB['message'] = 'Test backup uploaded and restore-verified. Download the whole-site recovery file, then enable daily backups.'
+
+
+def perform(data):
+    action = data.get('action')
+    if action == 'configure':
+        configure(data)
+        return
+    values = read_env(PRIVATE / 'wasabi.env')
+    if action in ('enable', 'run') and not values:
+        raise ValueError('Complete the setup wizard first.')
+    if action == 'enable':
+        if not data.get('recovery_saved'):
+            raise ValueError('Download and save the whole-site recovery file before enabling backups.')
+        meta = json.loads((PRIVATE / 'verified.json').read_text())
+        if meta.get('repository') != values.get('RESTIC_REPOSITORY'):
+            raise ValueError('Test and save this destination before enabling backups.')
+        systemctl('enable', '--now', 'gnotes-wasabi-backup.timer')
+        JOB['message'] = 'Daily backups enabled.'
+    elif action == 'pause':
+        systemctl('disable', '--now', 'gnotes-wasabi-backup.timer')
+        JOB['message'] = 'Schedule paused. A running backup will finish; existing backups are kept.'
+    elif action == 'stop':
+        systemctl('stop', 'gnotes-wasabi-backup.service')
+        JOB['message'] = 'Current backup stopped. The daily schedule is unchanged.'
+    elif action == 'run':
+        JOB['message'] = 'Creating a fresh local backup…'
+        if run([APP / 'bin/backup-gnotes-podman'], timeout=600).returncode:
+            raise ValueError('The local backup failed verification.')
+        JOB['message'] = 'Uploading and restore-verifying the backup…'
+        systemctl('reset-failed', 'gnotes-wasabi-backup.service')
+        systemctl('start', '--no-block', 'gnotes-wasabi-backup.service')
+        JOB['message'] = 'Backup started. Refresh status to follow its result.'
+    elif action == 'history':
+        history = snapshots(environment(values))
+        path = PRIVATE / 'verified.json'
+        meta = json.loads(path.read_text()) if path.exists() else {}
+        meta['snapshots'] = history
+        atomic(path, json.dumps(meta))
+        JOB['message'] = 'Backup history refreshed. Scheduled jobs verify each uploaded backup.'
+    else:
+        raise ValueError('Unknown backup action.')
+
+
+def worker(data):
+    try:
+        perform(data)
+    except ValueError as error:
+        JOB['message'] = str(error)
+    except Exception:
+        # Never publish subprocess output, request bodies or exception strings containing credentials.
+        JOB['message'] = 'The operation failed. Check the server backup service and try again.'
+    finally:
+        JOB['busy'] = False
+        LOCK.release()
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def reply(self, code, data):
+        body = json.dumps(data).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        if self.path != '/status':
+            return self.reply(404, {'error': 'Not found'})
+        try:
+            self.reply(200, status())
+        except Exception:
+            self.reply(503, {'error': 'Backup status is unavailable.'})
+
+    def do_POST(self):
+        if self.path != '/action':
+            return self.reply(404, {'error': 'Not found'})
+        try:
+            length = int(self.headers.get('Content-Length', '0'))
+            if not 0 < length <= 8192:
+                raise ValueError('Invalid request size.')
+            data = json.loads(self.rfile.read(length))
+            if not isinstance(data, dict) or data.get('action') not in ('configure', 'enable', 'pause', 'stop', 'run', 'history'):
+                raise ValueError('Unknown backup action.')
+            if data['action'] == 'configure':
+                validate(data)
+        except (ValueError, TypeError):
+            return self.reply(400, {'error': 'Check the storage fields and selected action.'})
+        # Stop is independent of a short-lived run request, so a running systemd job remains stoppable.
+        if not LOCK.acquire(blocking=False):
+            return self.reply(409, {'error': 'Another backup action is in progress. Wait for it to finish.'})
+        JOB.update(busy=True, message='Working…')
+        threading.Thread(target=worker, args=(data,), daemon=True).start()
+        self.reply(202, {'message': 'Backup action accepted.'})
+
+
+class Server(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+    daemon_threads = True
+
+
+def main():
+    os.umask(0o077)
+    PRIVATE.mkdir(mode=0o700, parents=True, exist_ok=True)
+    CONTROL.mkdir(mode=0o700, parents=True, exist_ok=True)
+    address = CONTROL / 'control.sock'
+    address.unlink(missing_ok=True)
+    with Server(str(address), Handler) as server:
+        os.chmod(address, 0o600)
+        server.serve_forever()
+
+
+if __name__ == '__main__':
+    main()

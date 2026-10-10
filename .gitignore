@@ -50,3 +50,6 @@ node_modules/
 dist/
 .next/
 .env
+
+# Python helper caches
+__pycache__/

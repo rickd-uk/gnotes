@@ -60,6 +60,12 @@ To restore a personal backup, open **Account → Export & import**, choose the `
 
 Personal backups are encrypted on the server with an account-specific key retained in the database. This protects a downloaded backup without its key; it does not make the live server end-to-end encrypted. An account's complete deletion removes its retained key, so keep downloaded keys if you want to restore old backups later.
 
+### Whole-site backup setup and controls
+
+Admins can open **Account → Profile → Whole-site backup dashboard → Set up or change Wasabi storage**. The four steps collect the bucket/region/folder, generate a folder-scoped Wasabi policy, accept a backup user's access credentials, and test a fresh upload plus verified restore before saving. Create the bucket and programmatic user in the Wasabi console with an administrator account; the wizard creates the encrypted repository when explicitly allowed. The established site encryption key is retained when changing locations. Keep older recovery files for older locations.
+
+After a successful test, download the updated whole-site recovery file using **Backup & recovery**, save it outside Kagoya, then confirm this and enable the daily schedule. The dashboard shows the next run, last service result, setup verification time and recent snapshot history. Controls run a fresh backup, pause/resume scheduling, stop a current backup or refresh history. Every action requires the current gnotes password. Pausing/stopping never deletes backups. Storage credentials are stored outside the app container and are excluded from recovery downloads. The host control service must be installed; see OPERATIONS.
+
 ### Offline reading
 
 Choose **Account → Offline reading** while signed in. Set and confirm a separate offline passphrase (at least 12 characters), opt in to device storage, and select **Save offline copy**. The copy includes active and archived notes, Favorites and tags; recycled notes and unfinished drafts are excluded. Notes are shown as text with local search and collection filters. Editing is available online.

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,6 +21,28 @@ func TestProfileBackupBrowser(t *testing.T) {
 	for _, width := range []int{320, 1024} {
 		t.Run(fmt.Sprint(width), func(t *testing.T) {
 			recoveryFixture(t)
+			socket := filepath.Join(t.TempDir(), "control.sock")
+			listener, err := net.Listen("unix", socket)
+			if err != nil {
+				t.Fatal(err)
+			}
+			actions := make(chan map[string]any, 4)
+			bridge := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/action" {
+					var data map[string]any
+					json.NewDecoder(r.Body).Decode(&data)
+					actions <- data
+					w.WriteHeader(202)
+					w.Write([]byte(`{"message":"accepted"}`))
+				} else {
+					w.Write([]byte(`{"configured":false,"schedule":"Daily 04:15–04:30 Asia/Tokyo","message":"Fixture ready","snapshots":[]}`))
+				}
+			})}
+			go bridge.Serve(listener)
+			defer bridge.Close()
+			t.Setenv("GNOTES_BACKUP_CONTROL_SOCKET", socket)
+
 			mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at,archived_at,favorited,tags) VALUES(1,'Personal archive','Sample backup body',?,?,1,'[\"restore\"]')", time.Now(), time.Now())
 			mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at) VALUES(2,'Other private note','Never in admin personal export',?)", time.Now())
 			siteKey := filepath.Join(t.TempDir(), "recovery.env")
@@ -40,6 +63,9 @@ func TestProfileBackupBrowser(t *testing.T) {
 			mux.HandleFunc("/api/notes/import", protect(importNotesHandler, true))
 			mux.HandleFunc("/api/tags", protect(tagsHandler, false))
 			mux.HandleFunc("/api/backups/download", protect(backupDownloadHandler, true))
+			mux.HandleFunc("/api/admin/backups/status", protect(requireAdmin(backupControlStatusHandler), false))
+			mux.HandleFunc("/api/admin/backups/action", protect(requireAdmin(backupControlActionHandler), true))
+
 			mux.Handle("/", http.FileServer(http.Dir("../../public")))
 			server := httptest.NewServer(securityHeaders(mux))
 			defer server.Close()
@@ -53,6 +79,29 @@ func TestProfileBackupBrowser(t *testing.T) {
 			browser.wait(`!document.getElementById('app-shell').hidden&&!notesLoading`)
 			browser.script(`document.getElementById('account-menu-username').click();`)
 			browser.wait(`!document.getElementById('profile-site-backup').hidden&&!document.getElementById('profile-site-key').disabled`)
+
+			browser.script(`document.getElementById('site-backup-admin').open=true;`)
+			browser.wait(`document.getElementById('site-backup-message').textContent==='Fixture ready'`)
+			browser.script(`document.getElementById('site-backup-wizard').open=true;`)
+			browser.wait(`!document.querySelector('[data-backup-step="0"]').hidden`)
+			browser.script(`document.getElementById('site-backup-bucket').value='fixture-bucket';document.getElementById('site-backup-prefix').value='gnotes/new';document.getElementById('site-backup-next').click();`)
+			browser.wait(`!document.querySelector('[data-backup-step="1"]').hidden`)
+			browser.script(`const policy=JSON.parse(document.getElementById('site-backup-policy').value);if(policy.Statement[2].Resource!=='arn:aws:s3:::fixture-bucket/gnotes/new/*')throw new Error('Wrong policy');document.getElementById('site-backup-next').click();document.getElementById('site-backup-access').value='TESTACCESSKEY123456';document.getElementById('site-backup-secret').value='FixtureSecretCredential123456';document.getElementById('site-backup-next').click();document.getElementById('site-backup-create').checked=true;document.getElementById('site-backup-setup-password').value='original password';document.getElementById('site-backup-setup').requestSubmit();`)
+			browser.wait(`document.getElementById('site-backup-message').textContent==='Fixture ready'&&!document.getElementById('site-backup-test').disabled`)
+			select {
+			case action := <-actions:
+				if action["action"] != "configure" || action["prefix"] != "gnotes/new" || action["allow_create"] != true || action["secret_key"] != "FixtureSecretCredential123456" {
+					t.Fatalf("wizard action: %v", action["action"])
+				}
+				if _, ok := action["password"]; ok {
+					t.Fatal("wizard forwarded login password")
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatal("wizard did not submit")
+			}
+			browser.script(`if(document.getElementById('site-backup-access').value||document.getElementById('site-backup-secret').value||document.getElementById('site-backup-setup-password').value)throw new Error('Credentials retained');if(document.documentElement.scrollWidth>innerWidth+1)throw new Error('Wizard page overflows');document.getElementById('site-backup-action-password').value='original password';document.querySelector('#site-backup-actions [value="enable"]').click();`)
+			browser.wait(`document.getElementById('site-backup-message').textContent.includes('confirm you saved it')`)
+			browser.script(`document.getElementById('site-backup-wizard').open=false;document.getElementById('site-backup-admin').open=false;`)
 			browser.script(`document.getElementById('profile-backups').open=true;document.getElementById('profile-backup-password').value='wrong password';document.getElementById('profile-backup-form').requestSubmit(document.querySelector('[value="personal-key"]'));`)
 			browser.wait(`document.getElementById('profile-backup-status').textContent==='Current password is incorrect'`)
 			browser.script(`if(document.getElementById('app-shell').hidden||document.getElementById('profile-backup-password').value)throw new Error('Wrong password signed out or persisted');`)

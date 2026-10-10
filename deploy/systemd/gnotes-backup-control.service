@@ -1,0 +1,12 @@
+[Unit]
+Description=Private gnotes backup setup and scheduling control
+
+[Service]
+ExecStart=%h/apps/gnotes/bin/gnotes-backup-control
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

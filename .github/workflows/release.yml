@@ -46,6 +46,7 @@ jobs:
           go test ./...
           go test -race ./cmd/server
           go vet ./...
+          python3 -m unittest discover -s deploy/tests -p "backup_control_test.py"
           shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/backup-gnotes-podman deploy/scripts/replicate-gnotes-wasabi deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/restore-gnotes-podman deploy/scripts/update-gnotes deploy/scripts/update-gnotes-podman deploy/tests/*.sh
           deploy/tests/backup-gnotes-podman-test.sh
           deploy/tests/replicate-gnotes-wasabi-test.sh
@@ -62,7 +63,8 @@ jobs:
           package_dir="dist/package"
           asset="gnotes_${RELEASE_VERSION}_linux_amd64.tar.gz"
 
-          install -d "$package_dir/bin" "$package_dir/public"
+          install -d "$package_dir/bin" "$package_dir/public" "$package_dir/systemd"
+          install -m 0644 deploy/systemd/gnotes-backup-control.service deploy/systemd/gnotes-wasabi-backup.service deploy/systemd/gnotes-wasabi-backup.timer "$package_dir/systemd/"
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
             go build -trimpath -ldflags="-s -w" -o "$package_dir/gnotes" ./cmd/server
           cp -a public/. "$package_dir/public/"
@@ -72,6 +74,7 @@ jobs:
           install -m 0755 deploy/scripts/restore-gnotes-podman "$package_dir/bin/restore-gnotes-podman"
           install -m 0755 deploy/scripts/backup-gnotes-podman "$package_dir/bin/backup-gnotes-podman"
           install -m 0755 deploy/scripts/replicate-gnotes-wasabi "$package_dir/bin/replicate-gnotes-wasabi"
+          install -m 0755 deploy/scripts/gnotes-backup-control "$package_dir/bin/gnotes-backup-control"
           install -m 0755 deploy/scripts/update-gnotes-podman "$package_dir/bin/update-gnotes-podman"
           printf '%s\n' "$RELEASE_VERSION" > "$package_dir/VERSION"
           cp LICENSE "$package_dir/LICENSE"

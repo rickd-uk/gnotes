@@ -3205,6 +3205,16 @@
       .profile-backups { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }
       .profile-backups > summary { cursor: pointer; min-height: 44px; padding: 10px 0; color: var(--accent); font-weight: 700; }
       .profile-backups p { font-size: 0.85rem; line-height: 1.5; }
+      #site-backup-admin fieldset { min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+      #site-backup-admin fieldset[hidden] { display: none; }
+      #site-backup-admin fieldset > * + * { margin-top: 12px; }
+      #site-backup-admin select, #site-backup-admin textarea { width: 100%; min-width: 0; }
+      #site-backup-admin textarea { font: 0.75rem monospace; white-space: pre; }
+      #site-backup-admin input[type="checkbox"] { width: 18px; height: 18px; }
+      #site-backup-admin label:has(input[type="checkbox"]) { display: flex; align-items: flex-start; gap: 8px; }
+      #site-backup-admin dd, #site-backup-admin li { overflow-wrap: anywhere; }
+      #site-backup-admin button { min-height: 44px; }
+      #site-backup-wizard > summary { cursor: pointer; padding: 12px 0; }
       .profile-role {
         margin: 2px 0 16px;
         color: var(--accent);
@@ -4771,6 +4781,67 @@
           <p class="auth-status" id="profile-backup-status" role="status" aria-live="polite"></p>
         </form>
       </details>
+      <details id="site-backup-admin" class="profile-backups" hidden>
+        <summary>Whole-site backup dashboard · Admin</summary>
+        <p>Encrypted backups cover every account. Each completed upload is downloaded and checked for recovery.</p>
+        <dl class="profile-details" id="site-backup-overview"></dl>
+        <p id="site-backup-message" role="status" aria-live="polite"></p>
+        <button type="button" id="site-backup-refresh">Refresh status</button>
+        <details id="site-backup-wizard">
+          <summary>Set up or change Wasabi storage</summary>
+          <p>Use a dedicated Wasabi backup user restricted to this folder. Keep older recovery files when changing location; old backups stay in their original location.</p>
+          <form class="auth-form" id="site-backup-setup" autocomplete="off">
+            <p id="site-backup-step-label" aria-live="polite">Step 1 of 4 · Location</p>
+            <fieldset data-backup-step="0">
+              <legend>1. Choose the backup location</legend>
+              <label>Wasabi region<select id="site-backup-region"></select></label>
+              <label>Bucket name<input id="site-backup-bucket" type="text" value="arcomain-backup" maxlength="63" /></label>
+              <label>Folder<input id="site-backup-prefix" type="text" value="gnotes" maxlength="200" /></label>
+              <p>Create the bucket in the <a href="https://console.wasabisys.com" target="_blank" rel="noopener noreferrer">Wasabi console</a> if needed. The wizard can create the encrypted backup folder inside it.</p>
+            </fieldset>
+            <fieldset data-backup-step="1" hidden>
+              <legend>2. Give the backup user permission</legend>
+              <p>In the Wasabi console, create a dedicated user with programmatic access. Create a policy using the JSON below, attach it to that user, then create its access key. If a user already has access to this folder, you can use its key.</p>
+              <p>Creating users and changing permissions requires a Wasabi administrator. Do this in Wasabi; enter only the backup user's credentials here.</p>
+              <label>Permissions policy<textarea id="site-backup-policy" rows="10" readonly spellcheck="false"></textarea></label>
+              <button type="button" id="site-backup-policy-copy">Copy policy</button>
+              <a href="https://docs.wasabi.com/docs/how-do-i-set-up-wasabi-for-user-access-separation" target="_blank" rel="noopener noreferrer">Wasabi user and permissions guide</a>
+            </fieldset>
+            <fieldset data-backup-step="2" hidden>
+              <legend>3. Enter the backup credentials</legend>
+              <label>Access key<input id="site-backup-access" type="password" autocomplete="off" maxlength="128" /></label>
+              <label>Secret access key<input id="site-backup-secret" type="password" autocomplete="new-password" maxlength="256" /></label>
+              <p>These credentials are stored privately on the server after the test succeeds. They are never included in the downloadable recovery file.</p>
+            </fieldset>
+            <fieldset data-backup-step="3" hidden>
+              <legend>4. Test and save</legend>
+              <p id="site-backup-review"></p>
+              <p>The test creates a fresh whole-site backup, uploads it, downloads it and verifies the restored database. The existing site encryption key is retained. Saving a successful destination pauses the schedule until you enable it below.</p>
+              <label><input id="site-backup-create" type="checkbox" /> Allow creation of an encrypted repository if this folder has none</label>
+              <label>Current gnotes password<input id="site-backup-setup-password" type="password" autocomplete="current-password" maxlength="72" /></label>
+              <button type="submit" id="site-backup-test">Test backup &amp; save settings</button>
+            </fieldset>
+            <div class="dialog-actions">
+              <button type="button" id="site-backup-back" hidden>Back</button>
+              <button type="button" id="site-backup-next">Next</button>
+            </div>
+          </form>
+        </details>
+        <form class="auth-form" id="site-backup-actions">
+          <p>After setup, download the whole-site recovery file from Backup &amp; recovery above and keep it outside this server.</p>
+          <label><input id="site-backup-recovery-saved" type="checkbox" /> I saved the current whole-site recovery file separately</label>
+          <label>Current gnotes password<input id="site-backup-action-password" type="password" autocomplete="current-password" maxlength="72" /></label>
+          <button type="submit" value="enable">Enable / resume daily backups</button>
+          <button type="submit" value="run">Run backup now</button>
+          <button type="submit" value="pause">Pause daily schedule</button>
+          <button type="submit" value="stop">Stop current backup</button>
+          <button type="submit" value="history">Refresh backup history</button>
+          <p>Pause prevents future scheduled runs and lets a running backup finish. Stop cancels the current run and leaves the schedule unchanged. Neither deletes stored backups.</p>
+        </form>
+        <h3>Recent backups</h3>
+        <p>History is refreshed after setup or with “Refresh backup history”. A snapshot alone does not prove its restore check passed; see the last job result above.</p>
+        <ul id="site-backup-history"></ul>
+      </details>
       <form class="auth-form recovery-email-form" id="recovery-email-form" hidden>
         <p class="auth-intro">Set or verify your password recovery email. A replacement takes effect only after you confirm the link.</p>
         <label>Recovery email<input id="profile-recovery-email" type="email" autocomplete="email" maxlength="254" required /></label>
@@ -6008,6 +6079,9 @@
         document.getElementById("markdown-help").open = false;
         csrfToken = "";
         currentUser = null;
+        clearBackupSecrets();
+        clearTimeout(backupPollTimer);
+        document.getElementById('site-backup-admin').hidden = true;
         pendingNoteEdits.clear();
         pendingNoteActions.clear();
         noteViewRevision++;
@@ -10082,6 +10156,102 @@
         await loadAdmin();
       });
 
+      let backupWizardStep = 0, backupPollTimer;
+      const backupRegions = ['us-east-1', 'us-east-2', 'us-central-1', 'us-west-1', 'us-west-2', 'ca-central-1', 'eu-central-1', 'eu-central-2', 'eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-south-1', 'ap-northeast-1', 'ap-northeast-2', 'ap-southeast-1', 'ap-southeast-2'];
+      for (const region of backupRegions) {
+        const option = document.createElement('option'); option.value = region; option.textContent = region;
+        option.selected = region === 'ap-northeast-2'; document.getElementById('site-backup-region').append(option);
+      }
+      function backupLocation() {
+        return Object.fromEntries(['region', 'bucket', 'prefix'].map(name => [name, document.getElementById('site-backup-' + name).value.trim()]));
+      }
+      function backupPolicy() {
+        const {bucket, prefix} = backupLocation();
+        return JSON.stringify({Version:'2012-10-17', Statement:[
+          {Effect:'Allow', Action:'s3:GetBucketLocation', Resource:`arn:aws:s3:::${bucket}`},
+          {Effect:'Allow', Action:'s3:ListBucket', Resource:`arn:aws:s3:::${bucket}`, Condition:{StringLike:{'s3:prefix':[prefix, prefix+'/*']}}},
+          {Effect:'Allow', Action:['s3:GetObject','s3:PutObject','s3:DeleteObject','s3:AbortMultipartUpload','s3:ListMultipartUploadParts'], Resource:`arn:aws:s3:::${bucket}/${prefix}/*`}
+        ]}, null, 2);
+      }
+      function showBackupStep(step) {
+        backupWizardStep = step;
+        document.querySelectorAll('[data-backup-step]').forEach(field => { field.hidden = Number(field.dataset.backupStep) !== step; });
+        document.getElementById('site-backup-step-label').textContent = `Step ${step+1} of 4 · ${['Location','Permissions','Credentials','Test and save'][step]}`;
+        document.getElementById('site-backup-back').hidden = step === 0;
+        document.getElementById('site-backup-next').hidden = step === 3;
+        document.getElementById('site-backup-policy').value = backupPolicy();
+        const {region,bucket,prefix} = backupLocation();
+        document.getElementById('site-backup-review').textContent = `Destination: ${bucket}/${prefix} · ${region}. All accounts will be backed up here.`;
+      }
+      function clearBackupSecrets() {
+        for (const id of ['site-backup-access','site-backup-secret','site-backup-setup-password','site-backup-action-password']) document.getElementById(id).value = '';
+      }
+      async function refreshBackupStatus() {
+        clearTimeout(backupPollTimer);
+        const owner = currentUser?.username, token = csrfToken;
+        if (currentUser?.role !== 'admin' || document.getElementById('profile-panel').hidden || !document.getElementById('site-backup-admin').open) return;
+        const message = document.getElementById('site-backup-message');
+        try {
+          const response = await apiFetch('/api/admin/backups/status');
+          if (!response.ok) throw new Error((await response.text()).trim() || 'Backup status unavailable.');
+          const info = await response.json();
+          if (currentUser?.username !== owner || csrfToken !== token || document.getElementById('profile-panel').hidden) return;
+          const rows = [['Storage',info.repository || 'Setup needed'],['Daily schedule',info.schedule_enabled && info.schedule_active ? 'Enabled' : 'Paused / not enabled'],['Schedule',info.schedule],['Next run',info.next_run || 'None scheduled'],['Current job',info.service_state || 'Unknown'],['Last job result',info.last_finished ? info.last_result : 'No scheduled job completed yet'],['Last job finished',info.last_finished || 'None'],['Setup restore verified',info.verified_at || 'Not tested yet']];
+          const overview = document.getElementById('site-backup-overview'); overview.replaceChildren();
+          for (const [label,value] of rows) { const row = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent=label; dd.textContent=value; row.append(dt,dd); overview.append(row); }
+          message.textContent = info.message || (info.configured ? 'Storage configured.' : 'Open the setup wizard to connect Wasabi.');
+          const list = document.getElementById('site-backup-history'); list.replaceChildren();
+          for (const snapshot of info.snapshots || []) { const item=document.createElement('li'); item.textContent=`${snapshot.time} · ${snapshot.id}${snapshot.bytes == null ? '' : ' · '+snapshot.bytes+' bytes'}`; list.append(item); }
+          if (!list.children.length) { const item=document.createElement('li'); item.textContent='No history loaded.'; list.append(item); }
+          document.querySelectorAll('#site-backup-setup button, #site-backup-actions button').forEach(button => { button.disabled=!!info.busy; });
+          if (!document.getElementById('site-backup-wizard').open && info.repository) {
+            const location = info.repository.match(/^s3:https:\/\/[^/]+\/([^/]+)\/(.+)$/);
+            if (location) { document.getElementById('site-backup-bucket').value=location[1]; document.getElementById('site-backup-prefix').value=location[2]; document.getElementById('site-backup-region').value=info.region; }
+          }
+        } catch (error) { if (currentUser?.username === owner && csrfToken === token) message.textContent=error.message || 'Backup status unavailable.'; }
+        if (currentUser?.username === owner && csrfToken === token && !document.getElementById('profile-panel').hidden && document.getElementById('site-backup-admin').open) backupPollTimer=setTimeout(refreshBackupStatus,5000);
+      }
+      async function submitBackupAction(data, passwordInput) {
+        const owner=currentUser?.username, token=csrfToken, message=document.getElementById('site-backup-message');
+        data.password=passwordInput.value; passwordInput.value='';
+        document.querySelectorAll('#site-backup-setup button, #site-backup-actions button').forEach(button=>{button.disabled=true;});
+        message.textContent='Submitting backup action…';
+        try {
+          const body=JSON.stringify(data); data.password=''; data.secret_key=''; data.access_key='';
+          const response=await apiFetch('/api/admin/backups/action',{method:'POST',headers:{'Content-Type':'application/json'},body});
+          if (currentUser?.username!==owner || csrfToken!==token || document.getElementById('profile-panel').hidden) return;
+          if (!response.ok) { const text=await response.text(); let detail=text; try { detail=JSON.parse(text).error || text; } catch {} throw new Error(detail.trim() || 'Backup action failed.'); }
+          message.textContent='Action accepted. Progress will appear here.';
+          await refreshBackupStatus();
+        } catch(error) { if(currentUser?.username===owner && csrfToken===token) message.textContent=error.message || 'Backup action failed.'; }
+        finally { if(currentUser?.username===owner && csrfToken===token) document.querySelectorAll('#site-backup-setup button, #site-backup-actions button').forEach(button=>{button.disabled=false;}); }
+      }
+      document.getElementById('site-backup-next').addEventListener('click',()=>{
+        const {bucket,prefix}=backupLocation();
+        if (backupWizardStep===0 && (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) || bucket.includes('..') || /^[0-9.]+$/.test(bucket) || !/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(prefix))) { document.getElementById('site-backup-message').textContent='Enter a valid bucket name and a folder using letters, numbers, hyphens or underscores.'; return; }
+        if (backupWizardStep===2 && (!document.getElementById('site-backup-access').value.trim() || !document.getElementById('site-backup-secret').value.trim())) { document.getElementById('site-backup-message').textContent='Enter both Wasabi credentials.'; return; }
+        showBackupStep(Math.min(3,backupWizardStep+1));
+      });
+      document.getElementById('site-backup-back').addEventListener('click',()=>showBackupStep(Math.max(0,backupWizardStep-1)));
+      document.getElementById('site-backup-policy-copy').addEventListener('click',async()=>{
+        try { await navigator.clipboard.writeText(backupPolicy()); document.getElementById('site-backup-message').textContent='Permissions policy copied.'; }
+        catch { document.getElementById('site-backup-policy').select(); document.getElementById('site-backup-message').textContent='Select and copy the policy text.'; }
+      });
+      document.getElementById('site-backup-setup').addEventListener('submit',async event=>{
+        event.preventDefault(); if(backupWizardStep!==3)return;
+        const data={action:'configure',...backupLocation(),access_key:document.getElementById('site-backup-access').value,secret_key:document.getElementById('site-backup-secret').value,allow_create:document.getElementById('site-backup-create').checked};
+        document.getElementById('site-backup-access').value=''; document.getElementById('site-backup-secret').value=''; document.getElementById('site-backup-recovery-saved').checked=false;
+        await submitBackupAction(data,document.getElementById('site-backup-setup-password'));
+      });
+      document.getElementById('site-backup-actions').addEventListener('submit',event=>{
+        event.preventDefault(); const action=event.submitter?.value; if(!action)return;
+        if(action==='enable' && !document.getElementById('site-backup-recovery-saved').checked) { document.getElementById('site-backup-message').textContent='Download the whole-site recovery file above and confirm you saved it first.'; return; }
+        submitBackupAction({action,recovery_saved:document.getElementById('site-backup-recovery-saved').checked},document.getElementById('site-backup-action-password'));
+      });
+      document.getElementById('site-backup-refresh').addEventListener('click',refreshBackupStatus);
+      document.getElementById('site-backup-admin').addEventListener('toggle',()=>{if(document.getElementById('site-backup-admin').open)refreshBackupStatus();else{clearTimeout(backupPollTimer);clearBackupSecrets();}});
+      document.getElementById('site-backup-wizard').addEventListener('toggle',()=>{if(document.getElementById('site-backup-wizard').open)showBackupStep(0);else clearBackupSecrets();});
+
       async function openProfilePanel() {
         closeAdminPanel();
         closeHelpPanel();
@@ -10094,6 +10264,9 @@
         document.getElementById('profile-backup-password').value = '';
         document.getElementById('profile-backup-status').textContent = '';
         document.getElementById('profile-site-backup').hidden = true;
+        document.getElementById('site-backup-admin').hidden = true;
+        document.getElementById('site-backup-admin').open = false;
+        clearBackupSecrets();
         document.getElementById("recovery-email-form").hidden = true;
         document.getElementById("profile-recovery-status").textContent = "";
         for (const id of ["profile-email", "profile-joined", "profile-last-signin", "profile-active-notes", "profile-recycled-notes"]) {
@@ -10104,6 +10277,7 @@
           if (!response.ok) throw new Error("Profile unavailable");
           const profile = await response.json();
           document.getElementById('profile-site-backup').hidden = profile.role !== 'admin';
+          document.getElementById('site-backup-admin').hidden = profile.role !== 'admin';
           document.getElementById('profile-site-key').disabled = !profile.site_backup_key_available;
           document.getElementById('profile-site-key-unavailable').hidden = !!profile.site_backup_key_available;
           document.getElementById("profile-email").textContent = profile.email
@@ -10123,6 +10297,8 @@
       }
 
       function closeProfilePanel() {
+        clearTimeout(backupPollTimer);
+        clearBackupSecrets();
         document.getElementById("profile-panel").hidden = true;
         document.getElementById("profile-recovery-password").value = "";
         document.getElementById('profile-backup-password').value = '';

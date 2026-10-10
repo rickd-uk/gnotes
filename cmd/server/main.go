@@ -159,6 +159,8 @@ func run() error {
 	mux.HandleFunc("/api/notes/import", protect(importNotesHandler, true))
 	mux.HandleFunc("/api/notes/transfer-list", protect(transferListHandler, false))
 	mux.HandleFunc("/api/backups/download", protect(backupDownloadHandler, true))
+	mux.HandleFunc("/api/admin/backups/status", protect(requireAdmin(backupControlStatusHandler), false))
+	mux.HandleFunc("/api/admin/backups/action", protect(requireAdmin(backupControlActionHandler), true))
 	mux.HandleFunc("/api/admin/overview", protect(requireAdmin(adminOverviewHandler), false))
 	mux.HandleFunc("/api/admin/signups", protect(requireAdmin(adminSignupsHandler), true))
 	mux.HandleFunc("/api/admin/registration-policy", protect(requireAdmin(adminRegistrationPolicyHandler), true))
