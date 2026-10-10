@@ -2,6 +2,12 @@
 
 Last reviewed: 2026-10-10
 
+## Next development sequence
+
+Session handoff saved on 2026-10-10 in [PROGRESS.md](PROGRESS.md). Proposed order: current-release Pixel 6a verification; encrypted backup activation and monitoring; static script/style extraction and stricter CSP; complete account export/deletion; administrator MFA/recovery codes; then scoped editor additions such as tables. Audit logging and recovery-email verification remain open. This records future work, not a request to begin it.
+
+The operational Wasabi fix is installed on Kagoya but is newer than the v0.7.52 package: include it in the next release. Daily replication checks local database integrity and repository metadata without routine payload downloads. Explicit setup tests retain latest-snapshot restore verification. Automatic Wasabi scheduling remains disabled pending setup, and future full integrity/restore tests need an egress budget.
+
 ## Current production milestone
 
 Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.52`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
@@ -81,7 +87,7 @@ Admin backup wizard/dashboard deployed in v0.7.50: four-step Wasabi location/per
 
 ## Mobile verification
 
-1. Retest v0.7.37 with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Use the bottom Dictionary/Save word and Always ignore buttons on displayed text, titles, and rich edits, including with the keyboard open; check editor Copy/Done remain accessible. Check personal Names and ignored-word search, Show more, file import, and export downloads. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, Aa formatting, quick actions, and the code language picker.
+1. Retest the current production release (v0.7.52 as of 2026-10-10) with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Use the bottom Dictionary/Save word and Always ignore buttons on displayed text, titles, and rich edits, including with the keyboard open; check editor Copy/Done remain accessible. Check personal Names and ignored-word search, Show more, file import, and export downloads. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, Aa formatting, quick actions, and the code language picker.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
 3. Investigate browser-specific failures only when reproduced. Epic previously displayed an empty list because a saved date filter was active; Recent restored the notes.
 

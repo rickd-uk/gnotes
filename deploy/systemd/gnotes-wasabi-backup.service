@@ -1,5 +1,5 @@
 [Unit]
-Description=Encrypt and restore-verify the latest gnotes backup in Wasabi
+Description=Encrypt and upload the latest gnotes backup to Wasabi
 
 [Service]
 Type=oneshot

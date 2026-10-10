@@ -34,6 +34,16 @@ PY
 archive="$BACKUP_DIRECTORY/gnotes-daily-20261010T030000Z.db.gz"
 gzip -c "$test_directory/good.db" > "$archive"
 restic init >/dev/null
+# Record real commands so tests catch accidental full-repository downloads.
+export GNOTES_REAL_RESTIC="$(command -v restic)"
+export GNOTES_RESTIC_LOG="$test_directory/restic-commands.log"
+cat > "$test_directory/restic-wrapper" <<'SH'
+#!/bin/sh
+printf '%s\n' "$*" >> "$GNOTES_RESTIC_LOG"
+exec "$GNOTES_REAL_RESTIC" "$@"
+SH
+chmod +x "$test_directory/restic-wrapper"
+export GNOTES_RESTIC="$test_directory/restic-wrapper"
 "$project_directory/deploy/scripts/replicate-gnotes-wasabi" > "$test_directory/run.log" 2>&1 || { cat "$test_directory/run.log"; fail 'round-trip failed'; }
 restic snapshots --json > "$test_directory/snapshots.json"
 python3 - "$test_directory/snapshots.json" <<'PY'
@@ -43,6 +53,15 @@ assert len(snapshots) == 1
 assert snapshots[0]['tags'] == ['gnotes']
 assert snapshots[0]['paths'] == ['/gnotes.db.gz']
 PY
+if grep -q 'read-data\|^restore ' "$GNOTES_RESTIC_LOG"; then
+    fail 'daily backup downloaded repository data for verification'
+fi
+grep -qx 'check' "$GNOTES_RESTIC_LOG" || fail 'metadata check missing'
+grep -q 'repository metadata checked' "$test_directory/run.log" || fail 'wrong daily result'
+GNOTES_VERIFY_RESTORE=1 "$project_directory/deploy/scripts/replicate-gnotes-wasabi" > "$test_directory/verified.log" 2>&1 || { cat "$test_directory/verified.log"; fail 'explicit restore verification failed'; }
+grep -q '^restore latest ' "$GNOTES_RESTIC_LOG" || fail 'explicit verification did not restore'
+grep -q 'restore-verified' "$test_directory/verified.log" || fail 'restore verification result missing'
+if grep -q 'read-data' "$GNOTES_RESTIC_LOG"; then fail 'full repository download requested'; fi
 RESTIC_PASSWORD=incorrect restic snapshots >/dev/null 2>&1 && fail 'incorrect password accepted'
 
 python3 - "$archive" <<'PY'
@@ -56,6 +75,6 @@ if "$project_directory/deploy/scripts/replicate-gnotes-wasabi" >/dev/null 2>&1; 
 restic snapshots --json > "$test_directory/snapshots-after.json"
 python3 - "$test_directory/snapshots-after.json" <<'PY'
 import json, sys
-assert len(json.load(open(sys.argv[1]))) == 1
+assert len(json.load(open(sys.argv[1]))) == 2
 PY
 echo 'Wasabi replication local-repository integration tests passed'

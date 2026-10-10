@@ -149,7 +149,7 @@ def configure(data):
     if run([APP / 'bin/backup-gnotes-podman'], timeout=600).returncode:
         raise ValueError('The local database backup failed verification. Storage settings were not changed.')
     JOB['message'] = 'Uploading and downloading a test backup for verification…'
-    if run([APP / 'bin/replicate-gnotes-wasabi'], env, timeout=1800).returncode:
+    if run([APP / 'bin/replicate-gnotes-wasabi'], {**env, 'GNOTES_VERIFY_RESTORE': '1'}, timeout=1800).returncode:
         raise ValueError('Upload or restore verification failed. Check folder read, write, list and delete permissions. Storage settings were not changed.')
     history = snapshots(env)
     # Publish a verified configuration as a group, restoring the previous one on failure.
@@ -210,7 +210,7 @@ def perform(data):
         JOB['message'] = 'Creating a fresh local backup…'
         if run([APP / 'bin/backup-gnotes-podman'], timeout=600).returncode:
             raise ValueError('The local backup failed verification.')
-        JOB['message'] = 'Uploading and restore-verifying the backup…'
+        JOB['message'] = 'Uploading the backup and checking repository metadata…'
         systemctl('reset-failed', 'gnotes-wasabi-backup.service')
         systemctl('start', '--no-block', 'gnotes-wasabi-backup.service')
         JOB['message'] = 'Backup started. Refresh status to follow its result.'
@@ -220,7 +220,7 @@ def perform(data):
         meta = json.loads(path.read_text()) if path.exists() else {}
         meta['snapshots'] = history
         atomic(path, json.dumps(meta))
-        JOB['message'] = 'Backup history refreshed. Scheduled jobs verify each uploaded backup.'
+        JOB['message'] = 'Backup history refreshed. Scheduled jobs verify the local archive and check repository metadata.'
     else:
         raise ValueError('Unknown backup action.')
 

@@ -7,6 +7,8 @@ backup_directory="${BACKUP_DIRECTORY:-$app_directory/backups}"
 restorer="${GNOTES_RESTORER:-$app_directory/bin/restore-gnotes-podman}"
 restic="${GNOTES_RESTIC:-restic}"
 backup_host="${GNOTES_BACKUP_HOST:-kagoya-gnotes}"
+verify_restore="${GNOTES_VERIFY_RESTORE:-0}"
+case "$verify_restore" in 0|1) ;; *) echo "GNOTES_VERIFY_RESTORE must be 0 or 1" >&2; exit 1 ;; esac
 
 fail() { echo "replicate-gnotes-wasabi: $*" >&2; exit 1; }
 [ -n "${RESTIC_REPOSITORY:-}" ] || fail "RESTIC_REPOSITORY is required"
@@ -42,7 +44,14 @@ cp "$archive" "$temporary_directory/gnotes.db.gz"
 "$restorer" --verify "$temporary_directory/gnotes.db.gz"
 "$restic" backup --host "$backup_host" --tag gnotes \
     --stdin --stdin-filename gnotes.db.gz < "$temporary_directory/gnotes.db.gz"
-"$restic" check --read-data
+# Daily checks read metadata only. Reading every pack on every run downloads
+# the entire historical repository and can violate Wasabi's egress policy.
+"$restic" check
+if [ "$verify_restore" != 1 ]; then
+    echo "Encrypted off-server backup uploaded and repository metadata checked."
+    exit 0
+fi
+# Explicit setup/recovery tests download only the latest snapshot.
 "$restic" restore latest --host "$backup_host" --tag gnotes \
     --target "$temporary_directory/restored"
 python3 - "$temporary_directory/gnotes.db.gz" "$temporary_directory/restored/gnotes.db.gz" <<'PY'
