@@ -23,7 +23,7 @@ REGIONS = ('us-east-1', 'us-east-2', 'us-central-1', 'us-west-1', 'us-west-2', '
            'eu-south-1', 'ap-northeast-1', 'ap-northeast-2', 'ap-southeast-1',
            'ap-southeast-2')
 LOCK = threading.Lock()
-JOB = {'busy': False, 'message': ''}
+JOB = {'busy': False, 'message': '', 'outcome': ''}
 
 
 def atomic(path, value):
@@ -112,7 +112,7 @@ def status():
               'verified_at': metadata.get('verified_at', ''),
               'snapshots': metadata.get('snapshots', []),
               'schedule': 'Daily 04:15–04:30 Asia/Tokyo',
-              'busy': JOB['busy'], 'message': JOB['message']}
+              'busy': JOB['busy'], 'message': JOB['message'], 'outcome': JOB['outcome']}
     return result
 
 
@@ -228,10 +228,13 @@ def perform(data):
 def worker(data):
     try:
         perform(data)
+        JOB['outcome'] = 'success'
     except ValueError as error:
         JOB['message'] = str(error)
+        JOB['outcome'] = 'error'
     except Exception:
         # Never publish subprocess output, request bodies or exception strings containing credentials.
+        JOB['outcome'] = 'error'
         JOB['message'] = 'The operation failed. Check the server backup service and try again.'
     finally:
         JOB['busy'] = False
@@ -276,7 +279,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # Stop is independent of a short-lived run request, so a running systemd job remains stoppable.
         if not LOCK.acquire(blocking=False):
             return self.reply(409, {'error': 'Another backup action is in progress. Wait for it to finish.'})
-        JOB.update(busy=True, message='Working…')
+        JOB.update(busy=True, message='Working…', outcome='working')
         threading.Thread(target=worker, args=(data,), daemon=True).start()
         self.reply(202, {'message': 'Backup action accepted.'})
 

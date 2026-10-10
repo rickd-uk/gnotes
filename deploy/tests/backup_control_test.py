@@ -108,6 +108,7 @@ class BackupControlTest(unittest.TestCase):
             control.worker({})
         self.assertNotIn('super-private', control.JOB['message'])
         self.assertFalse(control.JOB['busy'])
+        self.assertEqual(control.JOB['outcome'], 'error')
 
     @unittest.skipUnless(shutil.which('restic'), 'Restic required')
     def test_real_repository_setup_and_restore(self):
