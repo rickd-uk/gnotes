@@ -138,6 +138,11 @@ class BackupControlTest(unittest.TestCase):
              patch.object(control, 'validate', return_value=values), \
              patch.object(control, 'properties', return_value={'ActiveState':'inactive'}), \
              patch.object(control, 'systemctl'):
+            # Ubuntu 24.04's Restic predates the distinct missing-repository exit code.
+            # Initialize the test fixture explicitly; configure still performs the real
+            # upload/check/download/restore round trip. Missing/create consent is tested above.
+            env = control.environment({**values, 'RESTIC_PASSWORD': 'fixture-site-key'})
+            self.assertEqual(control.run([control.RESTIC, 'init'], env).returncode, 0)
             control.configure({**self.data, 'allow_create': True})
             metadata = json.loads((control.PRIVATE / 'verified.json').read_text())
             self.assertEqual(len(metadata['snapshots']), 1)
