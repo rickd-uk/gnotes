@@ -3091,6 +3091,10 @@
 
       .info-panel[hidden] { display: none; }
 
+      @media (min-width: 561px) {
+        #profile-panel { inset-inline: max(16px, calc((100vw - 860px) / 2)); }
+      }
+
       .transfer-panel-controls { display: grid; gap: 10px; margin-top: 16px; }
       .transfer-panel-controls label { display: grid; gap: 4px; color: var(--muted); font-size: 0.78rem; }
       .transfer-panel-controls select,
