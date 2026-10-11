@@ -125,6 +125,28 @@
       const button = () => document.getElementById(`note-${noteID()}`)?.querySelector(selector);
       add(`note:${key}`, name, 'Focused note', () => button()?.click(), () => editingNoteId === null && Boolean(button()) && !button().disabled);
     }
+    const textRoot = () => {
+      const active = document.activeElement;
+      if (active?.matches('#title, #content, .edit-title, .edit-content, .tiptap')) return active;
+      const selection = window.getSelection();
+      return selection && !selection.isCollapsed ? selection.anchorNode?.parentElement?.closest('.note-content, .tiptap, .note-view > h2') : null;
+    };
+    for (const [id, name] of [['cut','Cut selection'],['copy','Copy selection'],['paste','Paste'],['dictionary','Look up selected word'],['ignore','Always ignore selected spelling']]) {
+      add(`text:${id}`, name, 'Selected text', () => {
+        const root = textRoot();
+        if (!root) return;
+        const selection = window.getSelection();
+        const rect = root.matches('input, textarea') || !selection?.rangeCount ? root.getBoundingClientRect() : selection.getRangeAt(0).getBoundingClientRect();
+        const event = new PointerEvent('contextmenu', { pointerType: 'mouse', button: 2, bubbles: true, cancelable: true, clientX: (rect.left + rect.right) / 2, clientY: (rect.top + rect.bottom) / 2 });
+        root.dispatchEvent(event);
+        const menu = document.getElementById('note-context-menu');
+        if (!event.defaultPrevented || menu.hidden) return;
+        const button = document.getElementById(`note-context-${id}`);
+        if (!button.disabled) button.click();
+        menu.hidden = true;
+        if (!document.querySelector('dialog[open]')) root.focus({ preventScroll: true });
+      }, () => Boolean(textRoot()));
+    }
     for (const [id, name, rowSelector, buttonSelector] of [
       ['recover', 'Recover focused recycled note', '.trash-item', '.restore-one'],
       ['unhide', 'Show focused hidden note', '.hidden-note-item', '.show-hidden-note'],
@@ -145,7 +167,7 @@
     }
     // Include every static control: menus, account, search, import/export, admin,
     // spelling, offline reading, display settings and confirmation dialogs.
-    document.querySelectorAll('#app-shell button, #app-shell summary, #app-shell input[type=checkbox], #app-shell select, #app-shell input[type=range], dialog:not(#shortcuts-dialog) button, dialog:not(#shortcuts-dialog) input[type=checkbox], dialog:not(#shortcuts-dialog) select, #note-context-menu button, #note-selection-actions button').forEach(el => {
+    document.querySelectorAll('#app-shell button, #app-shell summary, #app-shell input[type=checkbox], #app-shell select, #app-shell input[type=range], dialog:not(#shortcuts-dialog) button, dialog:not(#shortcuts-dialog) input[type=checkbox], dialog:not(#shortcuts-dialog) select').forEach(el => {
       if (el.closest('#notes-list, #trash-list, #hidden-notes-list, #admin-users, .rich-editor-container, .format-control')) return;
       if (['shortcuts-open', 'search-toggle', 'view-backdrop'].includes(el.id)) return;
       const name = label(el);
