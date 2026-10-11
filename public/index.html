@@ -7,6 +7,7 @@
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/dictionary.css" />
+    <link rel="stylesheet" href="/shortcuts.css" />
     <style>
       :root {
         color-scheme: light;
@@ -2446,11 +2447,12 @@
       .note-card.is-editing {
         position: fixed;
         z-index: 70;
-        top: calc(var(--edit-viewport-top, 0px) + 16px);
+        top: calc(var(--edit-viewport-top, 0px) + var(--edit-viewport-height, 100dvh) / 2);
         left: calc(var(--edit-viewport-left, 0px) + 16px);
         display: flex;
         width: calc(var(--edit-viewport-width, 100vw) - 32px);
-        height: calc(var(--edit-viewport-height, 100dvh) - 32px);
+        height: auto;
+        max-height: calc(var(--edit-viewport-height, 100dvh) - 32px);
         flex-direction: column;
         padding: 20px 24px 18px;
         overflow: hidden;
@@ -2459,7 +2461,7 @@
         background: var(--note-surface, #f8f6f0);
         box-shadow: 0 24px 65px rgba(36, 35, 31, 0.24);
         opacity: 1;
-        transform: none;
+        transform: translateY(-50%);
         transition: none;
       }
 
@@ -2476,7 +2478,7 @@
       .note-card.is-editing .edit-content {
         min-height: 0;
         max-height: none;
-        flex: 1;
+        flex: 1 1 auto;
         overflow: auto;
       }
       .note-card.is-editing .rich-editor-container:not([hidden]) {
@@ -2528,14 +2530,15 @@
 
       @media (max-width: 560px) {
         .note-card.is-editing {
-          top: var(--edit-viewport-top, 0px);
+          top: calc(var(--edit-viewport-top, 0px) + (var(--edit-viewport-height, 100dvh) - 80px - env(safe-area-inset-bottom)) / 2);
           left: var(--edit-viewport-left, 0px);
           width: var(--edit-viewport-width, 100vw);
-          height: var(--edit-viewport-height, 100dvh);
+          height: auto;
+          max-height: calc(var(--edit-viewport-height, 100dvh) - 80px - env(safe-area-inset-bottom));
           padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
           border: 0;
           border-radius: 0;
-          transform: none;
+          transform: translateY(-50%);
         }
       }
 
@@ -3319,7 +3322,8 @@
       #profile-panel .backup-feedback[data-tone="success"] { background: #e1f0e7; border-color: #6e9c80; color: #1d5738; }
       #profile-panel .backup-feedback[data-tone="working"]::before { content: ''; display: inline-block; width: 13px; height: 13px; margin-right: 9px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -2px; animation: backup-spin 1s linear infinite; }
       @keyframes backup-spin { to { transform: rotate(360deg); } }
-      @media (prefers-reduced-motion: reduce) { #profile-panel .backup-feedback[data-tone="working"]::before { animation: none; } }
+      @media (prefers-reduced-motion: reduce) {
+        #profile-panel .backup-feedback[data-tone="working"]::before { animation: none; } }
       #site-backup-admin button { min-height: 44px; }
       #site-backup-wizard > summary { cursor: pointer; padding: 12px 0; }
       .profile-role {
@@ -4354,11 +4358,12 @@
         }
         .info-panel, .archive-panel { max-height: calc(var(--visible-screen-height, 100dvh) - 142px - env(safe-area-inset-bottom)); }
         .view-menu { top: var(--visible-screen-top, 0px); bottom: calc(var(--keyboard-inset, 0px) + 72px + env(safe-area-inset-bottom)); }
-        .note-card.is-editing { height: calc(var(--edit-viewport-height, 100dvh) - 80px - env(safe-area-inset-bottom)); }
+        .note-card.is-editing { max-height: calc(var(--edit-viewport-height, 100dvh) - 80px - env(safe-area-inset-bottom)); }
         .note-undo-toast, .note-action-toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
       }
 
       @media (prefers-reduced-motion: reduce) {
+        #notes-list .note-card.is-editing { transform: translateY(-50%); }
         .view-menu {
           transition: none;
         }
@@ -4617,6 +4622,9 @@
                   <summary class="menu-entry"><svg class="menu-item-icon" style="color: #8b7547" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 17h5"/></svg><span>Manage notes</span></summary>
                   <button class="menu-entry account-danger" id="delete-all-notes" type="button" hidden><svg class="menu-item-icon" style="color: #a3645c" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg><span>Delete all notes</span></button>
                 </details>
+              </div>
+              <div class="account-menu-section">
+                <button class="menu-entry" id="shortcuts-open" type="button"><svg class="menu-item-icon" style="color: #426a83" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h1m3 0h1m3 0h1m3 0h1M6 13h1m3 0h1m3 0h1m3 0h1M8 16h8"/></svg><span>Keyboard shortcuts</span></button>
               </div>
               <div class="account-menu-section">
                 <button class="menu-entry account-signout" id="logout-button" type="button"><svg class="menu-item-icon" style="color: #a3645c" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H4v16h6M8 12h13m-4-4 4 4-4 4"/></svg><span>Sign out</span></button>
@@ -5008,6 +5016,7 @@
       </div>
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
+        <div><h3>Your keyboard shortcuts</h3><p>Open Profile → Keyboard shortcuts to search actions and assign keys. Shortcuts are saved for your account in this browser. Note actions use the focused or pointed-at note. Ctrl+Shift+P toggles preview; Escape saves and closes a note, retaining edits if saving fails. Short notes use a centered, content-sized editor.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Tab indents text; Shift+Tab moves it back. In lists, these keys change nesting. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done. Saved links open normally; Shift-click a link to edit its note. While editing, click a link to place the cursor, then choose Link in the formatting toolbar to change its address or open it. Ctrl/Command-click opens a link directly from the editor.</p></div>
         <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Favorites are hidden from the main view and Archive by default. To show them there too, enable Controls → Display → Favorites. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
@@ -5482,6 +5491,7 @@
           input.classList.add("force-source");
           document.querySelector(`#note-editor-${id} .edit-hint`).textContent =
             "Editing Markdown source to preserve this note’s formatting.";
+          resizeTextareaToContent(input);
           return;
         }
         input.classList.remove("force-source");
@@ -5531,6 +5541,7 @@
           mountDraftRichEditor();
           if (editingNoteId !== null && !richEdit) mountEditRichEditor(editingNoteId);
         }
+        if (enabled && editingNoteId !== null) resizeTextareaToContent(document.getElementById(`edit-content-${editingNoteId}`));
       }
 
       document.addEventListener("click", (event) => {
@@ -8700,7 +8711,10 @@
         if (!editor || !preview || !button) return;
         editor.classList.toggle("is-preview", enabled);
         preview.hidden = !enabled;
-        if (!enabled) preview.previewRequest = null;
+        if (!enabled) {
+          preview.previewRequest = null;
+          if (!richEdit) resizeTextareaToContent(document.getElementById(`edit-content-${id}`));
+        }
         button.setAttribute("aria-pressed", String(enabled));
         button.setAttribute("aria-label", enabled ? "Return to editing" : "Show rendered preview");
         button.title = enabled ? "Return to editing" : "Show rendered preview";
@@ -9351,14 +9365,6 @@
           event.preventDefault();
           updateNote(id);
         }
-        if (event.key === "Escape") {
-          event.preventDefault();
-          if (closeFormattingToolbars()) {
-            event.stopPropagation();
-            return;
-          }
-          updateNote(id);
-        }
       }
 
       const noteForm = document.getElementById("note-form");
@@ -9366,7 +9372,8 @@
 
       function resizeTextareaToContent(textarea) {
         if (textarea.closest(".note-card.is-editing")) {
-          textarea.style.height = "";
+          textarea.style.height = "auto";
+          textarea.style.height = `${textarea.scrollHeight}px`;
           textarea.style.overflowY = "auto";
           return;
         }
@@ -9969,6 +9976,8 @@
       });
 
       document.addEventListener("keydown", (event) => {
+        if (event.defaultPrevented || event.isComposing) return;
+        if (document.querySelector('dialog[open]')) return;
         if (document.getElementById('dictionary-dialog').open) return;
         if (event.key === "Tab" && editingNoteId !== null && richContextMenu.hidden && !document.getElementById("rich-link-dialog").open) {
           const card = document.getElementById(`note-${editingNoteId}`);
@@ -9998,6 +10007,12 @@
           }
         }
         if (event.key === "Escape") {
+          if (editingNoteId !== null) {
+            event.preventDefault();
+            closeFormattingToolbars();
+            updateNote(editingNoteId);
+            return;
+          }
           closeFormattingToolbars();
           closeViewMenu(true);
           closeTrashPanel();
@@ -10012,19 +10027,7 @@
           saveUIState();
         }
 
-        const target = event.target;
-        const isTyping =
-          target.matches("input, textarea, select") || target.isContentEditable;
-        if (event.key === "/" && !isTyping) {
-          event.preventDefault();
-          document.getElementById("search-panel").hidden = false;
-          document
-            .getElementById("search-toggle")
-            .setAttribute("aria-expanded", "true");
-          document.getElementById("search-query").focus();
-          if (document.getElementById("search-query").value.trim() || document.getElementById("search-tag").value) scheduleLiveSearch();
-          saveUIState();
-        }
+
       });
 
       document.getElementById("account-control").addEventListener("toggle", (event) => {
@@ -10663,6 +10666,7 @@
       initializeAuth();
     </script>
     <script src="/dictionary.js"></script>
+    <script src="/shortcuts.js"></script>
     <script src="/offline-store.js"></script>
   </body>
 </html>

@@ -51,7 +51,7 @@ func TestOptimisticNoteBrowser(t *testing.T) {
 	if err := db.DB.QueryRow("SELECT content FROM notes WHERE title='Latency test'").Scan(&content); err != nil || content != "Newest edit" {
 		t.Fatalf("persisted content = %q, error = %v", content, err)
 	}
-	browser.script(`heldRequests=[];openNoteEditor(testNoteID,false);richEdit.editor.commands.setContent('<p>Keep failed edit</p>');updateNote(testNoteID);if(editingNoteId!==null)throw new Error('Done waited for the server');`)
+	browser.script(`heldRequests=[];openNoteEditor(testNoteID,false);richEdit.editor.commands.setContent('<p>Keep failed edit</p>');richEdit.editor.view.dom.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));if(editingNoteId!==null)throw new Error('Done waited for the server');`)
 	browser.wait(`heldRequests.length===1`)
 	browser.script(`heldRequests[0].fail();`)
 	browser.wait(`document.getElementById('note-action-dialog').open && editingNoteId===testNoteID`)

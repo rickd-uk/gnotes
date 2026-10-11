@@ -35,7 +35,8 @@ archive="$BACKUP_DIRECTORY/gnotes-daily-20261010T030000Z.db.gz"
 gzip -c "$test_directory/good.db" > "$archive"
 restic init >/dev/null
 # Record real commands so tests catch accidental full-repository downloads.
-export GNOTES_REAL_RESTIC="$(command -v restic)"
+GNOTES_REAL_RESTIC="$(command -v restic)"
+export GNOTES_REAL_RESTIC
 export GNOTES_RESTIC_LOG="$test_directory/restic-commands.log"
 cat > "$test_directory/restic-wrapper" <<'SH'
 #!/bin/sh
