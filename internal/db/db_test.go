@@ -208,3 +208,32 @@ func assertFTSCount(t *testing.T, condition string, want int) {
 		t.Fatalf("FTS count = %d, want %d", count, want)
 	}
 }
+
+func TestNoteLockMigrationAndRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "note-lock.db")
+	legacy, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = legacy.Exec(`CREATE TABLE notes (id INTEGER PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, created_at DATETIME NOT NULL);
+        INSERT INTO notes VALUES(1,'Existing note','Keep this content',CURRENT_TIMESTAMP)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy.Close()
+	InitDB(path)
+	var title, content string
+	var locked bool
+	if err := DB.QueryRow("SELECT title,content,locked FROM notes WHERE id=1").Scan(&title, &content, &locked); err != nil || locked || title != "Existing note" || content != "Keep this content" {
+		t.Fatalf("migration changed legacy note: %s %s %v %v", title, content, locked, err)
+	}
+	if _, err := DB.Exec("UPDATE notes SET locked=1 WHERE id=1"); err != nil {
+		t.Fatal(err)
+	}
+	DB.Close()
+	InitDB(path)
+	t.Cleanup(func() { DB.Close() })
+	if err := DB.QueryRow("SELECT locked FROM notes WHERE id=1").Scan(&locked); err != nil || !locked {
+		t.Fatalf("lock lost on restart: %v %v", locked, err)
+	}
+}

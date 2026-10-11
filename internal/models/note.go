@@ -7,6 +7,7 @@ import (
 
 // Note "Blueprint"
 type Note struct {
+	Locked          bool          `json:"locked"`
 	ID              int           `json:"id"`
 	Title           string        `json:"title"`
 	Content         string        `json:"content"` // Markdown here

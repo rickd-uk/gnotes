@@ -180,6 +180,7 @@ func InitDB(filepath string) {
 	ensureColumn("deleted_at", "DATETIME")
 	ensureColumn("archived_at", "DATETIME")
 	ensureColumn("pinned", "INTEGER NOT NULL DEFAULT 0")
+	ensureColumn("locked", "INTEGER NOT NULL DEFAULT 0")
 	ensureColumn("favorited", "INTEGER NOT NULL DEFAULT 0")
 	ensureColumn("background_color", "TEXT NOT NULL DEFAULT ''")
 	ensureColumn("tags", "TEXT NOT NULL DEFAULT '[]'")

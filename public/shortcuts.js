@@ -73,7 +73,7 @@
     add('save', 'Save and close note', 'Editor', () => updateNote(editingNoteId), () => editingNoteId !== null);
     add('copy-edit', 'Copy edited note text', 'Editor', () => copyEditedNoteText(editingNoteId, document.querySelector('.is-editing .edit-copy')), () => editingNoteId !== null);
     add('preview', 'Toggle rendered preview', 'Editor', () => toggleNotePreview(editingNoteId), () => editingNoteId !== null);
-    add('edit', 'Edit focused note', 'Notes', () => openNoteEditor(noteID(), true), () => editingNoteId === null && noteID() !== null);
+    add('edit', 'Edit focused note', 'Notes', () => openNoteEditor(noteID(), true), () => editingNoteId === null && noteID() !== null && !loadedNotes.get(noteID())?.locked);
     add('formatting', 'Show / hide formatting', 'Editor', () => {
       if (activeWriter()?.editor) setRichToolbarVisible(!richToolbarVisible);
       else document.querySelector(`#${CSS.escape(activeWriter().id)}`)?.closest('form, .note-editor')?.querySelector('.format-toggle')?.click();
@@ -94,7 +94,7 @@
       }, () => Boolean(activeWriter()) && !(activeWriter().editor && !rich));
     }
     for (const [color, name] of noteColorOptions) {
-      add(`color:${color || 'default'}`, name, 'Note colors', () => setNoteColor(noteID(), color), () => editingNoteId === null && noteID() !== null);
+      add(`color:${color || 'default'}`, name, 'Note colors', () => setNoteColor(noteID(), color), () => editingNoteId === null && noteID() !== null && !loadedNotes.get(noteID())?.locked);
     }
     for (const language of ['', 'python', 'javascript', 'html', 'css', 'go', 'rust', 'java', 'sql', 'bash']) {
       add(`language:${language || 'plain'}`, `${language || 'Plain'} code block`, 'Code languages', () => {
@@ -117,7 +117,7 @@
       }, () => Boolean(activeWriter()));
     }
     for (const [key, name, selector] of [
-      ['favorite','Toggle Favorite','[data-note-action="favorite"]'],['pin','Pin / unpin','[data-note-action="pin"]'],
+      ['lock','Lock / unlock note','[data-note-action="lock"]'],['favorite','Toggle Favorite','[data-note-action="favorite"]'],['pin','Pin / unpin','[data-note-action="pin"]'],
       ['hide','Hide','[data-note-action="hide"]'],['archive','Archive / unarchive','[data-note-action="archive"]'],
       ['copy','Copy note text','[data-note-action="copy"]'],['delete','Move to recycle bin','[data-note-action="delete"]'],
       ['tags','Edit tags','[aria-label="Edit note tags"]'],['color','Change color','.color-btn'],['roll','Expand / roll up','.note-roll-toggle'],

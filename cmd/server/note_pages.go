@@ -59,7 +59,7 @@ func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	notes, _, err := queryActiveNotePage(`SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, archived_at
+	notes, _, err := queryActiveNotePage(`SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at
 	    FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL LIMIT ?`,
 		[]any{id, userIDFromRequest(r)}, 1)
 	if err != nil {
@@ -120,7 +120,7 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	columns := "id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, archived_at"
+	columns := "id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at"
 	order := "pinned DESC, unixepoch(created_at) DESC, id DESC"
 	if archived {
 		order = "unixepoch(archived_at) DESC, id DESC"
@@ -202,7 +202,7 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fromClause := " FROM notes n " + join + " WHERE " + strings.Join(conditions, " AND ")
-	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color, n.tags, n.favorited, n.archived_at"
+	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color, n.tags, n.favorited, n.locked, n.archived_at"
 	order := "n.pinned DESC, unixepoch(n.created_at) DESC, n.id DESC"
 	if archived {
 		order = "unixepoch(n.archived_at) DESC, n.id DESC"
@@ -287,7 +287,7 @@ func pagedTrashNotesHandler(w http.ResponseWriter, r *http.Request) {
 		conditions = append(conditions, "(unixepoch(deleted_at) < ? OR (unixepoch(deleted_at) = ? AND id < ?))")
 		args = append(args, cursor.DeletedAt.Unix(), cursor.DeletedAt.Unix(), cursor.ID)
 	}
-	query := `SELECT id, title, content, created_at, deleted_at, tags
+	query := `SELECT id, title, content, created_at, deleted_at, tags, locked
     FROM notes WHERE ` + strings.Join(conditions, " AND ") + `
 	ORDER BY unixepoch(deleted_at) DESC, id DESC LIMIT ?`
 	queryArgs := append(append([]any{}, args...), limit+1)
@@ -299,7 +299,7 @@ func pagedTrashNotesHandler(w http.ResponseWriter, r *http.Request) {
 	trash := make([]models.Note, 0, limit+1)
 	for rows.Next() {
 		var note models.Note
-		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.DeletedAt, &note.Tags); err != nil {
+		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.DeletedAt, &note.Tags, &note.Locked); err != nil {
 			rows.Close()
 			http.Error(w, "Could not load recycle bin", http.StatusInternalServerError)
 			return
@@ -484,7 +484,7 @@ func queryNotePage(query string, args []any, limit int, archived bool) ([]models
 	for rows.Next() {
 		var note models.Note
 		var rendered sql.NullString
-		fields := []any{&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited}
+		fields := []any{&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited, &note.Locked}
 		var archivedAt sql.NullTime
 		fields = append(fields, &archivedAt)
 		if err := rows.Scan(fields...); err != nil {

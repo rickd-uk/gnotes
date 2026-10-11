@@ -21,13 +21,14 @@ import (
 
 // The format deliberately excludes server IDs and rendered HTML. IDs belong to
 // the destination database; HTML is derived from Markdown when notes are read.
-const transferVersion = 3
+const transferVersion = 4
 const maxTransferBytes = 64 << 20
 const maxTransferNotes = 10000
 
 var errTransferTooLarge = errors.New("transfer exceeds the size limit")
 
 type transferNote struct {
+	Locked          bool        `json:"locked"`
 	SourceID        int         `json:"source_id,omitempty"`
 	Title           string      `json:"title"`
 	Content         string      `json:"content"`
@@ -92,7 +93,7 @@ func exportNotesHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write(body)
 		return
 	}
-	if len(notes) == 1 && len(notes[0].Tags) == 0 {
+	if len(notes) == 1 && len(notes[0].Tags) == 0 && !notes[0].Locked {
 		extension := ".md"
 		if format == "text" {
 			extension = ".txt"
@@ -219,7 +220,7 @@ func loadTransferNotes(userID int, ids []int) ([]transferNote, error) {
 }
 
 func loadTransferNotesFiltered(userID int, ids []int, readableOnly bool) ([]transferNote, error) {
-	query := "SELECT id, title, content, created_at, deleted_at, archived_at, pinned, background_color, tags, favorited FROM notes WHERE user_id = ?"
+	query := "SELECT id, title, content, created_at, deleted_at, archived_at, pinned, background_color, tags, favorited, locked FROM notes WHERE user_id = ?"
 	args := []any{userID}
 	if readableOnly {
 		query += " AND deleted_at IS NULL"
@@ -241,7 +242,7 @@ func loadTransferNotesFiltered(userID int, ids []int, readableOnly bool) ([]tran
 	for rows.Next() {
 		var note transferNote
 		var deleted, archived sql.NullTime
-		if err := rows.Scan(&note.SourceID, &note.Title, &note.Content, &note.CreatedAt, &deleted, &archived, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited); err != nil {
+		if err := rows.Scan(&note.SourceID, &note.Title, &note.Content, &note.CreatedAt, &deleted, &archived, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited, &note.Locked); err != nil {
 			return nil, err
 		}
 		if deleted.Valid {
@@ -360,8 +361,8 @@ func importNotesHandler(w http.ResponseWriter, r *http.Request) {
 					userIDFromRequest(r), note.Title, note.Content).Scan(&exists)
 			} else {
 				err = tx.QueryRow(`SELECT 1 FROM notes WHERE user_id = ? AND title = ? AND content = ? AND created_at = ?
-				AND deleted_at IS ? AND archived_at IS ? AND pinned = ? AND background_color = ? AND tags = ? AND favorited = ? LIMIT 1`,
-					userIDFromRequest(r), note.Title, note.Content, note.CreatedAt, note.DeletedAt, note.ArchivedAt, note.Pinned, note.BackgroundColor, tags, note.Favorited).Scan(&exists)
+				AND deleted_at IS ? AND archived_at IS ? AND pinned = ? AND background_color = ? AND tags = ? AND favorited = ? AND locked = ? LIMIT 1`,
+					userIDFromRequest(r), note.Title, note.Content, note.CreatedAt, note.DeletedAt, note.ArchivedAt, note.Pinned, note.BackgroundColor, tags, note.Favorited, note.Locked).Scan(&exists)
 			}
 			if err == nil {
 				skipped++
@@ -372,9 +373,9 @@ func importNotesHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		_, err = tx.Exec(`INSERT INTO notes (user_id, title, content, rendered_content, created_at, deleted_at, archived_at, pinned, background_color, tags, favorited)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userIDFromRequest(r), note.Title, note.Content, mdToHTML(note.Content), note.CreatedAt,
-			note.DeletedAt, note.ArchivedAt, note.Pinned, note.BackgroundColor, tags, note.Favorited)
+		_, err = tx.Exec(`INSERT INTO notes (user_id, title, content, rendered_content, created_at, deleted_at, archived_at, pinned, background_color, tags, favorited, locked)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userIDFromRequest(r), note.Title, note.Content, mdToHTML(note.Content), note.CreatedAt,
+			note.DeletedAt, note.ArchivedAt, note.Pinned, note.BackgroundColor, tags, note.Favorited, note.Locked)
 		if err != nil {
 			http.Error(w, "Import failed", 500)
 			return
@@ -398,7 +399,7 @@ func decodeTransferFile(body []byte, file *transferFile) error {
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return errors.New("expected one JSON object")
 	}
-	if file.Format != "gnotes" || (file.Version != 1 && file.Version != 2 && file.Version != transferVersion) {
+	if file.Format != "gnotes" || (file.Version != 1 && file.Version != 2 && file.Version != 3 && file.Version != transferVersion) {
 		return errors.New("unsupported gnotes format version")
 	}
 	if file.Notes == nil {

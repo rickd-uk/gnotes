@@ -105,7 +105,7 @@ func updateNoteTagsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	result, err := db.DB.Exec("UPDATE notes SET tags=? WHERE id=? AND user_id=? AND deleted_at IS NULL", tags, id, userIDFromRequest(r))
+	result, err := db.DB.Exec("UPDATE notes SET tags=? WHERE id=? AND user_id=? AND deleted_at IS NULL AND locked=0", tags, id, userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Could not save tags", 500)
 		return
@@ -116,7 +116,7 @@ func updateNoteTagsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if count == 0 {
-		http.Error(w, "Note not found", 404)
+		noteEditRejected(w, r, id)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

@@ -12,6 +12,8 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 
 **Profile → Keyboard shortcuts** lists navigation, note actions, editing, formatting, selected-text Cut/Copy/Paste/Dictionary/Ignore, display, search, account, spelling, import/export, offline reading and administration controls. Search for an action and select **Set keys** to record a combination; conflicts are rejected. Clear individual bindings or reset defaults. Assignments are stored per account in this browser. Note commands target the focused or pointed-at note; unavailable commands are ignored. Defaults: `/` finds notes, Ctrl+Enter saves and closes, and Ctrl+Shift+P toggles preview. Standard text editing, Tab indentation, Escape and browser keys retain their roles. Range and selection controls receive keyboard focus so you can adjust them with arrow keys.
 
+Use **note tools (⋯) → Lock note** to protect a note from editing. A muted padlock indicator stays visible; click it to unlock. Locked notes protect title, text, checklist items, tags and color on the server, across devices. Add Lock to quick actions under Controls or assign **Lock / unlock note** in Keyboard shortcuts. Locks survive archiving, recycling/recovery, JSON/encrypted backups and ZIP exports. If another window locks a note while you edit it, rejected edits remain available to save after unlocking.
+
 Favorites appear only in the Favorites collection by default. Enable **Controls → Display → Favorites** to include them in those views too. This preference is saved per account in the current browser. Removing the diamond returns a note to its original active or archived view. The diamond beside a date heading adds that entire date section to Favorites, including later pages; active date sections exclude pinned notes. Archive dates use the archive date.
 
 On small screens (up to 560 px), Controls, Search, Favorites, Archive, Recycle Bin, and Profile stay in a larger bottom navigation bar. Tablet and desktop retain the header controls. The small arrow beside **New note** collapses or reopens the writing box without discarding the draft. **Controls → Display → New note box** controls the same setting. The choice is remembered per account in this browser.
@@ -114,7 +116,7 @@ Supported environment variables:
 | `GNOTES_PUBLIC_URL` | none | Application origin for email links; HTTPS required except on localhost |
 | `GNOTES_SITE_BACKUP_RECOVERY_FILE` | none | Private recovery file offered only to reauthenticated admins; mount it read only outside public assets |
 
-gnotes JSON exports now use format version 2; version 1 remains importable. A tagged single-note Markdown/text export uses a ZIP with a metadata manifest so tags survive reimport.
+gnotes JSON exports use format version 4 and preserve note locks; versions 1–3 remain importable. A tagged or locked single-note Markdown/text export uses a ZIP with a metadata manifest so its state survives reimport.
 
 See [OPERATIONS.md](OPERATIONS.md#brevo-password-recovery) for email setup. Existing account emails require verification before they can recover a password.
 

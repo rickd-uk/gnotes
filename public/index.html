@@ -2029,6 +2029,7 @@
 
       .note-actions {
         position: relative;
+        z-index: 4;
         display: flex;
         flex-shrink: 0;
         align-items: center;
@@ -2039,6 +2040,10 @@
 
       .note-quick-actions { display: flex; align-items: center; gap: 4px; }
 
+      .note-lock-indicator { display: inline-flex; align-items: center; gap: 4px; border: 0; border-radius: 6px; padding: 4px 6px; background: #e9e1d2; color: #79643f; font: inherit; cursor: pointer; }
+      .note-lock-indicator .icon { width: 14px; height: 14px; }
+      .lock-btn[aria-pressed="true"] { color: #79643f; background: #e9e1d2; }
+      .note-action:disabled { opacity: .35; cursor: default; }
       .note-actions-toggle {
         width: 40px;
         height: 40px;
@@ -2862,6 +2867,13 @@
       }
 
       #notes-list.density-titles.tool-all-hidden .note-card .note-view > h2 { right: 12px; }
+      #notes-list.density-titles .note-card.is-locked .date-row { display: flex; }
+      #notes-list.density-titles .note-card.is-locked .date-row > :not(.note-lock-indicator) { display: none; }
+      #notes-list.density-titles .note-lock-indicator span { display: none; }
+      #notes-list.density-titles .note-lock-indicator { min-width: 32px; min-height: 36px; justify-content: center; }
+      #notes-list.density-titles .note-card.is-locked { padding-right: calc(86px + 40px * var(--quick-action-count)); }
+      #notes-list.density-titles.tool-all-hidden .note-card.is-locked { padding-right: 48px; }
+
 
       #notes-list.density-compact .note-card.is-editing,
       #notes-list.density-titles .note-card.is-editing { padding: 20px 24px 18px; }
@@ -4465,6 +4477,7 @@
               <span title="Choosing a fourth quick action replaces the first">Quick actions · up to 3</span>
               <button class="tool-choice" type="button" data-tool="archive"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3ZM9 11h6"/></svg><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="favorite"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5 6 7-6 7-6-7ZM12 1v2M12 21v2M1 12h2M21 12h2"/></svg><span>Favorites</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="lock"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg><span>Lock</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="pin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8"/></svg><span>Pin</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="hide"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg><span>Hide</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="color"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z"/><circle cx="8" cy="9" r="1"/><circle cx="13" cy="7" r="1"/></svg><span>Color</span><span class="tool-state" aria-hidden="true"></span></button>
@@ -5016,6 +5029,7 @@
       </div>
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
+        <div><h3>Lock a note</h3><p>Choose Lock note in its ⋯ tools menu. Locked notes keep a padlock indicator; click it to unlock. Title, text, checklists, tags and color are protected across devices. You can add Lock to your quick actions or assign a shortcut.</p></div>
         <div><h3>Your keyboard shortcuts</h3><p>Open Profile → Keyboard shortcuts to search actions and assign keys. Shortcuts are saved for your account in this browser. Note actions use the focused or pointed-at note. Ctrl+Shift+P toggles preview; Escape saves and closes a note, retaining edits if saving fails. Short notes use a centered, content-sized editor.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Tab indents text; Shift+Tab moves it back. In lists, these keys change nesting. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done. Saved links open normally; Shift-click a link to edit its note. While editing, click a link to place the cursor, then choose Link in the formatting toolbar to change its address or open it. Ctrl/Command-click opens a link directly from the editor.</p></div>
         <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Favorites are hidden from the main view and Archive by default. To show them there too, enable Controls → Display → Favorites. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
@@ -5178,7 +5192,7 @@
         ["rose", "Rose"],
       ];
       const noteColorKeys = new Set(noteColorOptions.map(([key]) => key));
-      const noteTools = ["favorite", "pin", "hide", "archive", "color", "copy", "delete"];
+      const noteTools = ["lock", "favorite", "pin", "hide", "archive", "color", "copy", "delete"];
       let quickActions = ["archive", "delete"];
       let showNoteTools = true;
       let archiveMode = false;
@@ -5689,7 +5703,7 @@
           if (archiveMode || card.classList.contains("is-archived")) {
             card.style.setProperty("--quick-action-count", "4");
             quick.append(actions.get("favorite"), actions.get("archive"), actions.get("copy"), actions.get("delete"));
-            actions.forEach((element) => { if (menu.contains(element)) element.hidden = true; });
+            actions.forEach((element) => { if (menu.contains(element)) element.hidden = element.dataset.noteAction !== "lock"; });
             divider.hidden = true;
             return;
           }
@@ -6676,6 +6690,7 @@
       }
 
       async function setNoteColor(id, color) {
+        if (loadedNotes.get(id)?.locked) return;
         if (!noteColorKeys.has(color)) return;
         const menu = document.getElementById(`note-colors-${id}`);
         if (!menu || menu.dataset.saving === "true") return;
@@ -6903,11 +6918,12 @@
             const isRolledUp = canRoll && rolledNoteIds.has(n.id);
 
             renderedNotes += `
-            <article class="note-card ${(n.tags || []).length ? "has-tags" : ""} ${isArchived ? "is-archived" : ""} ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
+            <article class="note-card ${n.locked ? "is-locked" : ""} ${(n.tags || []).length ? "has-tags" : ""} ${isArchived ? "is-archived" : ""} ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
               <div class="note-top-row">
                 <div class="date-row">
                   ${n.favorited ? `<span class="favorite-mark" aria-label="Favorite" title="Favorite"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></span>` : ""}
                   ${isArchived && !archiveMode ? '<span class="archived-note-label">Archived</span>' : ""}
+                  ${n.locked ? `<button class="note-lock-indicator" type="button" onclick="toggleNoteLock(${n.id})" aria-label="Unlock note" title="Unlock note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg><span>Locked</span></button>` : ""}
                   ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
                   <span class="note-time-controls">
                   ${canRoll ? `<button class="note-roll-toggle" type="button" onclick="toggleNoteRoll(${n.id})" aria-controls="note-content-${n.id}" aria-expanded="${String(!isRolledUp)}" aria-label="${isRolledUp ? "Expand" : "Roll up"} note" title="${isRolledUp ? "Expand" : "Roll up"} note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>` : ""}
@@ -6919,8 +6935,9 @@
                   <button class="note-actions-toggle" type="button" onclick="toggleNoteActions(${n.id})" aria-controls="note-tools-${n.id}" aria-expanded="false" aria-label="Show tools for this note" title="Show note tools">…</button>
                   <div class="note-tools" id="note-tools-${n.id}">
                   <div class="note-safe-actions">
-                  <button class="note-action" type="button" onclick="openNoteTags(${n.id})" aria-label="Edit note tags" title="Edit tags"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7l11 11-7 7L3 10Z"/><circle cx="7" cy="7" r="1"/></svg><span class="visually-hidden">Tags</span></button>
+                  <button class="note-action" type="button" onclick="openNoteTags(${n.id})" ${n.locked ? "disabled" : ""} aria-label="Edit note tags" title="Edit tags"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7l11 11-7 7L3 10Z"/><circle cx="7" cy="7" r="1"/></svg><span class="visually-hidden">Tags</span></button>
                   <button class="note-action favorite-btn ${n.favorited ? "is-favorited" : ""}" data-note-action="favorite" onclick="toggleFavorite(${n.id})" aria-pressed="${Boolean(n.favorited)}" aria-label="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}" title="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>
+                  <button class="note-action lock-btn" data-note-action="lock" type="button" onclick="toggleNoteLock(${n.id})" aria-pressed="${Boolean(n.locked)}" aria-label="${n.locked ? 'Unlock' : 'Lock'} note" title="${n.locked ? 'Unlock' : 'Lock'} note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg></button>
                   <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" data-note-action="pin" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" />
@@ -6941,7 +6958,7 @@
                     <span class="visually-hidden">Archive note</span>
                   </button>
                   <span class="note-color-control" data-note-action="color">
-                    <button class="note-action color-btn" type="button" onclick="toggleNoteColorMenu(${n.id})" aria-controls="note-colors-${n.id}" aria-expanded="false" aria-label="Change note color" title="Change note color">
+                    <button class="note-action color-btn" type="button" onclick="toggleNoteColorMenu(${n.id})" ${n.locked ? "disabled" : ""} aria-controls="note-colors-${n.id}" aria-expanded="false" aria-label="Change note color" title="Change note color">
                       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z" />
                         <circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none" /><circle cx="9.5" cy="6.8" r="1" fill="currentColor" stroke="none" /><circle cx="14" cy="6.8" r="1" fill="currentColor" stroke="none" /><circle cx="17" cy="10" r="1" fill="currentColor" stroke="none" />
@@ -7976,6 +7993,38 @@
         await promptActiveRemoval('all');
       }
 
+      async function toggleNoteLock(id) {
+        const note = loadedNotes.get(id), owner = currentUser;
+        if (!note || !owner || pendingNoteActions.has(id) || editingNoteId !== null) return;
+        const locked = !note.locked;
+        pendingNoteActions.add(id);
+        noteViewRevision++;
+        document.querySelectorAll(`#note-${id} .lock-btn, #note-${id} .note-lock-indicator`).forEach(button => { button.disabled = true; });
+        try {
+          await editSaveChain.catch(() => false);
+          if (currentUser !== owner) return;
+          if (locked && pendingNoteEdits.has(id)) throw new Error('Save your edits before locking this note.');
+          const response = await apiFetch(`/api/notes/lock?id=${id}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ locked }),
+          });
+          if (currentUser !== owner) return;
+          if (!response.ok) throw new Error('The note lock could not be saved. Please try again.');
+          const result = await response.json();
+          note.locked = result.locked;
+          renderLoadedNotes();
+          showNoteActionToast(result.locked ? 'Note locked' : 'Note unlocked');
+        } catch (error) {
+          if (currentUser === owner) showNoteActionDialog('Could not change note lock', error.message || 'Check your connection and try again.');
+        } finally {
+          if (currentUser === owner) {
+            pendingNoteActions.delete(id);
+            document.querySelectorAll(`#note-${id} .lock-btn, #note-${id} .note-lock-indicator`).forEach(button => { button.disabled = false; });
+            if (!note.locked && pendingNoteEdits.has(id)) openNoteEditor(id, false);
+            else if (!pendingNoteActions.size && !pendingNoteEdits.size && editingNoteId === null) loadNotes();
+          }
+        }
+      }
+
       async function togglePin(id) {
         const note = loadedNotes.get(id);
         if (!note) return;
@@ -8786,7 +8835,8 @@
         const note = loadedNotes.get(id);
         const view = document.getElementById(`note-view-${id}`);
         const editor = document.getElementById(`note-editor-${id}`);
-        if (!note || note.archived_at || !view || !editor) return false;
+        if (!note || note.archived_at || !view || !editor || pendingNoteActions.has(id)) return false;
+        if (note.locked) { showNoteActionToast('This note is locked. Use the padlock to unlock it.'); return false; }
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
         noteViewRevision++;
@@ -8844,6 +8894,13 @@
         toggle.setAttribute("aria-expanded", String(isOpen));
         toggle.setAttribute("aria-label", `${isOpen ? "Hide" : "Show"} tools for this note`);
         toggle.title = `${isOpen ? "Hide" : "Show"} note tools`;
+        if (isOpen) {
+          const menu = card.querySelector('.note-tools');
+          menu.style.right = '0px';
+          const bounds = menu.getBoundingClientRect();
+          if (bounds.left < 8) menu.style.right = `${bounds.left - 8}px`;
+          else if (bounds.right > innerWidth - 8) menu.style.right = `${bounds.right - innerWidth + 8}px`;
+        }
       }
 
       function toggleNoteActions(id) {
@@ -8956,6 +9013,7 @@
       }
 
       async function openNoteTags(id) {
+        if (loadedNotes.get(id)?.locked) { showNoteActionToast('Unlock this note before editing its tags.'); return; }
         if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
         const note = loadedNotes.get(id);
         if (!note) return;
@@ -9035,7 +9093,7 @@
         notesList.querySelectorAll(".note-card").forEach((card) => {
           const note = loadedNotes.get(Number(card.id.slice(5)));
           const checkboxes = [...card.querySelectorAll(".note-view .note-content input[type='checkbox']")];
-          if (!note || note.archived_at || archiveMode) {
+          if (!note || note.locked || note.archived_at || archiveMode) {
             checkboxes.forEach((checkbox) => { checkbox.disabled = true; });
             return;
           }
@@ -9060,7 +9118,7 @@
           button.textContent = pre.dataset.codeLanguage || 'Plain text';
           button.title = 'Edit code block and language';
           button.setAttribute('aria-label', `Edit ${button.textContent} code block`);
-          button.disabled = archiveMode || pre.closest(".note-card").classList.contains("is-archived");
+          button.disabled = archiveMode || pre.closest(".note-card").classList.contains("is-archived") || Boolean(loadedNotes.get(Number(pre.closest(".note-card").id.slice(5)))?.locked);
           button.addEventListener('click', async () => {
             const body = wrapper.closest('.note-content');
             const blockIndex = [...body.children].findIndex((block) => block.contains(wrapper));
@@ -9089,7 +9147,7 @@
         const note = loadedNotes.get(id);
         const { segments, tasks } = taskLinesInMarkdown(note?.content || "");
         const task = tasks[Number(checkbox.dataset.taskIndex)];
-        if (!note || !task || archiveMode || task.checked === checkbox.checked) {
+        if (!note || note.locked || !task || archiveMode || task.checked === checkbox.checked) {
           checkbox.checked = Boolean(task?.checked);
           return;
         }
@@ -9101,13 +9159,14 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ title: note.title, content: segments.join("") }),
           });
-          if (!response.ok) throw new Error("Checklist update failed");
+          if (!response.ok) { if (response.status === 423) note.locked = true; throw new Error("Checklist update failed"); }
           note.content = segments.join("");
         } catch {
           checkbox.checked = task.checked;
           if (currentUser) showNoteActionDialog("Could not update checklist", "The checkbox could not be saved. Please try again.");
         } finally {
-          if (card.isConnected && !archiveMode) card.querySelectorAll(".note-view .note-content input[data-task-index]").forEach((input) => { input.disabled = false; });
+          if (note.locked && editingNoteId === null) renderLoadedNotes();
+          else if (card.isConnected && !archiveMode) card.querySelectorAll(".note-view .note-content input[data-task-index]").forEach((input) => { input.disabled = false; });
         }
       });
 
@@ -9334,14 +9393,17 @@
               body: JSON.stringify({ title, content }),
             });
             if (currentUser !== owner) return false;
-            if (!res.ok) throw new Error('Save failed');
+            if (!res.ok) {
+              if (res.status === 423 && loadedNotes.has(id)) { loadedNotes.get(id).locked = true; renderLoadedNotes(); }
+              throw new Error('Save failed');
+            }
             if (pendingNoteEdits.get(id) === pending) pendingNoteEdits.delete(id);
             if (editingNoteId === null && !pendingNoteEdits.size) loadNotes();
             return true;
           } catch {
             if (currentUser === owner && pendingNoteEdits.get(id) === pending) {
-              if (editingNoteId === null) openNoteEditor(id, false);
-              showNoteActionDialog('Note not saved', 'Your edits are still available here. Check your connection, then close the editor to retry saving.');
+              if (editingNoteId === null && !loadedNotes.get(id)?.locked) openNoteEditor(id, false);
+              showNoteActionDialog('Note not saved', loadedNotes.get(id)?.locked ? 'This note was locked in another window. Your edits are retained here. Unlock the note to retry saving.' : 'Your edits are still available here. Check your connection, then close the editor to retry saving.');
             }
             return false;
           }
