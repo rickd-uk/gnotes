@@ -73,8 +73,12 @@
 #spelling-name-kind { display: block; margin: 0; min-height: 36px; min-width: 140px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); }
 #dictionary-ignore { margin-top: 16px; }
 #dictionary-ignore[hidden], #note-context-menu[hidden] { display: none; }
-#note-context-menu { position: fixed; z-index: 95; display: grid; gap: 6px; width: min(240px, calc(100vw - 16px)); box-sizing: border-box; padding: 8px; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 20px #0003; background: var(--paper); color: var(--ink); }
-#note-context-menu button { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 6px; }
+#note-context-menu { position: fixed; z-index: 95; display: grid; gap: 2px; width: min(240px, calc(100vw - 16px)); box-sizing: border-box; padding: 6px; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px #0002; background: var(--paper); color: var(--ink); }
+#note-context-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; text-align: left; padding: 8px 10px; border: 0; background: transparent; color: var(--ink); border-radius: 6px; cursor: pointer; }
 #note-context-menu button:hover, #note-context-menu button:focus-visible { background: var(--accent-soft); color: var(--accent); }
-#note-context-menu span { display: block; padding: 7px 10px; font-size: .65rem; color: var(--muted); }
+#note-context-menu button span { padding: 0; font-size: .8rem; color: inherit; }
+#note-context-menu .text-action-icon { width: 20px; height: 20px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+#note-context-menu button:disabled { opacity: .4; cursor: default; }
+#note-context-menu button:disabled:hover { background: transparent; color: var(--ink); }
+#note-context-dictionary { margin-top: 4px; border-top: 1px solid var(--line) !important; }
 .note-action-toast { pointer-events: none; }

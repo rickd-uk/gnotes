@@ -15,7 +15,7 @@
   const contextMenu = document.getElementById('note-context-menu');
   const noteTextSelector = '.note-content, .tiptap, .note-view > h2';
   const textInputSelector = '#title, .edit-title, #content, .edit-content';
-  let contextWord = '', contextText = '', contextEditor = null, contextPaste = null;
+  let contextWord = '', contextText = '', contextEditor = null, contextPaste = null, contextCut = null;
   let lastPointerType = '';
   document.addEventListener('pointerdown', event => { lastPointerType = event.pointerType; }, { capture: true, passive: true });
 
@@ -37,6 +37,36 @@
       if (owner === currentUser) showNoteActionToast('Copied');
     } catch {
       if (owner === currentUser) showNoteActionDialog('Could not copy', 'Use Ctrl+C or Command+C to copy selected text, or Shift + right-click for the browser menu.');
+    }
+  });
+  document.getElementById('note-context-cut').addEventListener('click', async () => {
+    const target = contextCut, owner = currentUser;
+    closeContext();
+    if (!target) return;
+    const unchanged = () => owner === currentUser && target.root.isConnected && target.root.getClientRects().length > 0 &&
+      (target.editor ? !target.editor.isDestroyed && target.editor.isEditable && target.editor.state.doc.eq(target.doc)
+        : !target.root.disabled && !target.root.readOnly && target.root.value === target.value);
+    if (!unchanged()) return;
+    try {
+      await navigator.clipboard.writeText(target.text);
+      if (!unchanged()) {
+        if (owner === currentUser) showNoteActionToast('Text changed; selection was copied but not cut.');
+        return;
+      }
+      if (target.editor) {
+        target.editor.chain().focus().deleteRange(target.selection).run();
+      } else {
+        target.root.focus({ preventScroll: true });
+        target.root.setSelectionRange(target.from, target.to);
+        // Native deletion keeps the browser's Undo history when available.
+        if (!document.execCommand('delete')) {
+          target.root.setRangeText('', target.from, target.to, 'end');
+          target.root.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+      showNoteActionToast('Cut');
+    } catch {
+      if (owner === currentUser) showNoteActionDialog('Could not cut', 'Your text has not been removed. Allow clipboard access, or use Ctrl+X or Command+X.');
     }
   });
   document.getElementById('note-context-paste').addEventListener('click', async () => {
@@ -402,6 +432,14 @@
     contextPaste = textInput && !textInput.disabled && !textInput.readOnly
       ? { root, from: textInput.selectionStart ?? 0, to: textInput.selectionEnd ?? 0 }
       : editor ? { root, editor, selection: { from: editor.state.selection.from, to: editor.state.selection.to } } : null;
+    contextCut = null;
+    if (contextPaste?.editor && !editor.state.selection.empty && editor.isEditable) {
+      contextCut = { ...contextPaste, doc: editor.state.doc,
+        text: editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '\n', '\n') };
+    } else if (contextPaste && !contextPaste.editor && contextPaste.to > contextPaste.from) {
+      contextCut = { ...contextPaste, value: root.value, text: root.value.slice(contextPaste.from, contextPaste.to) };
+    }
+    document.getElementById('note-context-cut').disabled = !contextCut || !navigator.clipboard?.writeText;
     document.getElementById('note-context-paste').disabled = !contextPaste || !navigator.clipboard?.readText;
     document.getElementById('note-context-copy').disabled = !contextText;
     document.getElementById('note-context-dictionary').disabled = !word;
@@ -415,7 +453,7 @@
   });
 
   function reset() {
-    closeContext(); contextWord = ''; contextText = ''; contextEditor = null; contextPaste = null;
+    closeContext(); contextWord = ''; contextText = ''; contextEditor = null; contextPaste = null; contextCut = null;
     generation++;
     lookupController?.abort(); listController?.abort(); clearTimeout(filterTimer);
     if (dialog.open) dialog.close();

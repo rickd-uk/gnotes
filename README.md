@@ -10,11 +10,13 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 
 ## Current features
 
-Favorites appear only in the Favorites collection by default. Enable **Controls → Appearance → Show Favorites in main and Archive** to include them in those views too. This preference is saved per account in the current browser. Removing the diamond returns a note to its original active or archived view. The diamond beside a date heading adds that entire date section to Favorites, including later pages; active date sections exclude pinned notes. Archive dates use the archive date.
+Favorites appear only in the Favorites collection by default. Enable **Controls → Display → Favorites** to include them in those views too. This preference is saved per account in the current browser. Removing the diamond returns a note to its original active or archived view. The diamond beside a date heading adds that entire date section to Favorites, including later pages; active date sections exclude pinned notes. Archive dates use the archive date.
 
-On small screens (up to 560 px), Controls, Search, Favorites, Archive, Recycle Bin, and Profile stay in a larger bottom navigation bar. Tablet and desktop retain the header controls. The small arrow beside **New note** collapses or reopens the writing box without discarding the draft. **Controls → Appearance → Show new note box** controls the same setting. The choice is remembered per account in this browser.
+On small screens (up to 560 px), Controls, Search, Favorites, Archive, Recycle Bin, and Profile stay in a larger bottom navigation bar. Tablet and desktop retain the header controls. The small arrow beside **New note** collapses or reopens the writing box without discarding the draft. **Controls → Display → New note box** controls the same setting. The choice is remembered per account in this browser.
 
-The desktop right-click menu includes Copy, Paste, Dictionary, and Always ignore spelling. Paste works in rich text, Markdown source, and note titles. Clipboard access may require browser permission; keyboard paste and Shift + right-click remain available.
+The desktop right-click menu includes Cut, Copy, Paste, Dictionary, and Always ignore spelling, each with a softly colored icon. Cut works on selected editable text in rich text, Markdown source, and note titles; it copies successfully before removing text and preserves Undo. Paste works in the same editing fields. Clipboard access may require browser permission; keyboard paste and Shift + right-click remain available.
+
+The header Profile menu uses softly colored icons to identify actions. Preview, formatting and save controls have distinct colors and wider spacing; formatting has a larger **Aa** button. While editing a note, use the eye icon to preview the current Markdown, including unsaved text and tables; the pencil returns to editing. Notes always open in edit mode. Preview uses the server renderer and requires a connection. Tab indents selected lines, Shift+Tab outdents, and lists use these keys for nesting. Saved links open normally; Shift-click opens their note for editing. In the rich editor, click a link to place the cursor, Ctrl/Command-click to open it, or choose **Aa → Link** to change or open its address. Horizontal scrollbars in notes and editors are thin and muted.
 
 The rarely used **Delete all notes** action is under **Account → Manage notes**. Its confirmation dialog still lets you cancel before moving active notes to the recycle bin.
 
@@ -22,7 +24,7 @@ The rarely used **Delete all notes** action is under **Account → Manage notes*
 - Note tags: open a note’s tools menu → Tags, enter comma-separated labels, and save. Click a tag or choose one in Search to filter; combine tags with text/date searches. Up to 10 tags per note; labels are lowercase, spaces become hyphens, and tags remain with archived/recycled notes. JSON exports and readable ZIP manifests preserve tags
 - Protected `rick` administrator account and signup controls
 - Persistent login throttling, escalating cooldowns, invitations, and daily signup caps
-- Create, autosave, and edit notes in a focused full-screen phone view or centered desktop panel; copy the current text from the lower left or finish with the green check mark and return to the same list position. Pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
+- Create, autosave, and edit notes in a focused phone view or desktop panel with 16 px screen margins; copy the current text from the lower left or finish with the green check mark and return to the same list position. Pin or bulk-unpin, hide, recycle, recover, and permanently delete notes
 - Select note titles and text by dragging, then copy normally; selection does not open the editor. Copy whole notes from their action menu
 - Phone long presses keep native selection handles and Copy; desktop right-clicks retain Copy/Dictionary/Always ignore
 - Selected words on phones expose Dictionary and Always ignore in a bottom bar, above editor Copy/Done controls; Dictionary includes Save word
@@ -38,13 +40,13 @@ The rarely used **Delete all notes** action is under **Account → Manage notes*
 - Server-backed per-user draft autosave and refresh recovery
 - Optional Brevo password recovery: verify an email from your profile, then use **Forgot password?** to receive an expiring reset link. A reset signs out existing sessions
 - Responsive layouts, three note-density modes, and per-user interface-state restoration. A small chevron beside each note timestamp rolls up that note's body without hiding its title or actions; its state is remembered per account in this browser
-- Compact Density, Fold/Open, and Tools On/Off controls sit above the notes on the right. **Controls → Appearance → Time zone** defaults to the browser's zone; choose a specific zone such as Japan (Asia/Tokyo) when the browser reports the wrong one. This choice is remembered per account in the current browser and applies to note times, date groups, date search, and archive date actions
+- Compact Density, Fold/Open, and Tools On/Off controls sit above the notes on the right. **Controls → Display → Time zone** defaults to the browser's zone; choose a specific zone such as Japan (Asia/Tokyo) when the browser reports the wrong one. This choice is remembered per account in the current browser and applies to note times, date groups, date search, and archive date actions
 - Browser tabs show `gnotes - NOTE_TITLE` while a note is open. Note times omit AM/PM, and displayed note years use two digits
 - Code blocks show a clickable language label in the top right; clicking opens the block for editing. Checklists display inline checkboxes without extra bullets
 - Space after a bold word or Enter ends bold formatting; spaces inside an existing bold phrase retain it
 - Up to three configurable quick actions per note, with the remaining actions in its menu
 - Rich text editing by default, with an **Aa** button beside the green check mark that opens formatting controls for text styles, headings, lists, checklists, quotes, links, code, and dividers. Select text to format it or choose a style before typing; type `/` at the start of a paragraph for block options. Markdown source editing is opt-in under **Account → Advanced**
-- Global note font and 65–175% title/text size controls, including in the rich text editor; menu opacity ranges from 0–100%
+- Compact two-column Display settings and a collapsed **Fonts & text** section for fonts, 65–175% title/text sizes, and note height; menu opacity ranges from 0–100%
 - User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion
 - Account-menu export of all or selected notes and import of gnotes JSON, Markdown, plain text, or a gnotes export ZIP
 

@@ -4,6 +4,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Markdown } from '@tiptap/markdown';
 import { Marked } from 'marked';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { closeHistory } from '@tiptap/pm/history';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 // View decorations suppress native checking without changing note Markdown.
@@ -109,19 +110,63 @@ const MarkdownLinkShortcut = Extension.create({
 
 const WritingStarterKit = StarterKit.extend({
   addExtensions() {
-    return this.parent().map((extension) => extension.name === 'bold'
-      ? extension.extend({ keepOnSplit: false })
-      : extension);
+    return this.parent().map((extension) => {
+      if (extension.name === 'bold') return extension.extend({ keepOnSplit: false });
+      // New text at a link boundary must not inherit the previous URL.
+      if (extension.name === 'link') return extension.extend({ inclusive: false });
+      return extension;
+    });
+  },
+});
+
+const TextIndent = Extension.create({
+  name: 'textIndent',
+  priority: 1100,
+  addKeyboardShortcuts() {
+    const indent = (outdent) => {
+      const editor = this.editor;
+      for (const type of ['listItem', 'taskItem']) {
+        if (editor.isActive(type)) {
+          editor.commands[outdent ? 'liftListItem' : 'sinkListItem'](type);
+          return true;
+        }
+      }
+      const { state } = editor;
+      const { from, to } = state.selection;
+      const tr = closeHistory(state.tr);
+      // Nonbreaking spaces preserve indentation through Markdown without
+      // turning ordinary paragraphs into indented code blocks.
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (!node.isTextblock) return;
+        let offset = 0;
+        for (const line of node.textBetween(0, node.content.size, '\n', '\n').split('\n')) {
+          const start = pos + 1 + offset;
+          offset += line.length + 1;
+          if (start + line.length < from || (from !== to ? start >= to : start > to)) continue;
+          if (outdent) {
+            const leading = line.match(/^(?:\t|[ \u00a0]{1,4})/);
+            if (leading) tr.delete(tr.mapping.map(start), tr.mapping.map(start + leading[0].length));
+          } else {
+            tr.insertText(node.type.name === 'codeBlock' ? '    ' : '\u00a0\u00a0\u00a0\u00a0', tr.mapping.map(start));
+          }
+        }
+        return false;
+      });
+      editor.view.dispatch(tr.scrollIntoView());
+      return true;
+    };
+    return { Tab: () => indent(false), 'Shift-Tab': () => indent(true) };
   },
 });
 
 const extensions = [
-  WritingStarterKit.configure({ heading: { levels: [2, 3] } }),
+  WritingStarterKit.configure({ heading: { levels: [2, 3] }, link: { openOnClick: false } }),
   TaskList,
   TaskItem.configure({ nested: true }),
   Markdown.configure({ markedOptions: { gfm: true, breaks: true } }),
   MarkdownLinkShortcut,
   SpellingPreferences,
+  TextIndent,
 ];
 
 function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}) {
@@ -149,6 +194,18 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
     contentType: 'markdown',
     editorProps: {
       attributes: { 'aria-label': 'Note content', spellcheck: 'true' },
+      handleDOMEvents: {
+        click(view, event) {
+          const link = event.target.closest?.('a[href]');
+          if (!link) return false;
+          event.preventDefault();
+          if (event.ctrlKey || event.metaKey) {
+            window.open(link.href, '_blank', 'noopener,noreferrer');
+            return true;
+          }
+          return false;
+        },
+      },
       handleTextInput(view, from, to, text) {
         if (from !== to || !/^[ \t]+$/.test(text)) return false;
         const { $from } = view.state.selection;

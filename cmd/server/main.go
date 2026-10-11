@@ -135,6 +135,7 @@ func run() error {
 	mux.HandleFunc("/api/notes/search", protect(searchNotesHandler, false))
 	mux.HandleFunc("/api/notes/search-page", protect(pagedSearchNotesHandler, false))
 	mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
+	mux.HandleFunc("/api/notes/preview", protect(previewNoteHandler, true))
 	mux.HandleFunc("/api/notes/tags", protect(updateNoteTagsHandler, true))
 	mux.HandleFunc("/api/tags", protect(tagsHandler, false))
 	registerDictionaryRoutes(mux)
@@ -491,6 +492,27 @@ func unpinAllNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func previewNoteHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Use POST", http.StatusMethodNotAllowed)
+		return
+	}
+	var input struct {
+		Content string `json:"content"`
+	}
+	if err := decodeJSONBody(w, r, &input); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+	if len(input.Content) > maxNoteBodyBytes {
+		http.Error(w, "Note content is too long", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	json.NewEncoder(w).Encode(map[string]string{"html_content": mdToHTML(input.Content)})
 }
 
 func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
