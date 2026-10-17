@@ -4,7 +4,7 @@ Last reviewed: 2026-10-17
 
 ## Next development sequence
 
-Session handoff and future plans saved on 2026-10-16 in [PROGRESS.md](PROGRESS.md). Local changes through v0.7.61 completed and validated on 2026-10-17 improve note-list rendering, spelling, Markdown serialization, text menus, latest-query search cancellation and on-demand note editor controls; ordinary normal-editor indentation now also stays as text through saving and reopening. Local releases v0.7.57–v0.7.61 have not been pushed or deployed; latest documented production remains v0.7.56. The next speed candidate is avoiding redundant unchanged saves. The earlier editor, shortcut and note-lock features are complete. The requested **N** toggle now provides browser Vim editing for drafts and existing notes, with preserved autosave/preview/recovery and per-account browser preferences. Recommended next step is Pixel 6a testing and fixing reproduced friction, followed by backups/alerts and browser security; editable tables remain a later feature candidate. Proposed priorities:
+Session handoff and future plans saved on 2026-10-16 in [PROGRESS.md](PROGRESS.md). Changes through v0.7.61 completed and validated on 2026-10-17 improve note-list rendering, spelling, Markdown serialization, text menus, latest-query search cancellation and on-demand note editor controls; ordinary normal-editor indentation now also stays as text through saving and reopening. Changes from the v0.7.57–v0.7.61 checkpoints are now pushed and deployed together as v0.7.61. A reported repeat of the extra right-click Paste prompt is being addressed. The next speed candidate is avoiding redundant unchanged saves. The earlier editor, shortcut and note-lock features are complete. The requested **N** toggle now provides browser Vim editing for drafts and existing notes, with preserved autosave/preview/recovery and per-account browser preferences. Recommended next step is Pixel 6a testing and fixing reproduced friction, followed by backups/alerts and browser security; editable tables remain a later feature candidate. Proposed priorities:
 
 1. Verify the current release on the Pixel 6a, including selection, keyboard/editor controls, menus, shortcuts, note locking and recovery. Check offline setup, disconnected reading and manual refresh on a real device too.
 2. Finish encrypted off-server backup activation through the existing wizard; choose an alert destination and monitor stale/failed backups and service health. Budget occasional full integrity and restore checks for their storage egress.
@@ -19,10 +19,11 @@ The operational Wasabi egress fix is installed on Kagoya and included in v0.7.55
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.56`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.61`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
+- Optional browser Vim editing through N, ordinary indentation preserved through normal-editor saves, faster incremental rendering/spelling and deferred serialization, lazy editor controls and latest-query cancellation.
 - Isolated user accounts, administrator controls, signup policy, invitations, CSRF protection, and persistent login throttling.
 - Autosaved drafts and edits, refresh recovery, pinning, hiding, recycling, date sections, archive overviews, pagination, and indexed full-text search.
 - Recoverable note archiving, persistent note background colors, expanded appearance controls, selectable writing styles, and link underline preferences.
