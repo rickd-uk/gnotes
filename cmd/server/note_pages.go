@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -59,7 +60,7 @@ func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	notes, _, err := queryActiveNotePage(`SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at
+	notes, _, err := queryActiveNotePage(r.Context(), `SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at
 	    FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL LIMIT ?`,
 		[]any{id, userIDFromRequest(r)}, 1)
 	if err != nil {
@@ -127,13 +128,13 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	query := "SELECT " + columns + " FROM notes WHERE " + strings.Join(conditions, " AND ") +
 		" ORDER BY " + order + " LIMIT ?"
-	notes, nextCursor, err := queryNotePage(query, args, limit, archived)
+	notes, nextCursor, err := queryNotePage(r.Context(), query, args, limit, archived)
 	if err != nil {
 		http.Error(w, "Could not load notes", http.StatusInternalServerError)
 		return
 	}
 	var total int
-	if err := db.DB.QueryRow(
+	if err := db.DB.QueryRowContext(r.Context(),
 		"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND "+archiveCondition,
 		userIDFromRequest(r),
 	).Scan(&total); err != nil {
@@ -146,7 +147,7 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 		pinnedCondition = " AND favorited = 0"
 	}
 	if !archived {
-		if err := db.DB.QueryRow(
+		if err := db.DB.QueryRowContext(r.Context(),
 			"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND pinned = 1"+pinnedCondition,
 			userIDFromRequest(r),
 		).Scan(&pinned); err != nil {
@@ -208,7 +209,7 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		order = "unixepoch(n.archived_at) DESC, n.id DESC"
 	}
 	query := "SELECT " + columns + fromClause + " ORDER BY " + order + " LIMIT ?"
-	notes, nextCursor, err := queryNotePage(query, args, limit, archived)
+	notes, nextCursor, err := queryNotePage(r.Context(), query, args, limit, archived)
 	if err != nil {
 		http.Error(w, "Search failed", http.StatusInternalServerError)
 		return
@@ -218,11 +219,11 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	countFromClause := " FROM notes n " + join + " WHERE " + strings.Join(countConditions, " AND ")
 	if expression, expressionArgs := searchOccurrenceExpression(r); expression != "" {
 		queryArgs := append(expressionArgs, countArgs...)
-		if err := db.DB.QueryRow("SELECT COUNT(*), "+expression+countFromClause, queryArgs...).Scan(&total, &matchCount); err != nil {
+		if err := db.DB.QueryRowContext(r.Context(), "SELECT COUNT(*), "+expression+countFromClause, queryArgs...).Scan(&total, &matchCount); err != nil {
 			http.Error(w, "Could not count search matches", http.StatusInternalServerError)
 			return
 		}
-	} else if err := db.DB.QueryRow("SELECT COUNT(*)"+countFromClause, countArgs...).Scan(&total); err != nil {
+	} else if err := db.DB.QueryRowContext(r.Context(), "SELECT COUNT(*)"+countFromClause, countArgs...).Scan(&total); err != nil {
 		http.Error(w, "Could not count search results", http.StatusInternalServerError)
 		return
 	}
@@ -291,7 +292,7 @@ func pagedTrashNotesHandler(w http.ResponseWriter, r *http.Request) {
     FROM notes WHERE ` + strings.Join(conditions, " AND ") + `
 	ORDER BY unixepoch(deleted_at) DESC, id DESC LIMIT ?`
 	queryArgs := append(append([]any{}, args...), limit+1)
-	rows, err := db.DB.Query(query, queryArgs...)
+	rows, err := db.DB.QueryContext(r.Context(), query, queryArgs...)
 	if err != nil {
 		http.Error(w, "Could not load recycle bin", http.StatusInternalServerError)
 		return
@@ -324,7 +325,7 @@ func pagedTrashNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	var total int
-	if err := db.DB.QueryRow(
+	if err := db.DB.QueryRowContext(r.Context(),
 		"SELECT COUNT(*) FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL",
 		userIDFromRequest(r),
 	).Scan(&total); err != nil {
@@ -469,13 +470,13 @@ func ftsSearchEligible(query string) bool {
 	return utf8.RuneCountInString(strings.TrimSpace(query)) >= 3
 }
 
-func queryActiveNotePage(query string, args []any, limit int) ([]models.Note, string, error) {
-	return queryNotePage(query, args, limit, false)
+func queryActiveNotePage(ctx context.Context, query string, args []any, limit int) ([]models.Note, string, error) {
+	return queryNotePage(ctx, query, args, limit, false)
 }
 
-func queryNotePage(query string, args []any, limit int, archived bool) ([]models.Note, string, error) {
+func queryNotePage(ctx context.Context, query string, args []any, limit int, archived bool) ([]models.Note, string, error) {
 	queryArgs := append(append([]any{}, args...), limit+1)
-	rows, err := db.DB.Query(query, queryArgs...)
+	rows, err := db.DB.QueryContext(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, "", err
 	}
@@ -510,7 +511,7 @@ func queryNotePage(query string, args []any, limit int, archived bool) ([]models
 	if err := rows.Close(); err != nil {
 		return nil, "", err
 	}
-	if err := saveRenderedCache(cacheUpdates); err != nil {
+	if err := saveRenderedCache(ctx, cacheUpdates); err != nil {
 		return nil, "", err
 	}
 
@@ -530,17 +531,17 @@ func queryNotePage(query string, args []any, limit int, archived bool) ([]models
 	return notes, nextCursor, nil
 }
 
-func saveRenderedCache(updates []renderedCacheUpdate) error {
+func saveRenderedCache(ctx context.Context, updates []renderedCacheUpdate) error {
 	if len(updates) == 0 {
 		return nil
 	}
-	tx, err := db.DB.Begin()
+	tx, err := db.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	for _, update := range updates {
-		if _, err := tx.Exec(
+		if _, err := tx.ExecContext(ctx,
 			"UPDATE notes SET rendered_content = ? WHERE id = ? AND content = ? AND rendered_content IS NULL",
 			update.HTML, update.ID, update.Content,
 		); err != nil {

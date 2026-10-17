@@ -1,12 +1,40 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 )
+
+func TestConnectionPragmasSurviveReconnect(t *testing.T) {
+	for _, suffix := range []string{"", "?cache=private&_pragma=foreign_keys(OFF)"} {
+		t.Run(suffix, func(t *testing.T) {
+			InitDB(filepath.Join(t.TempDir(), "reconnect.db") + suffix)
+			t.Cleanup(func() { DB.Close() })
+			// Closing the idle connection models the pool replacing a canceled
+			// transaction's connection. Settings must apply to its replacement.
+			DB.SetMaxIdleConns(0)
+			conn, err := DB.Conn(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			for pragma, want := range map[string]int{"foreign_keys": 1, "synchronous": 2, "busy_timeout": 5000} {
+				var got int
+				if err := conn.QueryRowContext(context.Background(), "PRAGMA "+pragma).Scan(&got); err != nil || got != want {
+					t.Errorf("replacement connection %s: got=%d want=%d err=%v", pragma, got, want, err)
+				}
+			}
+			var journal string
+			if err := conn.QueryRowContext(context.Background(), "PRAGMA journal_mode").Scan(&journal); err != nil || journal != "wal" {
+				t.Fatalf("replacement connection journal mode=%q err=%v", journal, err)
+			}
+		})
+	}
+}
 
 func TestSignupEventMigrationPreservesSecurityHistory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "signup-event-migration.db")

@@ -5163,6 +5163,9 @@
       let notesNextCursor = "";
       let notesTotal = 0;
       let notesLoading = false;
+      let notesRequest = null;
+      let notesLoadGeneration = 0;
+      let notesPageURL = "";
       let loadedTrash = new Map();
       let trashNextCursor = "";
       let trashLoading = false;
@@ -6144,6 +6147,7 @@
       }
 
       async function apiFetch(url, options = {}) {
+        const owner = currentUser, token = csrfToken;
         const request = { ...options };
         request.headers = new Headers(options.headers || {});
         const method = (request.method || "GET").toUpperCase();
@@ -6151,7 +6155,8 @@
           request.headers.set("X-CSRF-Token", csrfToken);
         }
         const response = await fetch(url, request);
-        if (response.status === 401) showAuth("Your session ended. Please sign in again.");
+        if (response.status === 401 && owner === currentUser && token === csrfToken && !request.signal?.aborted)
+          showAuth("Your session ended. Please sign in again.");
         return response;
       }
 
@@ -6205,6 +6210,8 @@
       }
 
       function showAuth(message = "") {
+        cancelNotesLoad();
+        notesPageURL = "";
         clearTimeout(draftSaveTimer);
         clearTimeout(draftRetryTimer);
         draftRetryPending = false;
@@ -6772,77 +6779,111 @@
         };
       }
 
+      function cancelNotesLoad() {
+        notesLoadGeneration++;
+        const previous = notesRequest;
+        notesRequest = null;
+        previous?.controller.abort();
+        notesLoading = false;
+        const button = document.getElementById('load-more-notes');
+        button.disabled = false;
+        button.textContent = searchActive ? 'More results' : 'Load older';
+      }
+
       async function loadNotes(append = false) {
-        if (notesLoading || pendingNoteActions.size) return false;
-        const revision = noteViewRevision;
+        if (pendingNoteActions.size || (append && notesLoading)) return false;
         if (append && !notesNextCursor) return true;
-        notesLoading = true;
-        const loadMore = document.getElementById("load-more-notes");
-        loadMore.disabled = true;
-        loadMore.textContent = "Loading…";
         const pageURL = searchActive
           ? new URL(activeSearchURL || buildSearchURL(), location.origin)
-          : new URL("/api/notes/page", location.origin);
-        if (archiveMode) pageURL.searchParams.set("archive", "1");
-        if (favoritesMode) pageURL.searchParams.set("favorites", "1");
+          : new URL('/api/notes/page', location.origin);
+        const archived = archiveMode, favorites = favoritesMode;
+        if (archived) pageURL.searchParams.set('archive', '1');
+        if (favorites) pageURL.searchParams.set('favorites', '1');
         pageURL.searchParams.delete('hide_favorites');
-        if (!favoritesMode && !showFavoritesInMain) pageURL.searchParams.set('hide_favorites', '1');
-        pageURL.searchParams.set("limit", "50");
-        if (append) pageURL.searchParams.set("cursor", notesNextCursor);
-        let res;
+        if (!favorites && !showFavoritesInMain) pageURL.searchParams.set('hide_favorites', '1');
+        pageURL.searchParams.set('limit', '50');
+        const pageKey = `${pageURL.pathname}${pageURL.search}`;
+        // A cursor belongs to the filter/view that produced it, including
+        // during the debounce window before the next first page is requested.
+        if (append && pageKey !== notesPageURL) return false;
+        if (append) pageURL.searchParams.set('cursor', notesNextCursor);
+        cancelNotesLoad();
+        const request = { controller: new AbortController(), owner: currentUser, token: csrfToken, revision: noteViewRevision };
+        notesRequest = request;
+        notesLoading = true;
+        const { signal } = request.controller;
+        const isCurrent = () => notesRequest === request && !signal.aborted && currentUser === request.owner &&
+          csrfToken === request.token && noteViewRevision === request.revision && archiveMode === archived && favoritesMode === favorites;
+        const loadMore = document.getElementById('load-more-notes');
+        loadMore.disabled = true;
+        loadMore.textContent = 'Loading…';
+        let received = false;
         try {
-          res = await apiFetch(`${pageURL.pathname}${pageURL.search}`);
-        } catch {
-          showNotesLoadError("Could not reach the server. Reload the page to try again.");
-          notesLoading = false;
-          loadMore.disabled = false;
-          loadMore.textContent = searchActive ? "More results" : "Load older";
+          const res = await apiFetch(`${pageURL.pathname}${pageURL.search}`, { signal });
+          if (!isCurrent()) return false;
+          if (!res.ok) {
+            const message = await res.text();
+            if (isCurrent() && res.status !== 401) showNotesLoadError(message.trim() || 'Could not display notes.');
+            return false;
+          }
+          received = true;
+          const page = await res.json();
+          if (!isCurrent()) return false;
+          if (archived && (page.view !== 'archived' || (page.notes || []).some(note => !note.archived_at || Number.isNaN(Date.parse(note.archived_at))))) {
+            const message = 'Archived notes need the updated local server. Restart the app, then refresh this page.';
+            loadedNotes = new Map();
+            notesNextCursor = '';
+            document.getElementById('notes-list').replaceChildren();
+            loadMore.hidden = true;
+            showNotesLoadError(message);
+            showNoteActionDialog('Archived notes unavailable', message);
+            return false;
+          }
+          // Stage results locally until every optional restore/reveal fetch
+          // finishes. A late auxiliary response cannot pollute a newer view.
+          const nextNotes = append ? new Map(loadedNotes) : new Map();
+          (page.notes || []).forEach(note => nextNotes.set(note.id, { ...note, ...pendingNoteEdits.get(note.id)?.edit }));
+          const options = { signal, isCurrent, notes: nextNotes };
+          if (!append && !archived && !favorites) await loadRememberedEditingNote(options);
+          if (!isCurrent()) return false;
+          if (!append && !archived && !favorites && revealedNoteId && !nextNotes.has(revealedNoteId)) {
+            await loadNoteIntoView(revealedNoteId, false, options);
+          }
+          if (!isCurrent()) return false;
+          loadedNotes = nextNotes;
+          notesPageURL = pageKey;
+          notesNextCursor = page.next_cursor || '';
+          notesTotal = page.total || 0;
+          document.getElementById('notes-load-status').hidden = true;
+          if (!searchActive && !archived && !favorites) {
+            setActiveNoteCount(notesTotal);
+            setPinnedNoteCount(page.pinned_total || 0);
+          }
+          if (!append) refreshTagOptions().catch(() => {});
+          return await renderLoadedNotes(page.match_count || 0);
+        } catch (error) {
+          if (isCurrent() && error?.name !== 'AbortError') showNotesLoadError(received
+            ? 'Could not display notes. Reload the page to try again.'
+            : 'Could not reach the server. Reload the page to try again.');
           return false;
+        } finally {
+          // Superseded requests must not clear the new request's loading state.
+          if (notesRequest === request) {
+            notesRequest = null;
+            notesLoading = false;
+            loadMore.disabled = false;
+            loadMore.textContent = searchActive ? 'More results' : 'Load older';
+          }
         }
-        if (!res.ok) {
-          const message = await res.text();
-          if (res.status !== 401) showNotesLoadError(message.trim() || "Could not display notes.");
-          notesLoading = false;
-          loadMore.disabled = false;
-          loadMore.textContent = searchActive ? "More results" : "Load older";
-          return false;
-        }
-        const page = await res.json();
-        if (revision !== noteViewRevision) {
-          notesLoading = false;
-          loadMore.disabled = false;
-          loadMore.textContent = searchActive ? "More results" : "Load older";
-          return false;
-        }
-        if (archiveMode && (page.view !== "archived" || (page.notes || []).some((note) => !note.archived_at || Number.isNaN(Date.parse(note.archived_at))))) {
-          const message = "Archived notes need the updated local server. Restart the app, then refresh this page.";
-          loadedNotes = new Map();
-          notesNextCursor = "";
-          document.getElementById("notes-list").replaceChildren();
-          loadMore.hidden = true;
-          showNotesLoadError(message);
-          showNoteActionDialog("Archived notes unavailable", message);
-          notesLoading = false;
-          loadMore.disabled = false;
-          return false;
-        }
-        document.getElementById("notes-load-status").hidden = true;
-        if (!append) loadedNotes = new Map();
-        (page.notes || []).forEach((note) => loadedNotes.set(note.id, { ...note, ...pendingNoteEdits.get(note.id)?.edit }));
-        if (!append && !archiveMode && !favoritesMode) await loadRememberedEditingNote();
-        if (!append && !archiveMode && !favoritesMode && revealedNoteId && !loadedNotes.has(revealedNoteId)) {
-          await loadNoteIntoView(revealedNoteId);
-        }
-        notesNextCursor = page.next_cursor || "";
-        notesTotal = page.total || 0;
-        if (!searchActive && !archiveMode && !favoritesMode) {
-          setActiveNoteCount(notesTotal);
-          setPinnedNoteCount(page.pinned_total || 0);
-        }
-        if (!append) refreshTagOptions().catch(() => {});
-        const rendered = await renderLoadedNotes(page.match_count || 0);
-        notesLoading = false;
-        return rendered;
+      }
+
+      async function loadNoteView(onLoaded) {
+        cancelNotesLoad();
+        const pending = loadNotes();
+        const generation = notesLoadGeneration;
+        const loaded = await pending;
+        if (loaded && generation === notesLoadGeneration) onLoaded?.();
+        return loaded;
       }
 
       function noteCardHTML(n, isNewest, now, dateContext) {
@@ -7137,8 +7178,9 @@
       }
 
       async function runTextSearch() {
-        if (notesLoading) {
-          clearTimeout(liveSearchTimer);
+        clearTimeout(liveSearchTimer);
+        cancelNotesLoad();
+        if (pendingNoteActions.size) {
           liveSearchTimer = setTimeout(runTextSearch, 100);
           return false;
         }
@@ -7152,40 +7194,36 @@
         activeSearchURL = `${searchURL.pathname}${searchURL.search}`;
         saveUIState();
         document.getElementById("search-status").textContent = "Searching…";
-        const loaded = await loadNotes();
-        if (loaded) {
-          document.getElementById("search-status").textContent = "";
-        }
-        return loaded;
+        return loadNoteView(() => { document.getElementById('search-status').textContent = ''; });
       }
 
       async function runLiveSearch() {
         if (!currentUser) return;
-        const query = document.getElementById("search-query").value.trim();
+        cancelNotesLoad();
+        if (pendingNoteActions.size) {
+          clearTimeout(liveSearchTimer);
+          liveSearchTimer = setTimeout(runLiveSearch, 100);
+          return false;
+        }
+        const query = document.getElementById('search-query').value.trim();
         if (!query && !document.getElementById('search-tag').value) {
-          highlightQuery = "";
-          if (searchActive && !calendarActive) {
-            if (notesLoading) {
-              liveSearchTimer = setTimeout(runLiveSearch, 100);
-              return;
-            }
+          if (!calendarActive) {
+            highlightQuery = '';
             searchActive = false;
-            activeSearchURL = "";
+            activeSearchURL = '';
             saveUIState();
-            document.getElementById("search-status").textContent = "";
-            await loadNotes();
+            document.getElementById('search-status').textContent = '';
+            return loadNoteView();
           }
           return;
         }
-        if (notesLoading) {
-          liveSearchTimer = setTimeout(runLiveSearch, 100);
-          return;
-        }
-        await runTextSearch();
+        return runTextSearch();
       }
 
       function scheduleLiveSearch() {
         clearTimeout(liveSearchTimer);
+        cancelNotesLoad();
+        notesPageURL = '';
         const query = document.getElementById("search-query").value.trim();
         if (query || document.getElementById('search-tag').value) {
           searchActive = true;
@@ -7735,7 +7773,7 @@
       }
 
       async function toggleFavoritesMode() {
-        if (notesLoading || pendingNoteActions.size) { setTimeout(toggleFavoritesMode, 150); return; }
+        if (pendingNoteActions.size) { setTimeout(toggleFavoritesMode, 150); return; }
         if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
         closeAdminPanel(); closeProfilePanel(); closeHelpPanel(); closeArchiveOverview(); closeSearchPanel(); closeTrashPanel(); closeHiddenNotesPanel();
         document.getElementById('account-control').open = false;
@@ -7756,7 +7794,7 @@
 
       async function applyFavoritesFilters() {
         if (!favoritesMode) return;
-        if (notesLoading || pendingNoteActions.size) { favoritesFilterTimer = setTimeout(applyFavoritesFilters, 100); return; }
+        if (pendingNoteActions.size) { favoritesFilterTimer = setTimeout(applyFavoritesFilters, 100); return; }
         document.getElementById('search-query').value = document.getElementById('favorites-query').value;
         document.getElementById('search-tag').value = document.getElementById('favorites-category').value;
         syncSearchClear();
@@ -7811,7 +7849,7 @@
       }
 
       async function toggleArchiveMode() {
-        if (notesLoading || pendingNoteActions.size) {
+        if (pendingNoteActions.size) {
           setTimeout(toggleArchiveMode, 150);
           return;
         }
@@ -8746,29 +8784,28 @@
         return true;
       }
 
-      async function loadRememberedEditingNote() {
+      async function loadRememberedEditingNote(options = {}) {
         const id = rememberedEditingNoteID();
-        if (!id || loadedNotes.has(id)) return;
-        await loadNoteIntoView(id, true);
+        if (!id || (options.notes || loadedNotes).has(id)) return;
+        await loadNoteIntoView(id, true, options);
       }
 
-      async function loadNoteIntoView(id, forgetMissingEdit = false) {
-        let response;
+      async function loadNoteIntoView(id, forgetMissingEdit = false, { signal, notes = loadedNotes, isCurrent = () => true } = {}) {
+        const owner = currentUser, token = csrfToken;
+        const current = () => owner === currentUser && token === csrfToken && !signal?.aborted && isCurrent();
         try {
-          response = await apiFetch(`/api/notes/get?id=${id}`);
-        } catch {
-          return;
-        }
-        if (response.ok) {
-          const note = await response.json();
-          if (note.favorited && !favoritesMode && !showFavoritesInMain) {
-            if (forgetMissingEdit) forgetEditingNote();
-            return;
-          }
-          loadedNotes.set(note.id, note);
-        } else if (response.status === 404 && forgetMissingEdit) {
-          forgetEditingNote();
-        }
+          const response = await apiFetch(`/api/notes/get?id=${id}`, { signal });
+          if (!current()) return;
+          if (response.ok) {
+            const note = await response.json();
+            if (!current()) return;
+            if (note.favorited && !favoritesMode && !showFavoritesInMain) {
+              if (forgetMissingEdit) forgetEditingNote();
+              return;
+            }
+            notes.set(note.id, note);
+          } else if (response.status === 404 && forgetMissingEdit) forgetEditingNote();
+        } catch { /* Optional restoration must not replace or break the current view. */ }
       }
 
       function syncFocusedEditViewport() {
@@ -9779,9 +9816,8 @@
         selectedArchiveLabel = "";
         highlightQuery = "";
         saveUIState();
-        const loaded = await loadNotes();
-        closeSearchPanel();
-        return loaded;
+        cancelNotesLoad();
+        return loadNoteView(closeSearchPanel);
       }
 
       async function openCalendarDate() {
@@ -9801,11 +9837,10 @@
         activeSearchURL = calendarURL;
         saveUIState();
         document.getElementById("search-status").textContent = "Opening date…";
-        const loaded = await loadNotes();
-        if (loaded) {
-          document.getElementById("search-status").textContent = "";
+        return loadNoteView(() => {
+          document.getElementById('search-status').textContent = '';
           closeSearchPanel();
-        }
+        });
       }
 
       document.getElementById("calendar-open").addEventListener("click", openCalendarDate);
@@ -10453,7 +10488,7 @@
       document.getElementById("delete-all-notes").addEventListener("click", deleteAllNotes);
       document.getElementById("unpin-all-notes").addEventListener("click", unpinAllNotes);
       document.getElementById('favorites-quick-open').addEventListener('click', toggleFavoritesMode);
-      document.getElementById('favorites-query').addEventListener('input', () => { clearTimeout(favoritesFilterTimer); favoritesFilterTimer = setTimeout(applyFavoritesFilters, 200); });
+      document.getElementById('favorites-query').addEventListener('input', () => { clearTimeout(favoritesFilterTimer); cancelNotesLoad(); notesPageURL = ''; favoritesFilterTimer = setTimeout(applyFavoritesFilters, 200); });
       document.getElementById('favorites-category').addEventListener('change', () => { clearTimeout(favoritesFilterTimer); applyFavoritesFilters(); });
       document.getElementById("archived-quick-open").addEventListener("click", toggleArchiveMode);
       document.getElementById("date-sections-toggle").addEventListener("click", toggleAllDateSections);

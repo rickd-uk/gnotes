@@ -539,6 +539,9 @@ func protect(handler http.HandlerFunc, requireCSRF bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, err := authenticateRequest(r)
 		if err != nil {
+			if r.Context().Err() != nil {
+				return // A canceled lookup says nothing about session validity.
+			}
 			clearSessionCookie(w, r)
 			http.Error(w, "Authentication required", http.StatusUnauthorized)
 			return
@@ -560,7 +563,7 @@ func authenticateRequest(r *http.Request) (authSession, error) {
 
 	var session authSession
 	var expiresAt time.Time
-	err = db.DB.QueryRow(
+	err = db.DB.QueryRowContext(r.Context(),
 		`SELECT sessions.user_id, users.username, users.role, sessions.csrf_token, sessions.expires_at
          FROM sessions JOIN users ON users.id = sessions.user_id
         WHERE sessions.token_hash = ? AND users.active = 1`,
@@ -568,7 +571,7 @@ func authenticateRequest(r *http.Request) (authSession, error) {
 	).Scan(&session.UserID, &session.Username, &session.Role, &session.CSRFToken, &expiresAt)
 	if err != nil || !expiresAt.After(time.Now()) {
 		if err == nil {
-			db.DB.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(cookie.Value))
+			db.DB.ExecContext(r.Context(), "DELETE FROM sessions WHERE token_hash = ?", hashToken(cookie.Value))
 		}
 		return authSession{}, errors.New("invalid session")
 	}

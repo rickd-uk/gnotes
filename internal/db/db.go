@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
+	"strings"
 
 	_ "github.com/glebarez/go-sqlite"
 )
@@ -15,12 +17,18 @@ const renderedContentCacheVersion = "3"
 
 func InitDB(filepath string) {
 	var err error
-	DB, err = sql.Open("sqlite", filepath)
+	separator := "?"
+	if strings.Contains(filepath, "?") {
+		separator = "&"
+	}
+	pragmas := url.Values{"_pragma": {"busy_timeout(5000)", "foreign_keys(ON)", "synchronous(FULL)"}}
+	DB, err = sql.Open("sqlite", filepath+separator+pragmas.Encode())
 	if err != nil {
 		log.Fatal(err)
 	}
-	// A single connection avoids SQLite writer contention inside one process and
-	// ensures the connection-scoped safety pragmas below apply to every query.
+	// A single connection avoids SQLite writer contention inside one process.
+	// Per-connection DSN pragmas preserve safety settings if cancellation
+	// causes database/sql to discard and replace that connection.
 	DB.SetMaxOpenConns(1)
 	DB.SetMaxIdleConns(1)
 	if err := DB.Ping(); err != nil {
