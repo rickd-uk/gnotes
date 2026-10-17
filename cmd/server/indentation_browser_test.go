@@ -13,7 +13,7 @@ func TestOrdinaryIndentationBrowser(t *testing.T) {
 		t.Skip("optional local Chromium check")
 	}
 	recoveryFixture(t)
-	mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at) VALUES(1,'Indentation','Original text',?)", time.Now().UTC())
+	mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at) VALUES(1,'Indentation',?,?)", "\tOlder tabbed text\n        deeper text", time.Now().UTC())
 	mux := http.NewServeMux()
 	registerDictionaryRoutes(mux)
 	mux.HandleFunc("/api/auth/config", authConfigHandler)
@@ -35,9 +35,22 @@ func TestOrdinaryIndentationBrowser(t *testing.T) {
 	browser.wait(`!document.getElementById('auth-screen').hidden`)
 	browser.script(`document.getElementById('auth-username').value='rick';document.getElementById('auth-password').value='original password';document.getElementById('auth-form').requestSubmit();`)
 	browser.wait(`!notesLoading && spellingReady && Boolean(richDraft) && loadedNotes.size===1`)
-	browser.script(`window.indentID=[...loadedNotes.keys()][0];`)
+	browser.script(`window.indentID=[...loadedNotes.keys()][0];const body=document.getElementById('note-content-'+indentID);if(body.querySelector('pre,.note-code-block')||!body.textContent.startsWith('\u00a0'.repeat(4)+'Older tabbed text'))throw new Error('Older raw indentation still displays as code');openNoteEditor(indentID,false,true);if(!richEdit||richEdit.editor.view.dom.querySelector('pre')||!richEdit.preservesContent('\tOlder tabbed text\n        deeper text'))throw new Error('Older indentation still loads as code or forces source fallback');`)
 	for _, width := range []int{320, 1024} {
 		browser.call("POST", "/goog/cdp/execute", map[string]any{"cmd": "Emulation.setDeviceMetricsOverride", "params": map[string]any{"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": false}})
+		// Raw indentation from source/Vim/paste uses the same display rules as
+		// older saved notes, before the rich serializer has normalized it.
+		browser.script(`
+          openNoteEditor(indentID,false,true);applyEditorMode(true);
+          const source=document.getElementById('edit-content-'+indentID);
+          source.value='    first\n        second\n\n\t<script>literal</script> **stars** &amp;';
+          source.dispatchEvent(new Event('input',{bubbles:true}));
+          clearTimeout(editSaveTimer);toggleNotePreview(indentID);
+        `)
+		browser.wait(`!document.getElementById('edit-preview-'+indentID).textContent.startsWith('Loading')`)
+		browser.script(`const preview=document.getElementById('edit-preview-'+indentID);if(preview.querySelector('pre,script,strong')||!preview.textContent.includes('<script>literal</script> **stars** &amp;')||!preview.textContent.startsWith('\u00a0'.repeat(4)+'first'))throw new Error('Raw indentation preview lost literal text or became code');updateNote(indentID);`)
+		browser.wait(`editingNoteId===null && pendingNoteEdits.size===0 && !notesLoading`)
+		browser.script(`const body=document.getElementById('note-content-'+indentID);if(body.querySelector('pre,.note-code-block,script,strong'))throw new Error('Raw indentation still wrapped as code');openNoteEditor(indentID,false,true);applyEditorMode(false);if(!richEdit||richEdit.editor.view.dom.querySelector('pre')||!richEdit.editor.view.dom.textContent.includes('**stars** &amp;'))throw new Error('Raw indentation did not reopen as literal normal text');`)
 		// Ordinary spaces, tabs and indentation crossing mark boundaries remain
 		// paragraph text through server preview/save and rich-editor reopening.
 		browser.script(`
@@ -81,9 +94,24 @@ func TestOrdinaryIndentationBrowser(t *testing.T) {
         `)
 		browser.wait(`editingNoteId===null && pendingNoteEdits.size===0 && !notesLoading`)
 		browser.script(`const code=document.querySelector('#note-content-'+indentID+' pre code');if(!code||code.textContent!=='    explicit code\n'||!document.querySelector('#note-content-'+indentID+' .note-code-language'))throw new Error('Explicit code indentation or label changed');`)
+		// Blocks already saved with explicit fences can be changed deliberately.
+		browser.script(`document.querySelector('#note-content-'+indentID+' .note-code-language').click();`)
+		browser.wait(`Boolean(richEdit)`)
+		browser.script(`richEdit.editor.chain().focus().setTextSelection(2).run();document.querySelector('.rich-context-menu [data-rich-command="normalText"]').click();if(richEdit.editor.view.dom.querySelector('pre'))throw new Error('Normal text command retained code');updateNote(indentID);`)
+		browser.wait(`editingNoteId===null && pendingNoteEdits.size===0 && !notesLoading`)
+		browser.script(`const body=document.getElementById('note-content-'+indentID);if(body.querySelector('pre,.note-code-block')||!body.textContent.startsWith('\u00a0'.repeat(4)+'explicit code'))throw new Error('Converted block returned to code after saving');`)
 	}
 	// New notes use the same serialization boundary as existing-note saves.
 	browser.script(`applyEditorMode(false);document.getElementById('title').value='Indented new note';richDraft.editor.commands.setContent({type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'    new note'}]}]});finalizeDraft();`)
 	browser.wait(`loadedNotes.size===2 && !draftFinalizing && !notesLoading`)
 	browser.script(`const note=[...loadedNotes.values()].find(n=>n.title==='Indented new note'),body=document.getElementById('note-content-'+note.id);if(body.querySelector('pre')||!body.textContent.startsWith('\u00a0'.repeat(4)+'new note'))throw new Error('New note indentation became code');`)
+	// Vim stores literal indentation rather than the rich serializer's spaces.
+	browser.script(`toggleVimMode();`)
+	browser.wait(`Boolean(vimDraft) && !richDraft`)
+	browser.script(`document.getElementById('title').value='Indented Vim note';vimDraft.setMarkdown('    Vim text\n\tsecond line');finalizeDraft();`)
+	browser.wait(`loadedNotes.size===3 && !draftFinalizing && !notesLoading`)
+	browser.script(`window.vimIndentID=[...loadedNotes.values()].find(n=>n.title==='Indented Vim note').id;const body=document.getElementById('note-content-'+vimIndentID);if(body.querySelector('pre,.note-code-block')||!body.textContent.startsWith('\u00a0'.repeat(4)+'Vim text'))throw new Error('Vim indentation became a code block');openNoteEditor(vimIndentID,false,true);toggleVimMode();`)
+	browser.wait(`Boolean(richEdit) && !vimEdit`)
+	browser.script(`if(richEdit.editor.view.dom.querySelector('pre'))throw new Error('Vim indentation reopened as code');updateNote(vimIndentID);`)
+	browser.wait(`editingNoteId===null && pendingNoteEdits.size===0 && !notesLoading`)
 }

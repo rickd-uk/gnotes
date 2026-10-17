@@ -58,6 +58,7 @@ var codeBlockOpening = regexp.MustCompile(`<pre(?:\s[^>]*)?>`)
 func mdToHTML(raw string) string {
 	source := []byte(raw)
 	document := markdownRenderer.Parser().Parse(text.NewReader(source))
+	renderIndentedText(document, source)
 	var languages []string
 	ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if entering {

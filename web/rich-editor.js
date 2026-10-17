@@ -7,7 +7,18 @@ import { closeHistory } from '@tiptap/pm/history';
 import { spellingKey, SpellingPreferences, setBuiltinNames } from './spelling.mjs';
 
 // Keep comparison rendering separate from Tiptap's custom tokenizers.
-const comparisonMarkdown = new Marked({ gfm: true, breaks: true });
+function indentedTextLines(text) {
+  return text.split('\n').map(line => '\u00a0'.repeat(4) + line.replace(/^[ \t]+/,
+    indent => indent.replace(/ /g, '\u00a0').replace(/\t/g, '\u00a0'.repeat(4))));
+}
+
+const comparisonMarkdown = new Marked({ gfm: true, breaks: true, renderer: {
+  code(token) {
+    if (token.codeBlockStyle !== 'indented') return false;
+    const escape = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `<p>${indentedTextLines(token.text).map(escape).join('<br>\n')}</p>\n`;
+  },
+} });
 
 const markdownLinkPattern = /(?<!\\)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g;
 
@@ -64,6 +75,17 @@ const WritingStarterKit = StarterKit.extend({
       if (extension.name === 'paragraph') return extension.extend({
         renderMarkdown(node, helpers, context) {
           return this.parent(paragraphWithSafeIndent(node), helpers, context);
+        },
+      });
+      if (extension.name === 'codeBlock') return extension.extend({
+        parseMarkdown(token, helpers) {
+          if (token.codeBlockStyle !== 'indented') return this.parent(token, helpers);
+          const content = [];
+          for (const line of indentedTextLines(token.text)) {
+            if (content.length) content.push(helpers.createNode('hardBreak'));
+            content.push(helpers.createTextNode(line));
+          }
+          return helpers.createNode('paragraph', {}, content);
         },
       });
       if (extension.name === 'bold') return extension.extend({ keepOnSplit: false });

@@ -53,8 +53,41 @@ func TestMarkdownCodeLanguageLabels(t *testing.T) {
 			t.Fatalf("missing escaped language attribute %s: %s", attribute, rendered)
 		}
 	}
-	if strings.Count(rendered, `data-code-language=""`) != 2 {
-		t.Fatalf("plain and indented code should retain empty language: %s", rendered)
+	if strings.Count(rendered, `data-code-language=""`) != 1 {
+		t.Fatalf("only explicitly fenced plain code should have an empty language: %s", rendered)
+	}
+}
+
+func TestNoteRendererTreatsIndentationAsText(t *testing.T) {
+	for _, raw := range []string{"    first\n        second", "\tfirst\n\t\tsecond"} {
+		rendered := mdToHTML(raw)
+		if strings.Contains(rendered, "<pre") || strings.Contains(rendered, "<code") ||
+			!strings.Contains(rendered, "<p>"+strings.Repeat("\u00a0", 4)+"first<br>\n"+strings.Repeat("\u00a0", 8)+"second</p>") {
+			t.Errorf("indentation became code or lost its spacing: %q", rendered)
+		}
+	}
+	// Literal text must not become HTML, Markdown formatting or decoded entities.
+	rendered := mdToHTML("    <script>alert(1)</script> **text** &amp; \\\\path")
+	if strings.Contains(rendered, "<script") || strings.Contains(rendered, "<strong>") ||
+		!strings.Contains(rendered, "&lt;script&gt;") || !strings.Contains(rendered, "&amp;amp;") || !strings.Contains(rendered, `\\path`) {
+		t.Fatalf("indented literal text changed or became active: %s", rendered)
+	}
+	for _, raw := range []string{"```\n    explicit code\n```", "~~~go\n    func main() {}\n~~~"} {
+		if rendered := mdToHTML(raw); !strings.Contains(rendered, "<pre") || !strings.Contains(rendered, "<code") {
+			t.Errorf("explicit fenced code lost its block: %s", rendered)
+		}
+	}
+}
+
+func TestIndentedTextPreservesMarkdownContainers(t *testing.T) {
+	rendered := mdToHTML(">     quoted text\n\n- item\n\n      nested text\n\n```\n    explicit code\n```")
+	for _, expected := range []string{"<blockquote>", "<ul>", strings.Repeat("\u00a0", 4) + "quoted text", strings.Repeat("\u00a0", 4) + "nested text"} {
+		if !strings.Contains(rendered, expected) {
+			t.Errorf("missing %q from nested indentation: %s", expected, rendered)
+		}
+	}
+	if strings.Count(rendered, "<pre") != 1 {
+		t.Fatalf("only fenced code should be enclosed: %s", rendered)
 	}
 }
 
