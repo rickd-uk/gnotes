@@ -36,9 +36,36 @@ const MarkdownLinkShortcut = Extension.create({
   },
 });
 
+// Preserve visual paragraph indentation without creating Markdown code blocks.
+// Work only at serialization boundaries, leaving typing/undo and code untouched.
+function paragraphWithSafeIndent(node) {
+  let atLineStart = true;
+  const content = (node.content || []).map(child => {
+    if (child.type !== 'text') {
+      atLineStart = child.type === 'hardBreak';
+      return child;
+    }
+    const isCode = (child.marks || []).some(mark => mark.type === 'code');
+    const text = child.text.split('\n').map((line, index) => {
+      if (index) atLineStart = true;
+      const leading = atLineStart ? (line.match(/^[ \t\u00a0]+/)?.[0] || '') : '';
+      atLineStart = atLineStart && leading.length === line.length;
+      if (isCode || !leading) return line;
+      return leading.replace(/ /g, '\u00a0').replace(/\t/g, '\u00a0'.repeat(4)) + line.slice(leading.length);
+    }).join('\n');
+    return text === child.text ? child : { ...child, text };
+  });
+  return { ...node, content };
+}
+
 const WritingStarterKit = StarterKit.extend({
   addExtensions() {
     return this.parent().map((extension) => {
+      if (extension.name === 'paragraph') return extension.extend({
+        renderMarkdown(node, helpers, context) {
+          return this.parent(paragraphWithSafeIndent(node), helpers, context);
+        },
+      });
       if (extension.name === 'bold') return extension.extend({ keepOnSplit: false });
       // New text at a link boundary must not inherit the previous URL.
       if (extension.name === 'link') return extension.extend({ inclusive: false });

@@ -30,7 +30,29 @@ func TestEditorInputBrowser(t *testing.T) {
 	browser.call("POST", "/element/"+id+"/value", map[string]string{"text": "\ue004"})
 	browser.script(`if(document.activeElement!==inputCheck.editor.view.dom)throw new Error('Tab moved focus');if([...inputCheck.editor.view.dom.querySelectorAll('p')].some(p=>!p.textContent.startsWith('\u00a0'.repeat(4))))throw new Error('Tab did not indent selected paragraphs');window.indented=inputCheck.getMarkdown();inputCheck.setMarkdown(indented);if(!inputCheck.editor.getText().startsWith('\u00a0'.repeat(4)))throw new Error('Indentation lost on reopen');inputCheck.editor.chain().focus().selectAll().run();inputCheck.editor.view.dom.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',code:'Tab',shiftKey:true,bubbles:true,cancelable:true}));if(inputCheck.getMarkdown()!=='first\n\nsecond')throw new Error('Shift Tab did not restore paragraphs');inputCheck.editor.commands.undo();if(inputCheck.getMarkdown()!==indented)throw new Error('Indent undo failed');`)
 	browser.script(`inputCheck.setMarkdown('first\nsecond');inputCheck.editor.chain().focus().selectAll().run();inputCheck.editor.view.dom.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));if(!inputCheck.editor.view.dom.textContent.includes('\u00a0'.repeat(4)+'second'))throw new Error('Hard-break line not indented');inputCheck.setMarkdown('- first\n- second');inputCheck.editor.state.doc.descendants((node,pos)=>{if(node.isText&&node.text==='second')inputCheck.editor.commands.setTextSelection(pos+2);});inputCheck.editor.view.dom.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));if(!inputCheck.editor.view.dom.querySelector('li li'))throw new Error('List did not nest: '+JSON.stringify(inputCheck.editor.getJSON())+' selection '+JSON.stringify(inputCheck.editor.state.selection.toJSON()));inputCheck.editor.view.dom.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true,cancelable:true}));if(inputCheck.editor.view.dom.querySelector('li li'))throw new Error('List did not outdent');`)
-	browser.script(`const source=document.createElement('textarea');document.body.prepend(source);source.value='first\nsecond';source.setSelectionRange(0,source.value.length);handleTextIndent(new KeyboardEvent('keydown',{key:'Tab',cancelable:true}),source);if(source.value!=='    first\n    second')throw new Error('Source indent failed');handleTextIndent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,cancelable:true}),source);if(source.value!=='first\nsecond')throw new Error('Source outdent failed');`)
+	browser.script(`const source=document.createElement('textarea');document.body.prepend(source);source.value='first\nsecond';source.setSelectionRange(0,source.value.length);handleTextIndent(new KeyboardEvent('keydown',{key:'Tab',cancelable:true}),source);if(source.value!=='\u00a0'.repeat(4)+'first\n'+'\u00a0'.repeat(4)+'second')throw new Error('Source indent failed');handleTextIndent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,cancelable:true}),source);if(source.value!=='first\nsecond')throw new Error('Source outdent failed');`)
+	browser.script(`
+          const source=document.createElement('textarea');document.body.prepend(source);
+          const fence=String.fromCharCode(96).repeat(3),spaces='\u00a0'.repeat(4);
+          const cases=[
+            {text:fence+'go\ncode\n'+fence,start:fence.length+3,end:fence.length+7,expected:fence+'go\n    code\n'+fence},
+            {text:'~~~\ncode\n~~~',start:4,end:8,expected:'~~~\n    code\n~~~'},
+            {text:'~~~~\n~~~\ncode',start:9,end:13,expected:'~~~~\n~~~\n    code'},
+            {text:fence+'\ncode\n'+fence+'\ntext',start:13,end:17,expected:fence+'\ncode\n'+fence+'\n'+spaces+'text'},
+            {text:'- child',start:0,end:0,expected:'    - child'},
+            {text:'- parent\n- child',start:9,end:16,expected:'- parent\n    - child'},
+            {text:'1. parent\n2. child',start:10,end:18,expected:'1. parent\n    2. child'},
+            {text:'first\nsecond\n',start:0,end:13,expected:spaces+'first\n'+spaces+'second\n'}
+          ];
+          for(const test of cases){
+            source.value=test.text;source.setSelectionRange(test.start,test.end);
+            handleTextIndent(new KeyboardEvent('keydown',{key:'Tab',cancelable:true}),source);
+            if(source.value!==test.expected)throw new Error('Indent context failed: '+JSON.stringify({test,actual:source.value}));
+            handleTextIndent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,cancelable:true}),source);
+            if(source.value!==test.text)throw new Error('Outdent changed literal content: '+JSON.stringify({test,actual:source.value}));
+          }
+          source.remove();
+        `)
 }
 
 func TestEditorPreviewAndSizeBrowser(t *testing.T) {

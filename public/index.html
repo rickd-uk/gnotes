@@ -8452,24 +8452,19 @@
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
       }
 
+      function codeFenceAfterLine(activeFence, line) {
+        const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+        if (!match) return activeFence;
+        const fence = match[1], remainder = match[2];
+        if (activeFence && fence[0] === activeFence.character &&
+            fence.length >= activeFence.length && remainder.trim() === "") return null;
+        return activeFence || { character: fence[0], length: fence.length };
+      }
+
       function activeCodeFenceBefore(value, position) {
         let activeFence = null;
-        const lines = value.slice(0, position).split("\n");
-        for (const line of lines) {
-          const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
-          if (!match) continue;
-          const fence = match[1];
-          const remainder = match[2];
-          if (
-            activeFence &&
-            fence[0] === activeFence.character &&
-            fence.length >= activeFence.length &&
-            remainder.trim() === ""
-          ) {
-            activeFence = null;
-          } else if (!activeFence) {
-            activeFence = { character: fence[0], length: fence.length };
-          }
+        for (const line of value.slice(0, position).split("\n")) {
+          activeFence = codeFenceAfterLine(activeFence, line);
         }
         return activeFence;
       }
@@ -8535,13 +8530,22 @@
         const lineStart = textarea.value.slice(0, start).lastIndexOf("\n") + 1;
         const selected = textarea.value.slice(lineStart, end);
         let firstDelta = 0, totalDelta = 0;
+        let fence = activeCodeFenceBefore(textarea.value, lineStart), lineOffset = lineStart;
         const replacement = selected.split("\n").map((line, index, lines) => {
           if (index === lines.length - 1 && line === "" && end > start) return line;
+          const nextNewline = textarea.value.indexOf("\n", lineOffset);
+          const fullLine = textarea.value.slice(lineOffset, nextNewline < 0 ? textarea.value.length : nextNewline);
+          lineOffset += line.length + 1;
+          const wasInCode = Boolean(fence);
+          fence = codeFenceAfterLine(fence, fullLine);
+          // Keep Markdown nesting and explicit fenced code literal. Ordinary
+          // text uses the same nonbreaking indentation as the rich editor.
+          const literalIndent = wasInCode || Boolean(fence) || /^[ \t]*(?:[-+*]|[0-9]+[.)])[ \t]+/.test(fullLine);
           const remove = event.shiftKey ? (line.match(/^(?:\t|[ \u00a0]{1,4})/)?.[0].length || 0) : 0;
           const delta = event.shiftKey ? -remove : 4;
           if (index === 0) firstDelta = delta;
           totalDelta += delta;
-          return event.shiftKey ? line.slice(remove) : "    " + line;
+          return event.shiftKey ? line.slice(remove) : (literalIndent ? "    " : "\u00a0".repeat(4)) + line;
         }).join("\n");
         replaceTextareaRange(textarea, lineStart, end, replacement,
           Math.max(lineStart, start + firstDelta), Math.max(lineStart, end + totalDelta));
