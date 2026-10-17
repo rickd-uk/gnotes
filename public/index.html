@@ -6968,24 +6968,6 @@
               ${(n.tags || []).length ? `<div class="note-tags" id="note-tags-${n.id}" aria-label="Note tags">${n.tags.map((tag, index) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}" data-short-label="#${escapeHTML(Array.from(tag).length > 10 ? Array.from(tag).slice(0, 10).join('') + '…' : tag)}" aria-label="#${escapeHTML(tag)}" title="#${escapeHTML(tag)}"${index >= 3 ? ' data-extra-tag hidden' : ''}><span class="note-tag-label">#${escapeHTML(tag)}</span></button>`).join("")}${n.tags.length > 3 ? `<button class="note-tags-toggle" type="button" aria-expanded="false" aria-controls="note-tags-${n.id}">+${n.tags.length - 3} more</button>` : ''}</div>` : ""}
               <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
             </div>
-            <div class="note-editor" id="note-editor-${n.id}" hidden>
-              <input class="edit-title" id="edit-title-${n.id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note title" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" />
-              <textarea class="edit-content" id="edit-content-${n.id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note content" oninput="handleEditInput(event, ${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
-              <div class="rich-editor-container" id="rich-editor-${n.id}" hidden></div>
-              <div class="note-content note-editor-preview" id="edit-preview-${n.id}" role="region" aria-label="Note preview" hidden></div>
-              <div class="editor-actions">
-                <button class="edit-copy" type="button" onclick="copyEditedNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
-                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
-                  <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
-                </button>
-                <span class="edit-hint" role="status" aria-live="polite"></span>
-                <button class="edit-copy edit-preview-toggle" id="edit-preview-toggle-${n.id}" type="button" onclick="toggleNotePreview(${n.id})" aria-label="Show rendered preview" title="Show rendered preview" aria-pressed="false" aria-controls="edit-preview-${n.id}">
-                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-                <button class="rich-format-toggle" id="edit-rich-format-toggle-${n.id}" type="button" aria-controls="rich-editor-${n.id}-toolbar" aria-expanded="${String(richToolbarVisible)}" aria-label="${richToolbarVisible ? "Hide" : "Show"} formatting toolbar" title="${richToolbarVisible ? "Hide" : "Show"} formatting" onclick="setRichToolbarVisible(!richToolbarVisible)" hidden>Aa</button>
-                <button class="edit-done" type="button" onclick="updateNote(${n.id})" aria-label="Save and close note editor" title="Save and close note editor">✓</button>
-              </div>
-            </div>
         </article>`;
       }
 
@@ -7069,7 +7051,7 @@
           group.cards.push({ id: n.id,
             state: [currentUser?.username, n.title, n.content, n.html_content, n.created_at, n.archived_at,
               n.pinned, n.favorited, n.locked, n.background_color, (n.tags || []).join('\n'), isNewest,
-              rolledNoteIds.has(n.id), archiveMode, spellcheckEnabled, richToolbarVisible,
+              rolledNoteIds.has(n.id), archiveMode,
               dateContext.timeZone, dateContext.todayKey, searchActive, calendarActive,
               highlightQuery, highlightScope, highlightMatchCase],
             html: () => noteCardHTML(n, isNewest, now, dateContext),
@@ -8894,19 +8876,47 @@
         const view = document.getElementById(`note-view-${editingNoteId}`);
         const editor = document.getElementById(`note-editor-${editingNoteId}`);
         if (view) view.hidden = false;
-        if (editor) editor.hidden = true;
+        editor?.remove();
       }
 
       window.visualViewport?.addEventListener("resize", syncFocusedEditViewport);
       window.visualViewport?.addEventListener("scroll", syncFocusedEditViewport);
       window.addEventListener("resize", syncFocusedEditViewport);
 
+      // Create controls only for an opened note; closed cards carry no editor DOM.
+      function noteEditorHTML(id) {
+        return `
+          <div class="note-editor" id="note-editor-${id}" hidden>
+            <input class="edit-title" id="edit-title-${id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note title" oninput="scheduleEditAutosave(${id})" onkeydown="handleEditKeydown(event, ${id})" />
+            <textarea class="edit-content" id="edit-content-${id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note content" oninput="handleEditInput(event, ${id})" onkeydown="handleEditKeydown(event, ${id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
+            <div class="rich-editor-container" id="rich-editor-${id}" hidden></div>
+            <div class="note-content note-editor-preview" id="edit-preview-${id}" role="region" aria-label="Note preview" hidden></div>
+            <div class="editor-actions">
+              <button class="edit-copy" type="button" onclick="copyEditedNoteText(${id}, this)" aria-label="Copy note text" title="Copy note text">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
+                <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
+              </button>
+              <span class="edit-hint" role="status" aria-live="polite"></span>
+              <button class="edit-copy edit-preview-toggle" id="edit-preview-toggle-${id}" type="button" onclick="toggleNotePreview(${id})" aria-label="Show rendered preview" title="Show rendered preview" aria-pressed="false" aria-controls="edit-preview-${id}">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button class="rich-format-toggle" id="edit-rich-format-toggle-${id}" type="button" aria-controls="rich-editor-${id}-toolbar" aria-expanded="${String(richToolbarVisible)}" aria-label="${richToolbarVisible ? "Hide" : "Show"} formatting toolbar" title="${richToolbarVisible ? "Hide" : "Show"} formatting" onclick="setRichToolbarVisible(!richToolbarVisible)" hidden>Aa</button>
+              <button class="edit-done" type="button" onclick="updateNote(${id})" aria-label="Save and close note editor" title="Save and close note editor">✓</button>
+            </div>
+          </div>`;
+      }
+
       function openNoteEditor(id, selectTitle = true, focusBody = false, textOffset = null) {
         const note = loadedNotes.get(id);
         const view = document.getElementById(`note-view-${id}`);
-        const editor = document.getElementById(`note-editor-${id}`);
-        if (!note || note.archived_at || !view || !editor || pendingNoteActions.has(id)) return false;
+        const card = document.getElementById(`note-${id}`);
+        if (!note || note.archived_at || !view || !card || pendingNoteActions.has(id)) return false;
         if (note.locked) { showNoteActionToast('This note is locked. Use the padlock to unlock it.'); return false; }
+        let editor = document.getElementById(`note-editor-${id}`);
+        if (!editor) {
+          card.insertAdjacentHTML("beforeend", noteEditorHTML(id));
+          editor = document.getElementById(`note-editor-${id}`);
+        }
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
         noteViewRevision++;
@@ -8914,7 +8924,6 @@
         contentInput.value = note.content;
         view.hidden = true;
         editor.hidden = false;
-        const card = document.getElementById(`note-${id}`);
         editReturnScrollY = window.scrollY;
         card.classList.add("is-editing");
         card.setAttribute("role", "dialog");
