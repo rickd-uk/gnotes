@@ -473,6 +473,32 @@
         flex: 0 0 auto;
       }
 
+      .editor-title-row { display: flex; gap: 12px; align-items: center; flex: 0 0 auto; }
+      .editor-title-row > input { flex: 1; min-width: 0; }
+      .note-card.is-editing .editor-title-row > .edit-title { flex: 1; min-width: 0; }
+      .vim-toggle {
+        flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 6px 10px;
+        border: 1px solid var(--line); border-radius: 7px;
+        background: transparent; color: var(--ink); cursor: pointer;
+        font: 700 1rem ui-monospace, monospace;
+      }
+      .vim-toggle:hover, .vim-toggle:focus-visible { background: #e9e4da; }
+      .vim-toggle[aria-pressed="true"] { color: #167344; background: #e1ebe5; border-color: #bad0c2; }
+      .vim-toggle[aria-busy="true"] { opacity: 0.65; cursor: progress; }
+      body .has-vim-editor textarea:is(#content, .edit-content) { display: none; }
+      .vim-editor[hidden] { display: none; }
+      .vim-editor { min-width: 0; margin-top: 10px; }
+      .vim-editor .cm-editor { min-width: 0; border: 1px solid var(--line); border-radius: 7px; background: transparent; }
+      .vim-editor .cm-editor.cm-focused { outline: 1px solid var(--accent); }
+      .vim-editor .cm-scroller { min-height: 96px; max-height: 320px; overflow: auto; overscroll-behavior: contain; font: 0.94rem/1.55 ui-monospace, monospace; scrollbar-width: thin; }
+      .vim-editor .cm-gutters, .vim-editor .cm-panels { background: #f1ece2; color: var(--muted); }
+      .vim-editor .cm-vim-panel { min-height: 26px; align-items: center; font-size: 0.8rem; flex-wrap: wrap; }
+      .vim-editor .cm-vim-panel input { min-width: 0; width: auto; flex: 1; padding: 4px; font: inherit; }
+      .note-card.is-editing .vim-editor:not([hidden]) { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+      .note-card.is-editing .vim-editor .cm-editor { flex: 1; min-height: 0; }
+      .note-card.is-editing .vim-editor .cm-scroller { max-height: max(80px, calc(var(--edit-viewport-height, 100dvh) - 250px)); }
+      body .note-card.is-editing .note-editor.is-preview .vim-editor { display: none; }
+
       .format-control { display: none; }
       body.rich-mode #content,
       body.rich-mode .edit-content { display: none; }
@@ -4707,9 +4733,13 @@
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg><span>New note</span>
       </button>
       <form class="form-container" id="note-form" aria-label="Create a note">
-        <input type="text" id="title" placeholder="Note title" aria-label="Note title" />
+        <div class="editor-title-row">
+          <input type="text" id="title" placeholder="Note title" aria-label="Note title" />
+          <button class="vim-toggle" id="draft-vim-toggle" type="button" onclick="toggleVimMode()" aria-pressed="false" aria-label="Use Vim editing" title="Use Vim editing">N</button>
+        </div>
         <textarea id="content" rows="2" placeholder="Start writing…" aria-label="Note content"></textarea>
         <div class="rich-editor-container" id="new-rich-editor" hidden></div>
+        <div class="vim-editor" id="new-vim-editor" hidden></div>
 
         <div class="form-actions">
           <span class="shortcut" id="draft-status" role="status" aria-live="polite">Drafts save automatically</span>
@@ -5030,6 +5060,7 @@
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Lock a note</h3><p>Choose Lock note in its ⋯ tools menu. Locked notes keep a padlock indicator; click it to unlock. Title, text, checklists, tags and color are protected across devices. You can add Lock to your quick actions or assign a shortcut.</p></div>
+        <div><h3>Vim editing</h3><p>Choose N beside the title to edit Markdown with Vim keys; choose N again to return to the normal editor. Your choice is remembered for this account in this browser. Press i to insert and Escape to return to Normal mode. Use :w to save, or :wq, :x or Ctrl/Command+Enter to save and close. New notes save as drafts with :w and become notes with :wq. Notes autosave, so :q also keeps changes and closes. The eye button previews an existing note.</p></div>
         <div><h3>Your keyboard shortcuts</h3><p>Open Profile → Keyboard shortcuts to search actions and assign keys. Shortcuts are saved for your account in this browser. Note actions use the focused or pointed-at note. Ctrl+Shift+P toggles preview; Escape saves and closes a note, retaining edits if saving fails. Short notes use a centered, content-sized editor.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Tab indents text; Shift+Tab moves it back. In lists, these keys change nesting. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done. Saved links open normally; Shift-click a link to edit its note. While editing, click a link to place the cursor, then choose Link in the formatting toolbar to change its address or open it. Ctrl/Command-click opens a link directly from the editor.</p></div>
         <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Favorites are hidden from the main view and Archive by default. To show them there too, enable Controls → Display → Favorites. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
@@ -5229,6 +5260,9 @@
       let rolledNoteIds = new Set();
       let markdownSource = false;
       let richDraft = null;
+      let vimDraft = null, vimEdit = null;
+      let vimModeEnabled = false, vimModeRequested = false, vimModeChange = 0;
+      let vimBundlePromise = null;
       let spellcheckEnabled = true;
       let ignoredSpellingWords = [];
       let spellingNames = [];
@@ -5453,17 +5487,15 @@
         setRichToolbarVisible(!richToolbarVisible);
       });
 
-      function mountRichInput(host, input, onDirty, onContext) {
+      function mountBoundEditor(input, onDirty, createEditor) {
         let sourceValue = input.value;
-        const editor = window.GnotesRichEditor.mount(host, sourceValue, null, onContext, openRichLinkDialog, {
-          onDirty: () => {
-            sourceValue = input.value;
-            onDirty();
-          },
+        const editor = createEditor(() => {
+          sourceValue = input.value;
+          onDirty();
         });
         // Preserve explicit source-buffer edits made after the last rich edit.
-        // A subsequent rich edit takes precedence again, as it did with eager
-        // synchronization. Normal reads serialize the latest rich document.
+        // A subsequent editor change takes precedence again, as it did with eager
+        // synchronization. Normal reads serialize the latest editor document.
         editor.readSource = () => {
           if (input.value === sourceValue) {
             input.value = editor.getMarkdown();
@@ -5475,8 +5507,14 @@
         return editor;
       }
 
+
+      function mountRichInput(host, input, onDirty, onContext) {
+        return mountBoundEditor(input, onDirty, dirty =>
+          window.GnotesRichEditor.mount(host, input.value, null, onContext, openRichLinkDialog, { onDirty: dirty }));
+      }
+
       function mountDraftRichEditor() {
-        if (richDraft || markdownSource || !window.GnotesRichEditor) return;
+        if (richDraft || vimModeEnabled || markdownSource || !window.GnotesRichEditor) return;
         const toggle = document.getElementById("draft-rich-format-toggle");
         toggle.hidden = true;
         const host = document.getElementById("new-rich-editor");
@@ -5513,7 +5551,7 @@
       }
 
       function mountEditRichEditor(id) {
-        if (markdownSource || !window.GnotesRichEditor) return;
+        if (vimModeEnabled || markdownSource || !window.GnotesRichEditor) return;
         const host = document.getElementById(`rich-editor-${id}`);
         const input = document.getElementById(`edit-content-${id}`);
         if (!host || !input) return;
@@ -5551,6 +5589,130 @@
         if (toggle) toggle.hidden = true;
       }
 
+      function loadVimEditor() {
+        if (window.GnotesVimEditor) return Promise.resolve();
+        if (!vimBundlePromise) vimBundlePromise = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = '/vim-editor.js';
+          script.onload = () => {
+            if (window.GnotesVimEditor) resolve();
+            else script.onerror();
+          };
+          script.onerror = () => {
+            script.remove();
+            vimBundlePromise = null;
+            reject(new Error('Vim editor unavailable. Check your connection and try N again.'));
+          };
+          document.head.append(script);
+        });
+        return vimBundlePromise;
+      }
+
+      function updateVimControls() {
+        document.querySelectorAll('.vim-toggle').forEach(button => {
+          const label = vimModeRequested ? 'Use normal editing' : 'Use Vim editing';
+          const loading = vimModeRequested && !window.GnotesVimEditor;
+          button.setAttribute('aria-pressed', String(vimModeRequested));
+          button.setAttribute('aria-label', label);
+          button.setAttribute('aria-busy', String(loading));
+          button.title = loading ? 'Loading Vim… click to cancel' : label;
+        });
+      }
+
+      function mountVimInput(host, input, onDirty, onSave) {
+        const editor = mountBoundEditor(input, onDirty, dirty =>
+          GnotesVimEditor.mount(host, input.value, dirty, onSave));
+        host.hidden = false;
+        host.closest('form, .note-editor').classList.add('has-vim-editor');
+        editor.view.requestMeasure();
+        return editor;
+      }
+
+      function mountVimDraftEditor() {
+        if (vimDraft || !vimModeEnabled || !window.GnotesVimEditor) return;
+        const owner = currentUser;
+        vimDraft = mountVimInput(document.getElementById('new-vim-editor'), document.getElementById('content'),
+          scheduleDraftSave, close => {
+            if (currentUser !== owner || draftFinalizing) return;
+            if (close) finalizeDraft();
+            else queueDraftSave();
+          });
+      }
+
+      function mountVimNoteEditor(id) {
+        if (vimEdit || !vimModeEnabled || !window.GnotesVimEditor) return;
+        const owner = currentUser;
+        vimEdit = mountVimInput(document.getElementById(`vim-editor-${id}`), document.getElementById(`edit-content-${id}`),
+          () => scheduleEditAutosave(id), close => {
+            if (currentUser !== owner || editingNoteId !== id) return;
+            if (close) updateNote(id);
+            else queueEditAutosave(id).catch(() => {
+              const hint = document.querySelector(`#note-editor-${id} .edit-hint`);
+              if (hint) hint.textContent = 'Could not save; text is still here';
+            });
+          });
+      }
+
+      function destroyVimEditor(kind, flush = true) {
+        const editor = kind === 'draft' ? vimDraft : vimEdit;
+        if (!editor) return;
+        if (flush) editor.readSource();
+        const host = editor.view.dom.closest('.vim-editor');
+        editor.destroy();
+        if (host) {
+          host.hidden = true;
+          host.closest('form, .note-editor')?.classList.remove('has-vim-editor');
+        }
+        if (kind === 'draft') vimDraft = null;
+        else vimEdit = null;
+      }
+
+      function toggleVimMode() { return setVimMode(!vimModeRequested); }
+
+      async function setVimMode(enabled, { focus = true, persist = true } = {}) {
+        if (!currentUser || draftFinalizing) return false;
+        const owner = currentUser, request = ++vimModeChange;
+        vimModeRequested = enabled;
+        updateVimControls();
+        try {
+          if (enabled) await loadVimEditor();
+          if (currentUser !== owner || request !== vimModeChange) return false;
+          if (enabled !== vimModeEnabled) {
+            if (editingNoteId !== null) setNotePreview(editingNoteId, false);
+            hideRichContext();
+            destroyVimEditor('draft');
+            destroyVimEditor('edit');
+            destroyDraftRichEditor();
+            destroyEditRichEditor();
+            vimModeEnabled = enabled;
+            if (enabled) {
+              mountVimDraftEditor();
+              if (editingNoteId !== null) mountVimNoteEditor(editingNoteId);
+            } else {
+              mountDraftRichEditor();
+              if (editingNoteId !== null) mountEditRichEditor(editingNoteId);
+            }
+          }
+          updateVimControls();
+          if (persist) saveUIState();
+          if (focus) {
+            const writer = editingNoteId !== null ? vimEdit || richEdit : vimDraft || richDraft;
+            if (writer) writer.focus();
+            else document.getElementById(editingNoteId !== null ? `edit-content-${editingNoteId}` : 'content').focus();
+          }
+          return true;
+        } catch (error) {
+          if (currentUser !== owner || request !== vimModeChange) return false;
+          destroyVimEditor('draft'); destroyVimEditor('edit');
+          vimModeEnabled = vimModeRequested = false;
+          mountDraftRichEditor();
+          if (editingNoteId !== null && !richEdit) mountEditRichEditor(editingNoteId);
+          updateVimControls();
+          showNoteActionToast(error.message || 'Could not open Vim editor. Your text is still available.');
+          return false;
+        }
+      }
+
       function applyEditorMode(enabled) {
         if (editingNoteId !== null) setNotePreview(editingNoteId, false);
         hideRichContext();
@@ -5575,7 +5737,7 @@
           mountDraftRichEditor();
           if (editingNoteId !== null && !richEdit) mountEditRichEditor(editingNoteId);
         }
-        if (enabled && editingNoteId !== null) resizeTextareaToContent(document.getElementById(`edit-content-${editingNoteId}`));
+        if (enabled && editingNoteId !== null && !vimEdit) resizeTextareaToContent(document.getElementById(`edit-content-${editingNoteId}`));
       }
 
       document.addEventListener("click", (event) => {
@@ -5674,6 +5836,7 @@
           // Only an explicit timezone selection writes the dedicated preference.
           timeZoneChoice: readSavedTimeZoneChoice() ?? timeZoneChoice,
           markdownSource,
+          vimModeEnabled,
           richToolbarVisible,
           adminUserFilter,
           adminUserSort,
@@ -6136,6 +6299,7 @@
         applySpelling(state.spellcheckEnabled, spellingListsMigrated ? [] : state.ignoredSpellingWords || [], spellingListsMigrated ? [] : state.spellingNames || []);
         richToolbarVisible = state.richToolbarVisible === true;
         applyEditorMode(Boolean(state.markdownSource));
+        setVimMode(state.vimModeEnabled === true, { focus: false, persist: false });
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
           ? state.adminUserFilter
           : "all";
@@ -6243,6 +6407,12 @@
         document.getElementById("note-undo-toast").hidden = true;
         clearTimeout(liveSearchTimer);
         closeFormattingToolbars();
+        ++vimModeChange;
+        vimModeEnabled = vimModeRequested = false;
+        destroyVimEditor('edit');
+        destroyVimEditor('draft');
+        window.GnotesVimEditor?.reset();
+        updateVimControls();
         destroyEditRichEditor();
         closeFocusedNote();
         editingNoteId = null;
@@ -7506,6 +7676,7 @@
       function currentDraft() {
         const content = document.getElementById("content");
         if (richDraft) richDraft.readSource();
+        if (vimDraft) vimDraft.readSource();
         return {
           title: document.getElementById("title").value,
           content: content.value,
@@ -7515,7 +7686,7 @@
 
       function draftHasText() {
         return Boolean(document.getElementById("title").value.trim() ||
-          (richDraft ? richDraft.hasSourceContent() : document.getElementById("content").value.trim()));
+          ((vimDraft || richDraft) ? (vimDraft || richDraft).hasSourceContent() : document.getElementById("content").value.trim()));
       }
 
       function setDraftStatus(message, isError = false) {
@@ -7534,13 +7705,15 @@
         }
         const draft = await response.json();
         document.getElementById("title").value = draft.title || "";
+        destroyVimEditor('draft', false);
         if (richDraft) {
           richDraft.destroy();
           richDraft = null;
           document.getElementById("new-rich-editor").hidden = true;
         }
         document.getElementById("content").value = draft.content || "";
-        if (!markdownSource) mountDraftRichEditor();
+        if (vimModeEnabled) mountVimDraftEditor();
+        else if (!markdownSource) mountDraftRichEditor();
         draftVersion = Number(draft.version) || 0;
         draftSavedVersion = draftVersion;
         draftRetryPending = false;
@@ -7628,6 +7801,7 @@
         saveButton.disabled = true;
         titleInput.disabled = true;
         contentInput.disabled = true;
+        vimDraft?.setReadOnly(true);
         let saveConfirmed = false;
         try {
           setDraftStatus("Saving note…");
@@ -7654,6 +7828,7 @@
           titleInput.value = "";
           contentInput.value = "";
           richDraft?.setMarkdown("");
+          vimDraft?.setMarkdown("");
           if (richDraftFallback) mountDraftRichEditor();
           closeFormattingToolbar("new-note-format-control");
           contentInput.style.height = "";
@@ -7682,6 +7857,7 @@
         } finally {
           titleInput.disabled = false;
           contentInput.disabled = false;
+          vimDraft?.setReadOnly(false);
           draftFinalizing = false;
           saveButton.disabled = false;
         }
@@ -8818,7 +8994,7 @@
         preview.hidden = !enabled;
         if (!enabled) {
           preview.previewRequest = null;
-          if (!richEdit) resizeTextareaToContent(document.getElementById(`edit-content-${id}`));
+          if (!richEdit && !vimEdit) resizeTextareaToContent(document.getElementById(`edit-content-${id}`));
         }
         button.setAttribute("aria-pressed", String(enabled));
         button.setAttribute("aria-label", enabled ? "Return to editing" : "Show rendered preview");
@@ -8834,7 +9010,7 @@
         const preview = document.getElementById(`edit-preview-${id}`);
         if (!preview.hidden) {
           setNotePreview(id, false);
-          if (richEdit) richEdit.focus();
+          if (vimEdit || richEdit) (vimEdit || richEdit).focus();
           else document.getElementById(`edit-content-${id}`).focus();
           return;
         }
@@ -8891,9 +9067,13 @@
       function noteEditorHTML(id) {
         return `
           <div class="note-editor" id="note-editor-${id}" hidden>
-            <input class="edit-title" id="edit-title-${id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note title" oninput="scheduleEditAutosave(${id})" onkeydown="handleEditKeydown(event, ${id})" />
+            <div class="editor-title-row">
+              <input class="edit-title" id="edit-title-${id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note title" oninput="scheduleEditAutosave(${id})" onkeydown="handleEditKeydown(event, ${id})" />
+              <button class="vim-toggle" type="button" onclick="toggleVimMode()" aria-pressed="${String(vimModeRequested)}" aria-label="${vimModeRequested ? 'Use normal editing' : 'Use Vim editing'}" title="${vimModeRequested ? 'Use normal editing' : 'Use Vim editing'}">N</button>
+            </div>
             <textarea class="edit-content" id="edit-content-${id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note content" oninput="handleEditInput(event, ${id})" onkeydown="handleEditKeydown(event, ${id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
             <div class="rich-editor-container" id="rich-editor-${id}" hidden></div>
+            <div class="vim-editor" id="vim-editor-${id}" hidden></div>
             <div class="note-content note-editor-preview" id="edit-preview-${id}" role="region" aria-label="Note preview" hidden></div>
             <div class="editor-actions">
               <button class="edit-copy" type="button" onclick="copyEditedNoteText(${id}, this)" aria-label="Copy note text" title="Copy note text">
@@ -8941,9 +9121,11 @@
         document.body.classList.add("note-edit-focus");
         syncFocusedEditViewport();
         rememberEditingNote(id);
-        if (!markdownSource) mountEditRichEditor(id);
+        if (vimModeEnabled) mountVimNoteEditor(id);
+        else if (!markdownSource) mountEditRichEditor(id);
+        updateVimControls();
         if (focusBody) {
-          if (richEdit) richEdit.focusAtTextOffset(textOffset);
+          if (vimEdit || richEdit) (vimEdit || richEdit).focusAtTextOffset(textOffset);
           else {
             contentInput.focus();
             if (textOffset !== null) {
@@ -9052,6 +9234,10 @@
           const selection = window.getSelection();
           if (selection && !selection.isCollapsed && editor.contains(selection.anchorNode) &&
               editor.contains(selection.focusNode)) selectedText = selection.toString();
+        }
+        if (vimEdit) {
+          vimEdit.readSource();
+          selectedText ||= vimEdit.getSelection();
         }
         const richText = card.querySelector(".rich-editor-container:not([hidden]) .tiptap")?.innerText.trim();
         const sourceText = card.querySelector(".edit-content")?.value.trim() || "";
@@ -9213,8 +9399,8 @@
               const code = pre.textContent.replace(/\n$/, '');
               const start = input.value.indexOf(code);
               if (start >= 0) {
-                input.focus();
-                input.setSelectionRange(start, start + code.length);
+                if (vimEdit) vimEdit.selectRange(start, start + code.length);
+                else { input.focus(); input.setSelectionRange(start, start + code.length); }
               }
             }
           });
@@ -9396,7 +9582,7 @@
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
         if (!titleInput || !contentInput) return null;
-        if (richEdit && editingNoteId === id) richEdit.readSource();
+        if (editingNoteId === id) (vimEdit || richEdit)?.readSource();
         return { title: titleInput.value, content: contentInput.value };
       }
 
@@ -9449,6 +9635,11 @@
         contentInput.setCustomValidity("");
         if (!title.trim() && !content.trim()) {
           contentInput.setCustomValidity("Write a title or some content before saving.");
+          if (vimEdit) {
+            showNoteActionToast('Write a title or some content before saving.');
+            vimEdit.focus();
+            return false;
+          }
           contentInput.reportValidity();
           contentInput.focus();
           return false;
@@ -9462,6 +9653,7 @@
         noteViewRevision++;
         Object.assign(loadedNotes.get(id), pending.edit);
         const returnScroll = editReturnScrollY;
+        destroyVimEditor('edit');
         destroyEditRichEditor();
         closeFocusedNote();
         editingNoteId = null;
@@ -9537,7 +9729,9 @@
 
       newNoteContent.addEventListener("input", resizeNewNoteEditor);
 
-      noteForm.addEventListener("input", scheduleDraftSave);
+      noteForm.addEventListener("input", event => {
+        if (!event.target.closest('.vim-editor')) scheduleDraftSave();
+      });
 
       document.addEventListener("click", (event) => {
         const languageOption = event.target.closest(".code-language-option");
@@ -9568,6 +9762,7 @@
       });
 
       noteForm.addEventListener("keydown", (event) => {
+        if (event.defaultPrevented || event.target.closest('.vim-editor')) return;
         if (event.target === newNoteContent && handleTextIndent(event, newNoteContent)) return;
         if (event.target === newNoteContent && handleCodeAutoPair(event, newNoteContent)) {
           return;
@@ -10705,7 +10900,7 @@
 
       document.getElementById("welcome-start").addEventListener("click", () => {
         dismissWelcome();
-        if (richDraft) richDraft.focus();
+        if (vimDraft || richDraft) (vimDraft || richDraft).focus();
         else document.getElementById("content").focus();
       });
       document.getElementById('welcome-overlay').addEventListener('click', event => {
@@ -10732,7 +10927,7 @@
         if (event.key === "Escape") {
           event.preventDefault();
           dismissWelcome();
-          if (richDraft) richDraft.focus();
+          if (vimDraft || richDraft) (vimDraft || richDraft).focus();
           else document.getElementById("content").focus();
         }
         if (event.key !== "Tab") return;

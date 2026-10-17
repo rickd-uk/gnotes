@@ -68,11 +68,13 @@
       if (archiveMode) await toggleArchiveMode();
       if (!showNewNoteArea) document.getElementById('new-note-area-toggle').click();
       document.getElementById('note-form').scrollIntoView({ block: 'center' });
-      if (richDraft) richDraft.editor.commands.focus(); else document.getElementById('content').focus();
+      if (vimDraft) vimDraft.focus();
+      else if (richDraft) richDraft.editor.commands.focus(); else document.getElementById('content').focus();
     }, () => editingNoteId === null);
     add('save', 'Save and close note', 'Editor', () => updateNote(editingNoteId), () => editingNoteId !== null);
     add('copy-edit', 'Copy edited note text', 'Editor', () => copyEditedNoteText(editingNoteId, document.querySelector('.is-editing .edit-copy')), () => editingNoteId !== null);
     add('preview', 'Toggle rendered preview', 'Editor', () => toggleNotePreview(editingNoteId), () => editingNoteId !== null);
+    add('vim-mode', 'Toggle Vim editing', 'Editor', toggleVimMode);
     add('edit', 'Edit focused note', 'Notes', () => openNoteEditor(noteID(), true), () => editingNoteId === null && noteID() !== null && !loadedNotes.get(noteID())?.locked);
     add('formatting', 'Show / hide formatting', 'Editor', () => {
       if (activeWriter()?.editor) setRichToolbarVisible(!richToolbarVisible);
@@ -168,7 +170,7 @@
     // Include every static control: menus, account, search, import/export, admin,
     // spelling, offline reading, display settings and confirmation dialogs.
     document.querySelectorAll('#app-shell button, #app-shell summary, #app-shell input[type=checkbox], #app-shell select, #app-shell input[type=range], dialog:not(#shortcuts-dialog) button, dialog:not(#shortcuts-dialog) input[type=checkbox], dialog:not(#shortcuts-dialog) select').forEach(el => {
-      if (el.closest('#notes-list, #trash-list, #hidden-notes-list, #admin-users, .rich-editor-container, .format-control')) return;
+      if (el.closest('#notes-list, #trash-list, #hidden-notes-list, #admin-users, .rich-editor-container, .vim-editor, .vim-toggle, .format-control')) return;
       if (['shortcuts-open', 'search-toggle', 'view-backdrop'].includes(el.id)) return;
       const name = label(el);
       if (!name) return;
@@ -272,6 +274,9 @@
     const key = keyFor(event);
     const id = Object.keys(bindings).find(id => bindings[id] === key);
     const action = actions.get(id);
+    // Preserve Vim's own commands (including Ctrl-R, Ctrl-D and /). Only the
+    // app's save, preview and editor-switch bindings take priority here.
+    if (event.target.closest?.('.vim-editor') && !['save', 'preview', 'vim-mode'].includes(id)) return;
     if (!action || !action.available() || (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && writing())) return;
     const modal = document.querySelector('dialog[open]');
     if (modal && !id.startsWith('control:')) return;
