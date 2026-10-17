@@ -1,10 +1,19 @@
 # gnotes roadmap
 
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-17
 
 ## Next development sequence
 
-Session handoff saved on 2026-10-10 in [PROGRESS.md](PROGRESS.md). Proposed order: current-release Pixel 6a verification; encrypted backup activation and monitoring; static script/style extraction and stricter CSP; complete account export/deletion; administrator MFA/recovery codes; then scoped editor additions such as tables. Audit logging and recovery-email verification remain open. This records future work, not a request to begin it.
+Session handoff and future plans saved on 2026-10-16 in [PROGRESS.md](PROGRESS.md). Local v0.7.57 changes completed and validated on 2026-10-17 improve note-list rendering, spelling, Markdown serialization and text menus. Latest documented production release remains v0.7.56; v0.7.57 has not been pushed or deployed. The requested editor, shortcut and note-lock features are complete. Recommended next step is Pixel 6a testing and fixing reproduced friction, followed by backups/alerts and browser security; editable tables remain a later feature candidate. Proposed priorities:
+
+1. Verify the current release on the Pixel 6a, including selection, keyboard/editor controls, menus, shortcuts, note locking and recovery. Check offline setup, disconnected reading and manual refresh on a real device too.
+2. Finish encrypted off-server backup activation through the existing wizard; choose an alert destination and monitor stale/failed backups and service health. Budget occasional full integrity and restore checks for their storage egress.
+3. Extract inline scripts/styles into versioned assets and tighten Content Security Policy.
+4. Complete account data export and self-service account deletion after reviewing existing coverage and retention behavior.
+5. Add administrator MFA/recovery codes and privacy-conscious audit logging with documented retention.
+6. Consider scoped editor additions such as editable tables after reliability and security work.
+
+Also verify the recovery email and a real password-reset email. Offline notes remain read only with manual snapshot refresh; offline editing/synchronization is not planned in this handoff. These are recorded future priorities, not instructions to begin implementation.
 
 The operational Wasabi egress fix is installed on Kagoya and included in v0.7.55. Daily replication checks local database integrity and repository metadata without routine payload downloads. Explicit setup tests retain latest-snapshot restore verification. Automatic Wasabi scheduling remains disabled pending setup, and future full integrity/restore tests need an egress budget.
 

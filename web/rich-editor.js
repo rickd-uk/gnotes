@@ -3,80 +3,8 @@ import StarterKit from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Markdown } from '@tiptap/markdown';
 import { Marked } from 'marked';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { closeHistory } from '@tiptap/pm/history';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
-
-// View decorations suppress native checking without changing note Markdown.
-const spellingKey = new PluginKey('gnotesSpelling');
-let builtinNames = new Map();
-function setBuiltinNames(entries) {
-  const index = new Map();
-  for (const entry of entries) {
-    if (typeof entry !== 'string' || entry.length > 96) continue;
-    const text = entry.toLowerCase().replaceAll('’', "'").replace(/\s+/g, ' ');
-    const tokens = [...text.matchAll(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)];
-    if (!tokens.length || tokens.length > 12) continue;
-    const first = tokens[0][0];
-    if (!index.has(first)) index.set(first, new Map());
-    const lengths = index.get(first);
-    if (!lengths.has(tokens.length)) lengths.set(tokens.length, new Set());
-    lengths.get(tokens.length).add(text);
-  }
-  builtinNames = index;
-}
-const SpellingPreferences = Extension.create({
-  name: 'spellingPreferences',
-  addProseMirrorPlugins() {
-    return [new Plugin({
-      key: spellingKey,
-      state: {
-        init: () => ({ enabled: true, ignored: new Set(), names: new Map() }),
-        apply: (tr, previous) => tr.getMeta(spellingKey) || previous,
-      },
-      props: {
-        decorations(state) {
-          const preferences = spellingKey.getState(state);
-          if (!preferences.enabled || (!preferences.ignored.size && !preferences.names.size && (!builtinNames.size || preferences.builtin === false))) return DecorationSet.empty;
-          const decorations = [];
-          state.doc.descendants((node, pos) => {
-            if (!node.isTextblock) return;
-            if (node.type.name === 'codeBlock') return false;
-            const text = node.textBetween(0, node.content.size, '\n', '\n');
-            const tokens = [...text.matchAll(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)];
-            const normalize = value => value.toLowerCase().replaceAll('’', "'").replace(/\s+/g, ' ');
-            const decorate = (from, to, name = false) => {
-              let code = false;
-              node.nodesBetween(from, to, child => { if (child.marks.some(mark => mark.type.name === 'code')) code = true; });
-              if (!code) decorations.push(Decoration.inline(pos + 1 + from, pos + 1 + to,
-                { spellcheck: 'false', 'data-spelling-ignored': name ? 'name' : 'word' }));
-            };
-            for (let i = 0; i < tokens.length; i++) {
-              const token = tokens[i], word = normalize(token[0]);
-              if (preferences.ignored.has(word)) decorate(token.index, token.index + token[0].length);
-              for (const name of preferences.names.get(word) || []) {
-                const last = tokens[i + name.count - 1];
-                if (last && normalize(text.slice(token.index, last.index + last[0].length)) === name.text)
-                  decorate(token.index, last.index + last[0].length, true);
-              }
-              // Shared names require capitalization. Lowercase ordinary words
-              // remain checked; per-user names retain their existing matching.
-              if (preferences.builtin !== false && /^\p{Lu}/u.test(token[0])) {
-                for (const [count, names] of builtinNames.get(word) || []) {
-                  const last = tokens[i + count - 1];
-                  if (last && names.has(normalize(text.slice(token.index, last.index + last[0].length))))
-                    decorate(token.index, last.index + last[0].length, true);
-                }
-              }
-            }
-            return false;
-          });
-          return DecorationSet.create(state.doc, decorations);
-        },
-      },
-    })];
-  },
-});
+import { spellingKey, SpellingPreferences, setBuiltinNames } from './spelling.mjs';
 
 // Keep comparison rendering separate from Tiptap's custom tokenizers.
 const comparisonMarkdown = new Marked({ gfm: true, breaks: true });
@@ -169,7 +97,39 @@ const extensions = [
   TextIndent,
 ];
 
-function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}) {
+// onDirty opts into lazy serialization. App read/save boundaries call the
+// adapter's cached getMarkdown(); legacy onChange callbacks still receive text.
+function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}, { onDirty } = {}) {
+  let serializedDoc = null, serializedMarkdown = '';
+  let contentDoc = null, containsContent = false;
+  function readMarkdown(current) {
+    if (serializedDoc !== current.state.doc) {
+      serializedMarkdown = current.getMarkdown();
+      serializedDoc = current.state.doc;
+    }
+    return serializedMarkdown;
+  }
+  function hasContent() {
+    const doc = editor.state.doc;
+    if (contentDoc !== doc) {
+      containsContent = false;
+      let formattingOnly = false;
+      // Ordinary text needs no serialization to enable Save. Empty formatted
+      // blocks have different Markdown rules, so ask the serializer only when
+      // there is formatting but no non-whitespace text anywhere in the doc.
+      doc.descendants(node => {
+        if (containsContent) return false;
+        if (node.isText) {
+          containsContent = /\S/.test(node.text);
+          formattingOnly ||= node.marks.length > 0;
+        } else if (node.type.name !== 'paragraph' && node.type.name !== 'hardBreak') formattingOnly = true;
+        return !containsContent;
+      });
+      if (!containsContent && formattingOnly) containsContent = Boolean(readMarkdown(editor).trim());
+      contentDoc = doc;
+    }
+    return containsContent;
+  }
   function updateContext(editor) {
     const selection = editor.state.selection;
     const { from, to, empty, $from } = selection;
@@ -221,7 +181,10 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
     },
     onUpdate: ({ editor: current }) => {
       current.view.dom.dataset.empty = String(current.isEmpty);
-      onChange(current.getMarkdown());
+      // App editors serialize at save/read boundaries, not on each keystroke.
+      // Keep eager callbacks available for other consumers of this adapter.
+      if (onDirty) onDirty();
+      else onChange?.(readMarkdown(current));
       updateContext(current);
     },
     onSelectionUpdate: ({ editor: current }) => updateContext(current),
@@ -229,6 +192,7 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
   editor.view.dom.dataset.empty = String(editor.isEmpty);
   return {
     editor,
+    hasContent,
     setSpelling(enabled, ignored, nameEntries = [], builtin = true) {
       editor.setOptions({ editorProps: { ...editor.options.editorProps,
         attributes: { ...editor.options.editorProps.attributes, spellcheck: String(enabled) } } });
@@ -267,9 +231,9 @@ function mount(host, markdown, onChange, onContext = () => {}, onLink = () => {}
         }
         return JSON.stringify(canonical(template.content));
       };
-      return render(markdown) === render(editor.getMarkdown());
+      return render(markdown) === render(readMarkdown(editor));
     },
-    getMarkdown: () => editor.getMarkdown(),
+    getMarkdown: () => readMarkdown(editor),
     setMarkdown: (value) => {
       editor.commands.setContent(value || '', { contentType: 'markdown', emitUpdate: false });
       editor.view.dom.dataset.empty = String(editor.isEmpty);

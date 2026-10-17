@@ -18,7 +18,7 @@ Favorites appear only in the Favorites collection by default. Enable **Controls 
 
 On small screens (up to 560 px), Controls, Search, Favorites, Archive, Recycle Bin, and Profile stay in a larger bottom navigation bar. Tablet and desktop retain the header controls. The small arrow beside **New note** collapses or reopens the writing box without discarding the draft. **Controls → Display → New note box** controls the same setting. The choice is remembered per account in this browser.
 
-The desktop right-click menu includes Cut, Copy, Paste, Dictionary, and Always ignore spelling, each with a softly colored icon. Cut works on selected editable text in rich text, Markdown source, and note titles; it copies successfully before removing text and preserves Undo. Paste works in the same editing fields. Clipboard access may require browser permission; keyboard paste and Shift + right-click remain available.
+The desktop right-click menu includes Cut, Copy, Paste, Dictionary, and Always ignore spelling, each with a softly colored icon. Cut works on selected editable text in rich text, Markdown source, and note titles; it copies successfully before removing text and preserves Undo. Paste works in the same editing fields. Firefox uses its native right-click menu in editing fields so Paste inserts immediately without a second confirmation; displayed notes retain the Dictionary/spelling menu. Clipboard access may require browser permission; keyboard paste and Shift + right-click remain available.
 
 The header Profile menu uses softly colored icons to identify actions. Preview, formatting and save controls have distinct colors and wider spacing; formatting has a larger **Aa** button. While editing a note, use the eye icon to preview the current Markdown, including unsaved text and tables; the pencil returns to editing. Notes always open in edit mode. Short notes keep the wide editor but use only the height they need, centered on screen; long notes grow to the available height and scroll. Escape saves and closes the note; an unsuccessful save reopens the editor with the text retained. Nested dialogs close first. Preview uses the server renderer and requires a connection. Tab indents selected lines, Shift+Tab outdents, and lists use these keys for nesting. Saved links open normally; Shift-click opens their note for editing. In the rich editor, click a link to place the cursor, Ctrl/Command-click to open it, or choose **Aa → Link** to change or open its address. Horizontal scrollbars in notes and editors are thin and muted.
 
@@ -90,13 +90,17 @@ The editor stores a Markdown representation of rich text so existing notes, sear
 
 ## Local development
 
-Requirements: Go 1.25 or later. Node.js is needed only to rebuild the bundled rich text editor.
+Requirements: Go 1.25 or later. Node.js is needed to rebuild or validate the bundled rich text editor.
 
 ```bash
 make run
 ```
 
-After changing [web/rich-editor.js](web/rich-editor.js), rebuild the checked-in browser bundle with `npm ci && npm run build:editor`.
+After changing [web/rich-editor.js](web/rich-editor.js) or its [spelling module](web/spelling.mjs), rebuild the checked-in browser bundle with `npm ci && npm run build:editor`. Run `npm run test:editor` for incremental spelling regressions and `npm run bench:editor` for the synthetic 500-paragraph spelling benchmark. The benchmark measures spelling transactions only, excluding layout, Markdown serialization and network saves.
+
+[public/note-list.js](public/note-list.js) reconciles note cards by ID, keeping unchanged cards and open editors attached. Card HTML generation remains in `index.html`. Browser regressions include 500-note render timings, selection/editor preservation, paging, pinning and search highlighting. With Chromium and ChromeDriver running on port 19515, run `GNOTES_BROWSER_CHECK=1 go test ./cmd/server -run TestIncrementalNoteRenderingBrowser -count=1 -v` for the focused check, or `GNOTES_BROWSER_CHECK=1 go test ./...` for the complete browser suite.
+
+App rich editors use `onDirty` callbacks to schedule autosave without serializing Markdown on every ordinary text edit. `currentDraft()` and `currentEdit()` synchronize the source buffers when text is needed; mode changes also flush before destroying the rich editor. The shared `mountRichInput()` binding preserves explicit source-buffer edits made after the last rich edit. The adapter caches serialized Markdown by immutable document identity. Use these read helpers when adding save/preview actions instead of reading a hidden source buffer directly. Run `GNOTES_BROWSER_CHECK=1 go test ./cmd/server -run 'Test(EditorSerializationCostBrowser|DeferredEditorReadsBrowser)' -count=1 -v` for the isolated edit-cost benchmark and immediate-save, preview, mode-switch and page-exit regressions. The benchmark uses hidden DOM with spelling disabled and excludes network requests and visible layout.
 
 The server listens on `http://127.0.0.1:8080` by default. The first account must be named `rick`; it becomes the administrator and claims notes created before accounts were introduced.
 

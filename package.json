@@ -2,7 +2,9 @@
   "name": "gnotes-editor",
   "private": true,
   "scripts": {
-    "build:editor": "esbuild web/rich-editor.js --bundle --minify --format=iife --outfile=public/rich-editor.js"
+    "build:editor": "esbuild web/rich-editor.js --bundle --minify --format=iife --outfile=public/rich-editor.js",
+    "test:editor": "node web/spelling.test.mjs",
+    "bench:editor": "node tools/benchmark-editor.mjs"
   },
   "dependencies": {
     "@tiptap/core": "3.31.3",

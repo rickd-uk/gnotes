@@ -96,16 +96,18 @@
       }
     }
   });
-  contextMenu.addEventListener('keydown', event => {
+  document.addEventListener('keydown', event => {
+    if (contextMenu.hidden) return;
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeContext(); contextEditor?.focus({ preventScroll: true }); }
     if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
+      event.stopPropagation();
       const buttons = [...contextMenu.querySelectorAll('button:not(:disabled)')];
       const index = buttons.indexOf(document.activeElement);
-      buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus();
+      buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : index < 0 ? (event.key === 'ArrowDown' ? 0 : buttons.length - 1) : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
     }
     if (event.key === 'Tab') closeContext();
-  });
+  }, true);
   let currentEntry = null;
   let nextCursor = '';
   let lookupController, listController, filterTimer;
@@ -397,6 +399,10 @@
     const textInput = event.target.closest(textInputSelector);
     const root = textInput || event.target.closest(noteTextSelector);
     if (!currentUser || !root || event.target.closest('a, button, pre, code') || (!textInput && event.target.closest('input'))) return;
+    // Firefox requires a second, browser-owned Paste confirmation for readText().
+    // Its native editing menu pastes directly through a trusted paste event.
+    // Keep our Dictionary/spelling menu on displayed notes.
+    if (/Firefox\//.test(navigator.userAgent) && (textInput || root.matches('.tiptap'))) return;
     let word = '', selectedText = '';
     const selection = window.getSelection();
     if (textInput) {
@@ -449,7 +455,9 @@
     const x = event.clientX || rect.left, y = event.clientY || rect.top;
     contextMenu.style.left = `${Math.max(8, Math.min(x, innerWidth - contextMenu.offsetWidth - 8))}px`;
     contextMenu.style.top = `${Math.max(8, Math.min(y, innerHeight - contextMenu.offsetHeight - 8))}px`;
-    contextMenu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
+    // Mouse menus keep the editor focused so its selected text stays highlighted.
+    // Keyboard users can enter the menu immediately or with the arrow keys.
+    if (event.button !== 2) contextMenu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
   });
 
   function reset() {

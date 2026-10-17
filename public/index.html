@@ -4838,7 +4838,7 @@
       <button id="note-context-paste" type="button" role="menuitem"><svg class="text-action-icon" style="color: #617f64" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5H5v16h14V5h-3"/><rect x="8" y="2" width="8" height="5" rx="1"/><path d="M8 12h8M8 16h6"/></svg><span>Paste</span></button>
       <button id="note-context-dictionary" type="button" role="menuitem"><svg class="text-action-icon" style="color: #7b6b91" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C8 2 4 3 2 4v15c3-1 6-1 10 1 4-2 7-2 10-1V4c-2-1-6-2-10 1ZM12 5v15"/></svg><span>Dictionary</span></button>
       <button id="note-context-ignore" type="button" role="menuitem"><svg class="text-action-icon" style="color: #517c83" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5 11-12M4 4l3 3M4 7l3-3"/></svg><span>Always ignore spelling</span></button>
-      <span>Shift + right-click for browser menu</span>
+      <span>Browser menu: Shift + right-click</span>
     </div>
     <dialog class="note-action-dialog" id="note-action-dialog" aria-labelledby="note-action-dialog-title" aria-describedby="note-action-dialog-message">
       <h2 id="note-action-dialog-title"></h2>
@@ -5125,6 +5125,7 @@
       </section>
     </section>
 
+    <script src="/note-list.js"></script>
     <script src="/rich-editor.js"></script>
     <script>
       let csrfToken = "";
@@ -5449,6 +5450,28 @@
         setRichToolbarVisible(!richToolbarVisible);
       });
 
+      function mountRichInput(host, input, onDirty, onContext) {
+        let sourceValue = input.value;
+        const editor = window.GnotesRichEditor.mount(host, sourceValue, null, onContext, openRichLinkDialog, {
+          onDirty: () => {
+            sourceValue = input.value;
+            onDirty();
+          },
+        });
+        // Preserve explicit source-buffer edits made after the last rich edit.
+        // A subsequent rich edit takes precedence again, as it did with eager
+        // synchronization. Normal reads serialize the latest rich document.
+        editor.readSource = () => {
+          if (input.value === sourceValue) {
+            input.value = editor.getMarkdown();
+            sourceValue = input.value;
+          }
+          return input.value;
+        };
+        editor.hasSourceContent = () => input.value === sourceValue ? editor.hasContent() : Boolean(input.value.trim());
+        return editor;
+      }
+
       function mountDraftRichEditor() {
         if (richDraft || markdownSource || !window.GnotesRichEditor) return;
         const toggle = document.getElementById("draft-rich-format-toggle");
@@ -5456,10 +5479,7 @@
         const host = document.getElementById("new-rich-editor");
         host.hidden = false;
         const input = document.getElementById("content");
-        const editor = window.GnotesRichEditor.mount(host, input.value, (markdown) => {
-          input.value = markdown;
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-        }, (context) => showRichContext(richDraft, context), openRichLinkDialog);
+        const editor = mountRichInput(host, input, scheduleDraftSave, context => showRichContext(richDraft, context));
         if (!sameMarkdown(editor.getMarkdown(), input.value) && !editor.preservesContent(input.value)) {
           editor.destroy();
           host.hidden = true;
@@ -5477,7 +5497,7 @@
 
       function destroyDraftRichEditor() {
         if (richDraft) {
-          document.getElementById("content").value = richDraft.getMarkdown();
+          richDraft.readSource();
           richDraft.destroy();
           richDraft = null;
         }
@@ -5495,10 +5515,7 @@
         const input = document.getElementById(`edit-content-${id}`);
         if (!host || !input) return;
         host.hidden = false;
-        const editor = window.GnotesRichEditor.mount(host, input.value, (markdown) => {
-          input.value = markdown;
-          scheduleEditAutosave(id);
-        }, (context) => showRichContext(richEdit, context), openRichLinkDialog);
+        const editor = mountRichInput(host, input, () => scheduleEditAutosave(id), context => showRichContext(richEdit, context));
         if (!sameMarkdown(editor.getMarkdown(), input.value) && !editor.preservesContent(input.value)) {
           editor.destroy();
           host.hidden = true;
@@ -5519,7 +5536,7 @@
         if (!richEdit) return;
         const id = editingNoteId;
         const input = id === null ? null : document.getElementById(`edit-content-${id}`);
-        if (input) input.value = richEdit.getMarkdown();
+        if (input) richEdit.readSource();
         richEdit.destroy();
         richEdit = null;
         const host = id === null ? null : document.getElementById(`rich-editor-${id}`);
@@ -5691,8 +5708,8 @@
         refreshQuickActions();
       }
 
-      function refreshQuickActions() {
-        document.querySelectorAll("#notes-list .note-card").forEach((card) => {
+      function refreshQuickActions(cards = document.querySelectorAll("#notes-list .note-card")) {
+        cards.forEach((card) => {
           const quick = card.querySelector(".note-quick-actions");
           const menu = card.querySelector(".note-tools");
           if (!quick || !menu) return;
@@ -6822,9 +6839,113 @@
           setActiveNoteCount(notesTotal);
           setPinnedNoteCount(page.pinned_total || 0);
         }
+        if (!append) refreshTagOptions().catch(() => {});
         const rendered = await renderLoadedNotes(page.match_count || 0);
         notesLoading = false;
         return rendered;
+      }
+
+      function noteCardHTML(n, isNewest, now, dateContext) {
+        const isArchived = Boolean(n.archived_at);
+        const noteDate = archiveMode ? n.archived_at : n.created_at;
+        const flavoredBody = applyObsidianFlavor(n.html_content);
+        const hasTitle = Boolean(n.title.trim());
+        const displayTitle = getDisplayTitle(n);
+        const noteColor = noteColorKeys.has(n.background_color) ? n.background_color : "";
+        const canRoll = Boolean(n.content.trim());
+        const isRolledUp = canRoll && rolledNoteIds.has(n.id);
+
+        return `
+        <article class="note-card ${n.locked ? "is-locked" : ""} ${(n.tags || []).length ? "has-tags" : ""} ${isArchived ? "is-archived" : ""} ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
+          <div class="note-top-row">
+            <div class="date-row">
+              ${n.favorited ? `<span class="favorite-mark" aria-label="Favorite" title="Favorite"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></span>` : ""}
+              ${isArchived && !archiveMode ? '<span class="archived-note-label">Archived</span>' : ""}
+              ${n.locked ? `<button class="note-lock-indicator" type="button" onclick="toggleNoteLock(${n.id})" aria-label="Unlock note" title="Unlock note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg><span>Locked</span></button>` : ""}
+              ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
+              <span class="note-time-controls">
+              ${canRoll ? `<button class="note-roll-toggle" type="button" onclick="toggleNoteRoll(${n.id})" aria-controls="note-content-${n.id}" aria-expanded="${String(!isRolledUp)}" aria-label="${isRolledUp ? "Expand" : "Roll up"} note" title="${isRolledUp ? "Expand" : "Roll up"} note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>` : ""}
+              <time class="date" datetime="${escapeHTML(noteDate)}">${!archiveMode && n.pinned ? `${formatDateSection(n.created_at, now, dateContext)} · ` : ""}${formatNoteTime(noteDate, dateContext.timeZone)}</time>
+              </span>
+            </div>
+            <div class="note-actions">
+              <div class="note-quick-actions"></div>
+              <button class="note-actions-toggle" type="button" onclick="toggleNoteActions(${n.id})" aria-controls="note-tools-${n.id}" aria-expanded="false" aria-label="Show tools for this note" title="Show note tools">…</button>
+              <div class="note-tools" id="note-tools-${n.id}">
+              <div class="note-safe-actions">
+              <button class="note-action" type="button" onclick="openNoteTags(${n.id})" ${n.locked ? "disabled" : ""} aria-label="Edit note tags" title="Edit tags"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7l11 11-7 7L3 10Z"/><circle cx="7" cy="7" r="1"/></svg><span class="visually-hidden">Tags</span></button>
+              <button class="note-action favorite-btn ${n.favorited ? "is-favorited" : ""}" data-note-action="favorite" onclick="toggleFavorite(${n.id})" aria-pressed="${Boolean(n.favorited)}" aria-label="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}" title="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>
+              <button class="note-action lock-btn" data-note-action="lock" type="button" onclick="toggleNoteLock(${n.id})" aria-pressed="${Boolean(n.locked)}" aria-label="${n.locked ? 'Unlock' : 'Lock'} note" title="${n.locked ? 'Unlock' : 'Lock'} note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg></button>
+              <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" data-note-action="pin" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" />
+                </svg>
+                <span class="visually-hidden">${n.pinned ? "Unpin" : "Pin"} note</span>
+              </button>
+              <button class="note-action hide-note-btn" data-note-action="hide" onclick="hideNote(${n.id})" aria-label="Hide note" title="Hide note">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+                <span class="visually-hidden">Hide note</span>
+              </button>
+              <button class="note-action archive-btn" data-note-action="archive" onclick="${isArchived ? "unarchiveNote" : "archiveNote"}(${n.id})" aria-label="${isArchived ? "Unarchive" : "Archive"} note" title="${isArchived ? "Unarchive" : "Archive"} note">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" />
+                </svg>
+                <span class="visually-hidden">Archive note</span>
+              </button>
+              <span class="note-color-control" data-note-action="color">
+                <button class="note-action color-btn" type="button" onclick="toggleNoteColorMenu(${n.id})" ${n.locked ? "disabled" : ""} aria-controls="note-colors-${n.id}" aria-expanded="false" aria-label="Change note color" title="Change note color">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z" />
+                    <circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none" /><circle cx="9.5" cy="6.8" r="1" fill="currentColor" stroke="none" /><circle cx="14" cy="6.8" r="1" fill="currentColor" stroke="none" /><circle cx="17" cy="10" r="1" fill="currentColor" stroke="none" />
+                  </svg>
+                  <span class="visually-hidden">Change note color</span>
+                </button>
+                <span class="note-color-menu" id="note-colors-${n.id}" role="group" aria-label="Note color" hidden>
+                  ${noteColorSwatches(n)}
+                </span>
+              </span>
+              <button class="note-action copy-note-btn" data-note-action="copy" type="button" onclick="copyNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
+                <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
+              </button>
+              </div>
+              <span class="note-action-divider" aria-hidden="true"></span>
+              <button class="note-action delete-btn" data-note-action="delete" onclick="${isArchived ? "removeArchivedNote" : "deleteNote"}(${n.id})" aria-label="${isArchived ? "Move archived note to recycle bin" : "Delete note"}" title="${isArchived ? "Move to recycle bin" : "Delete note"}">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" />
+                </svg>
+                <span class="visually-hidden">Delete note</span>
+              </button>
+              </div>
+            </div>
+          </div>
+            <div class="note-view" id="note-view-${n.id}">
+              <h2 class="${hasTitle ? "" : `fallback-title${canRoll ? " note-preview-title" : ""}`}">${escapeHTML(displayTitle)}</h2>
+              ${(n.tags || []).length ? `<div class="note-tags" id="note-tags-${n.id}" aria-label="Note tags">${n.tags.map((tag, index) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}" data-short-label="#${escapeHTML(Array.from(tag).length > 10 ? Array.from(tag).slice(0, 10).join('') + '…' : tag)}" aria-label="#${escapeHTML(tag)}" title="#${escapeHTML(tag)}"${index >= 3 ? ' data-extra-tag hidden' : ''}><span class="note-tag-label">#${escapeHTML(tag)}</span></button>`).join("")}${n.tags.length > 3 ? `<button class="note-tags-toggle" type="button" aria-expanded="false" aria-controls="note-tags-${n.id}">+${n.tags.length - 3} more</button>` : ''}</div>` : ""}
+              <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
+            </div>
+            <div class="note-editor" id="note-editor-${n.id}" hidden>
+              <input class="edit-title" id="edit-title-${n.id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note title" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" />
+              <textarea class="edit-content" id="edit-content-${n.id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note content" oninput="handleEditInput(event, ${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
+              <div class="rich-editor-container" id="rich-editor-${n.id}" hidden></div>
+              <div class="note-content note-editor-preview" id="edit-preview-${n.id}" role="region" aria-label="Note preview" hidden></div>
+              <div class="editor-actions">
+                <button class="edit-copy" type="button" onclick="copyEditedNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
+                  <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
+                </button>
+                <span class="edit-hint" role="status" aria-live="polite"></span>
+                <button class="edit-copy edit-preview-toggle" id="edit-preview-toggle-${n.id}" type="button" onclick="toggleNotePreview(${n.id})" aria-label="Show rendered preview" title="Show rendered preview" aria-pressed="false" aria-controls="edit-preview-${n.id}">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="rich-format-toggle" id="edit-rich-format-toggle-${n.id}" type="button" aria-controls="rich-editor-${n.id}-toolbar" aria-expanded="${String(richToolbarVisible)}" aria-label="${richToolbarVisible ? "Hide" : "Show"} formatting toolbar" title="${richToolbarVisible ? "Hide" : "Show"} formatting" onclick="setRichToolbarVisible(!richToolbarVisible)" hidden>Aa</button>
+                <button class="edit-done" type="button" onclick="updateNote(${n.id})" aria-label="Save and close note editor" title="Save and close note editor">✓</button>
+              </div>
+            </div>
+        </article>`;
       }
 
       async function renderLoadedNotes(matchCount = 0) {
@@ -6878,154 +6999,58 @@
           new Date(archiveMode ? note.archived_at : note.created_at) >
             new Date(archiveMode ? newest.archived_at : newest.created_at) ? note : newest,
         ).id;
-        let renderedNotes = "";
-        let activeDateSection = "";
-        let dateSectionIndex = -1;
-
-        visibleNotes.forEach((n) => {
-            const isArchived = Boolean(n.archived_at);
-            const noteDate = archiveMode ? n.archived_at : n.created_at;
-            const dateSection = !archiveMode && n.pinned
-              ? "Pinned"
-              : formatDateSection(noteDate, now);
-            if (dateSection !== activeDateSection) {
-              if (activeDateSection) renderedNotes += "</section>";
-              activeDateSection = dateSection;
-              dateSectionIndex += 1;
-              const dateSectionKey = !archiveMode && n.pinned
-                ? "pinned"
-                : `${archiveMode ? "archive-date" : "date"}:${formatLocalDateKey(noteDate)}`;
-              const sectionCollapsed = !searchActive && collapsedDateSections.has(dateSectionKey);
-              renderedNotes += `
-                <section class="date-group ${dateSection === "Pinned" ? "pinned-section" : ""} ${sectionCollapsed ? "is-collapsed" : ""}" aria-labelledby="date-section-${dateSectionIndex}">
-                  <h3 class="date-section-heading archive-date-heading" id="date-section-${dateSectionIndex}">
+        const dateContext = { timeZone: noteTimeZone() };
+        dateContext.todayKey = formatLocalDateKey(now, dateContext.timeZone);
+        const groups = [];
+        let group;
+        visibleNotes.forEach(n => {
+          const noteDate = archiveMode ? n.archived_at : n.created_at;
+          const dateKey = formatLocalDateKey(noteDate, dateContext.timeZone);
+          const pinned = !archiveMode && n.pinned;
+          const sectionKey = pinned ? 'pinned' : `${archiveMode ? 'archive-date' : 'date'}:${dateKey}`;
+          if (!group || group.key !== sectionKey) {
+            const dateSection = pinned ? 'Pinned' : formatDateSection(noteDate, now, dateContext);
+            const sectionCollapsed = !searchActive && collapsedDateSections.has(sectionKey);
+            const dateSectionKey = sectionKey;
+            group = { key: sectionKey, pinned: Boolean(pinned), collapsed: sectionCollapsed, cards: [] };
+            groups.push(group);
+            group.headingHTML = `
+                  <h3 class="date-section-heading archive-date-heading" id="date-section-${groups.length - 1}">
                     <button class="date-section-toggle" type="button" data-section-key="${dateSectionKey}" aria-expanded="${String(!sectionCollapsed)}" onclick="toggleDateSection(this)">
                       <span>${escapeHTML(dateSection)}</span>
                       <svg class="date-section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                     </button>
-                    ${!favoritesMode && (archiveMode || !n.pinned) ? `<button class="date-section-favorite" type="button" data-note-date="${formatLocalDateKey(noteDate)}" onclick="favoriteDateNotes(this)" aria-label="Add all notes ${archiveMode ? 'archived on' : 'dated'} ${formatLocalDateKey(noteDate)} to Favorites" title="Add this date to Favorites"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>` : ''}
-                    ${archiveMode ? `<button class="archive-date-remove" type="button" data-archive-date="${formatLocalDateKey(noteDate)}" onclick="promptArchiveDateRemoval(this)" aria-label="Move notes archived on ${formatLocalDateKey(noteDate)} to recycle bin" title="Move this archive date to recycle bin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>` : `<button class="archive-date-remove active-section-remove" type="button" data-remove-scope="${n.pinned ? 'pinned' : 'date'}" data-note-date="${n.pinned ? '' : formatLocalDateKey(noteDate)}" onclick="promptActiveSectionRemoval(this)" aria-label="${n.pinned ? 'Move all pinned notes to recycle bin' : `Move unpinned notes dated ${formatLocalDateKey(noteDate)} to recycle bin`}" title="${n.pinned ? 'Move all pinned notes to recycle bin' : 'Move this date section to recycle bin'}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>`}
+                    ${!favoritesMode && (archiveMode || !n.pinned) ? `<button class="date-section-favorite" type="button" data-note-date="${dateKey}" onclick="favoriteDateNotes(this)" aria-label="Add all notes ${archiveMode ? 'archived on' : 'dated'} ${dateKey} to Favorites" title="Add this date to Favorites"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>` : ''}
+                    ${archiveMode ? `<button class="archive-date-remove" type="button" data-archive-date="${dateKey}" onclick="promptArchiveDateRemoval(this)" aria-label="Move notes archived on ${dateKey} to recycle bin" title="Move this archive date to recycle bin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>` : `<button class="archive-date-remove active-section-remove" type="button" data-remove-scope="${n.pinned ? 'pinned' : 'date'}" data-note-date="${n.pinned ? '' : dateKey}" onclick="promptActiveSectionRemoval(this)" aria-label="${n.pinned ? 'Move all pinned notes to recycle bin' : `Move unpinned notes dated ${dateKey} to recycle bin`}" title="${n.pinned ? 'Move all pinned notes to recycle bin' : 'Move this date section to recycle bin'}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5" /></svg></button>`}
                   </h3>`;
-            }
-
-            // TRANSFORM THE HTML STRING BEFORE INSERTING
-            const flavoredBody = applyObsidianFlavor(n.html_content);
-            const hasTitle = Boolean(n.title.trim());
-            const displayTitle = getDisplayTitle(n);
-            const isNewest = n.id === newestNoteId;
-            const noteColor = noteColorKeys.has(n.background_color) ? n.background_color : "";
-            const canRoll = Boolean(n.content.trim());
-            const isRolledUp = canRoll && rolledNoteIds.has(n.id);
-
-            renderedNotes += `
-            <article class="note-card ${n.locked ? "is-locked" : ""} ${(n.tags || []).length ? "has-tags" : ""} ${isArchived ? "is-archived" : ""} ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
-              <div class="note-top-row">
-                <div class="date-row">
-                  ${n.favorited ? `<span class="favorite-mark" aria-label="Favorite" title="Favorite"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></span>` : ""}
-                  ${isArchived && !archiveMode ? '<span class="archived-note-label">Archived</span>' : ""}
-                  ${n.locked ? `<button class="note-lock-indicator" type="button" onclick="toggleNoteLock(${n.id})" aria-label="Unlock note" title="Unlock note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg><span>Locked</span></button>` : ""}
-                  ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
-                  <span class="note-time-controls">
-                  ${canRoll ? `<button class="note-roll-toggle" type="button" onclick="toggleNoteRoll(${n.id})" aria-controls="note-content-${n.id}" aria-expanded="${String(!isRolledUp)}" aria-label="${isRolledUp ? "Expand" : "Roll up"} note" title="${isRolledUp ? "Expand" : "Roll up"} note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>` : ""}
-                  <time class="date" datetime="${escapeHTML(noteDate)}">${!archiveMode && n.pinned ? `${formatDateSection(n.created_at, now)} · ` : ""}${formatNoteTime(noteDate)}</time>
-                  </span>
-                </div>
-                <div class="note-actions">
-                  <div class="note-quick-actions"></div>
-                  <button class="note-actions-toggle" type="button" onclick="toggleNoteActions(${n.id})" aria-controls="note-tools-${n.id}" aria-expanded="false" aria-label="Show tools for this note" title="Show note tools">…</button>
-                  <div class="note-tools" id="note-tools-${n.id}">
-                  <div class="note-safe-actions">
-                  <button class="note-action" type="button" onclick="openNoteTags(${n.id})" ${n.locked ? "disabled" : ""} aria-label="Edit note tags" title="Edit tags"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7l11 11-7 7L3 10Z"/><circle cx="7" cy="7" r="1"/></svg><span class="visually-hidden">Tags</span></button>
-                  <button class="note-action favorite-btn ${n.favorited ? "is-favorited" : ""}" data-note-action="favorite" onclick="toggleFavorite(${n.id})" aria-pressed="${Boolean(n.favorited)}" aria-label="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}" title="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>
-                  <button class="note-action lock-btn" data-note-action="lock" type="button" onclick="toggleNoteLock(${n.id})" aria-pressed="${Boolean(n.locked)}" aria-label="${n.locked ? 'Unlock' : 'Lock'} note" title="${n.locked ? 'Unlock' : 'Lock'} note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg></button>
-                  <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" data-note-action="pin" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" />
-                    </svg>
-                    <span class="visually-hidden">${n.pinned ? "Unpin" : "Pin"} note</span>
-                  </button>
-                  <button class="note-action hide-note-btn" data-note-action="hide" onclick="hideNote(${n.id})" aria-label="Hide note" title="Hide note">
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-                      <circle cx="12" cy="12" r="2.5" />
-                    </svg>
-                    <span class="visually-hidden">Hide note</span>
-                  </button>
-                  <button class="note-action archive-btn" data-note-action="archive" onclick="${isArchived ? "unarchiveNote" : "archiveNote"}(${n.id})" aria-label="${isArchived ? "Unarchive" : "Archive"} note" title="${isArchived ? "Unarchive" : "Archive"} note">
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3Z" /><path d="M9 11h6" />
-                    </svg>
-                    <span class="visually-hidden">Archive note</span>
-                  </button>
-                  <span class="note-color-control" data-note-action="color">
-                    <button class="note-action color-btn" type="button" onclick="toggleNoteColorMenu(${n.id})" ${n.locked ? "disabled" : ""} aria-controls="note-colors-${n.id}" aria-expanded="false" aria-label="Change note color" title="Change note color">
-                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z" />
-                        <circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none" /><circle cx="9.5" cy="6.8" r="1" fill="currentColor" stroke="none" /><circle cx="14" cy="6.8" r="1" fill="currentColor" stroke="none" /><circle cx="17" cy="10" r="1" fill="currentColor" stroke="none" />
-                      </svg>
-                      <span class="visually-hidden">Change note color</span>
-                    </button>
-                    <span class="note-color-menu" id="note-colors-${n.id}" role="group" aria-label="Note color" hidden>
-                      ${noteColorSwatches(n)}
-                    </span>
-                  </span>
-                  <button class="note-action copy-note-btn" data-note-action="copy" type="button" onclick="copyNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
-                    <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
-                  </button>
-                  </div>
-                  <span class="note-action-divider" aria-hidden="true"></span>
-                  <button class="note-action delete-btn" data-note-action="delete" onclick="${isArchived ? "removeArchivedNote" : "deleteNote"}(${n.id})" aria-label="${isArchived ? "Move archived note to recycle bin" : "Delete note"}" title="${isArchived ? "Move to recycle bin" : "Delete note"}">
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5" />
-                    </svg>
-                    <span class="visually-hidden">Delete note</span>
-                  </button>
-                  </div>
-                </div>
-              </div>
-                <div class="note-view" id="note-view-${n.id}">
-                  <h2 class="${hasTitle ? "" : `fallback-title${canRoll ? " note-preview-title" : ""}`}">${escapeHTML(displayTitle)}</h2>
-                  ${(n.tags || []).length ? `<div class="note-tags" id="note-tags-${n.id}" aria-label="Note tags">${n.tags.map((tag, index) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}" data-short-label="#${escapeHTML(Array.from(tag).length > 10 ? Array.from(tag).slice(0, 10).join('') + '…' : tag)}" aria-label="#${escapeHTML(tag)}" title="#${escapeHTML(tag)}"${index >= 3 ? ' data-extra-tag hidden' : ''}><span class="note-tag-label">#${escapeHTML(tag)}</span></button>`).join("")}${n.tags.length > 3 ? `<button class="note-tags-toggle" type="button" aria-expanded="false" aria-controls="note-tags-${n.id}">+${n.tags.length - 3} more</button>` : ''}</div>` : ""}
-                  <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
-                </div>
-                <div class="note-editor" id="note-editor-${n.id}" hidden>
-                  <input class="edit-title" id="edit-title-${n.id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note title" oninput="scheduleEditAutosave(${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" />
-                  <textarea class="edit-content" id="edit-content-${n.id}" spellcheck="${spellcheckEnabled}" aria-label="Edit note content" oninput="handleEditInput(event, ${n.id})" onkeydown="handleEditKeydown(event, ${n.id})" title="Enter adds a new line; Ctrl or Command + Enter closes"></textarea>
-                  <div class="rich-editor-container" id="rich-editor-${n.id}" hidden></div>
-                  <div class="note-content note-editor-preview" id="edit-preview-${n.id}" role="region" aria-label="Note preview" hidden></div>
-                  <div class="editor-actions">
-                    <button class="edit-copy" type="button" onclick="copyEditedNoteText(${n.id}, this)" aria-label="Copy note text" title="Copy note text">
-                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2" /><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" /></svg>
-                      <span class="visually-hidden copy-note-label" role="status" aria-live="polite">Copy note text</span>
-                    </button>
-                    <span class="edit-hint" role="status" aria-live="polite"></span>
-                    <button class="edit-copy edit-preview-toggle" id="edit-preview-toggle-${n.id}" type="button" onclick="toggleNotePreview(${n.id})" aria-label="Show rendered preview" title="Show rendered preview" aria-pressed="false" aria-controls="edit-preview-${n.id}">
-                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-                    </button>
-                    <button class="rich-format-toggle" id="edit-rich-format-toggle-${n.id}" type="button" aria-controls="rich-editor-${n.id}-toolbar" aria-expanded="${String(richToolbarVisible)}" aria-label="${richToolbarVisible ? "Hide" : "Show"} formatting toolbar" title="${richToolbarVisible ? "Hide" : "Show"} formatting" onclick="setRichToolbarVisible(!richToolbarVisible)" hidden>Aa</button>
-                    <button class="edit-done" type="button" onclick="updateNote(${n.id})" aria-label="Save and close note editor" title="Save and close note editor">✓</button>
-                  </div>
-                </div>
-            </article>`;
+          }
+          const isNewest = n.id === newestNoteId;
+          group.cards.push({ id: n.id,
+            state: [currentUser?.username, n.title, n.content, n.html_content, n.created_at, n.archived_at,
+              n.pinned, n.favorited, n.locked, n.background_color, (n.tags || []).join('\n'), isNewest,
+              rolledNoteIds.has(n.id), archiveMode, spellcheckEnabled, richToolbarVisible,
+              dateContext.timeZone, dateContext.todayKey, searchActive, calendarActive,
+              highlightQuery, highlightScope, highlightMatchCase],
+            html: () => noteCardHTML(n, isNewest, now, dateContext),
           });
-
-        renderedNotes += "</section>";
-        document.getElementById("notes-list").innerHTML = renderedNotes;
-        enableNoteTaskCheckboxes();
-        decorateNoteCodeBlocks();
-        refreshTagOptions().catch(() => {});
-        document.querySelectorAll("#notes-list .note-content a[href]").forEach((link) => {
-          link.title = `${link.getAttribute("href")} — Shift-click to edit note`;
         });
-        refreshQuickActions();
-        highlightSearchMatches();
+        const { added, removed } = noteListRenderer.render(groups, editingNoteId);
+        removed.forEach(card => noteObserver?.unobserve(card));
+        enableNoteTaskCheckboxes(added);
+        added.forEach(card => {
+          decorateNoteCodeBlocks(card);
+          card.querySelectorAll('.note-content a[href]').forEach(link => {
+            link.title = `${link.getAttribute('href')} — Shift-click to edit note`;
+          });
+        });
+        refreshQuickActions(added);
+        highlightSearchMatches(added);
         loadMore.hidden = !notesNextCursor;
         loadMore.disabled = false;
         loadMore.textContent = searchActive ? "More results" : "Load older";
 
         updateDateSectionsControl();
-        observeNoteCards();
+        observeNoteCards(added);
         if (!archiveMode && !favoritesMode) restoreRememberedEditingNote();
         if (revealedNoteId) {
           document.getElementById(`note-${revealedNoteId}`)?.scrollIntoView({ block: "center" });
@@ -7071,14 +7096,14 @@
         highlightMatchCase = document.getElementById("search-match-case").checked;
       }
 
-      function highlightSearchMatches() {
+      function highlightSearchMatches(cards = [...notesList.querySelectorAll(".note-card")]) {
         if (!searchActive || calendarActive || !highlightQuery) return;
         const escaped = highlightQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const expression = new RegExp(escaped, highlightMatchCase ? "g" : "gi");
         const selectors = [];
         if (highlightScope === "all" || highlightScope === "title") selectors.push(".note-view > h2");
         if (highlightScope === "all" || highlightScope === "content") selectors.push(".note-content");
-        document.querySelectorAll(selectors.join(",")).forEach((root) => {
+        cards.flatMap(card => [...card.querySelectorAll(selectors.join(","))]).forEach((root) => {
           const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
           const nodes = [];
           while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -7219,16 +7244,14 @@
         calendarInput.value = localToday;
       }
 
-      function observeNoteCards() {
-        noteObserver?.disconnect();
-        const cards = document.querySelectorAll(".note-card");
+      function observeNoteCards(cards) {
 
         if (!("IntersectionObserver" in window)) {
           cards.forEach((card) => card.classList.add("is-prominent"));
           return;
         }
 
-        noteObserver = new IntersectionObserver(
+        noteObserver ||= new IntersectionObserver(
           (entries) => {
             entries.forEach((entry) => {
               if (entry.isIntersecting) {
@@ -7354,12 +7377,27 @@
         updateDateSectionsControl();
       }
 
-      function formatLocalDateKey(value) {
+      const noteDateFormatters = new Map();
+      function noteDateFormatter(kind, timeZone) {
+        const key = `${kind}:${timeZone}`;
+        if (!noteDateFormatters.has(key)) {
+          const options = {
+            key: { year: 'numeric', month: '2-digit', day: '2-digit' },
+            time: { hour: 'numeric', minute: '2-digit', hourCycle: 'h23' },
+            weekday: { weekday: 'long' },
+            date: { month: 'short', day: 'numeric' },
+            year: { month: 'short', day: 'numeric', year: '2-digit' },
+          }[kind];
+          if (noteDateFormatters.size >= 30) noteDateFormatters.clear();
+          noteDateFormatters.set(key, new Intl.DateTimeFormat(kind === 'key' ? 'en-US' : [], { ...options, timeZone }));
+        }
+        return noteDateFormatters.get(key);
+      }
+
+      function formatLocalDateKey(value, timeZone = noteTimeZone()) {
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return "";
-        const parts = new Intl.DateTimeFormat("en-US", {
-          timeZone: noteTimeZone(), year: "numeric", month: "2-digit", day: "2-digit",
-        }).formatToParts(date);
+        const parts = noteDateFormatter('key', timeZone).formatToParts(date);
         const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
         return `${values.year}-${values.month}-${values.day}`;
       }
@@ -7408,17 +7446,17 @@
         );
       }
 
-      function formatDateSection(value, now = new Date()) {
+      function formatDateSection(value, now = new Date(), context = { timeZone: noteTimeZone() }) {
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return "Unknown date";
-        const todayKey = formatLocalDateKey(now);
-        const noteKey = formatLocalDateKey(date);
+        const todayKey = context.todayKey || formatLocalDateKey(now, context.timeZone);
+        const noteKey = formatLocalDateKey(date, context.timeZone);
         const dayNumber = (key) => Date.parse(`${key}T00:00:00Z`) / 86400000;
         const today = dayNumber(todayKey);
         const noteDay = dayNumber(noteKey);
         const daysAgo = today - noteDay;
         const mondayOffset = (new Date(today * 86400000).getUTCDay() + 6) % 7;
-        const weekday = () => date.toLocaleDateString([], { weekday: "long", timeZone: noteTimeZone() });
+        const weekday = () => noteDateFormatter('weekday', context.timeZone).format(date);
 
         if (daysAgo === 0) {
           return "Today";
@@ -7432,37 +7470,32 @@
           return `Last ${weekday()}`;
         }
 
-        return date.toLocaleDateString([], {
-          month: "short",
-          day: "numeric",
-          year: noteKey.slice(0, 4) === todayKey.slice(0, 4) ? undefined : "2-digit",
-          timeZone: noteTimeZone(),
-        });
+        return noteDateFormatter(noteKey.slice(0, 4) === todayKey.slice(0, 4) ? 'date' : 'year', context.timeZone).format(date);
       }
 
-      function formatNoteTime(value) {
+      function formatNoteTime(value, timeZone = noteTimeZone()) {
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return "";
 
-        const parts = new Intl.DateTimeFormat([], {
-          hour: "numeric", minute: "2-digit", hourCycle: "h23", timeZone: noteTimeZone(),
-        }).formatToParts(date);
+        const parts = noteDateFormatter('time', timeZone).formatToParts(date);
         const hour = parts.find((part) => part.type === "hour").value;
         const minute = parts.find((part) => part.type === "minute").value;
         return `${Number(hour)}:${minute}`;
       }
 
       function currentDraft() {
+        const content = document.getElementById("content");
+        if (richDraft) richDraft.readSource();
         return {
           title: document.getElementById("title").value,
-          content: document.getElementById("content").value,
+          content: content.value,
           version: draftVersion,
         };
       }
 
       function draftHasText() {
-        const draft = currentDraft();
-        return Boolean(draft.title.trim() || draft.content.trim());
+        return Boolean(document.getElementById("title").value.trim() ||
+          (richDraft ? richDraft.hasSourceContent() : document.getElementById("content").value.trim()));
       }
 
       function setDraftStatus(message, isError = false) {
@@ -8782,7 +8815,7 @@
           else document.getElementById(`edit-content-${id}`).focus();
           return;
         }
-        const content = document.getElementById(`edit-content-${id}`).value;
+        const content = currentEdit(id).content;
         const owner = currentUser;
         const request = {};
         setNotePreview(id, true);
@@ -8980,6 +9013,7 @@
       let noteGesture = null;
       let suppressNoteClick = false;
       const notesList = document.getElementById("notes-list");
+      const noteListRenderer = GnotesNoteList.create(notesList);
       let tagsNoteID = null;
 
       // Keep the active title/source field and rich-text selection intact until
@@ -9089,8 +9123,8 @@
         return { segments, tasks };
       }
 
-      function enableNoteTaskCheckboxes() {
-        notesList.querySelectorAll(".note-card").forEach((card) => {
+      function enableNoteTaskCheckboxes(cards = notesList.querySelectorAll(".note-card")) {
+        cards.forEach((card) => {
           const note = loadedNotes.get(Number(card.id.slice(5)));
           const checkboxes = [...card.querySelectorAll(".note-view .note-content input[type='checkbox']")];
           if (!note || note.locked || note.archived_at || archiveMode) {
@@ -9108,8 +9142,8 @@
         });
       }
 
-      function decorateNoteCodeBlocks() {
-        notesList.querySelectorAll('.note-content pre[data-code-language]').forEach((pre) => {
+      function decorateNoteCodeBlocks(root = notesList) {
+        root.querySelectorAll('.note-content pre[data-code-language]').forEach((pre) => {
           const wrapper = document.createElement('div');
           wrapper.className = 'note-code-block';
           const button = document.createElement('button');
@@ -9312,6 +9346,7 @@
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
         if (!titleInput || !contentInput) return null;
+        if (richEdit && editingNoteId === id) richEdit.readSource();
         return { title: titleInput.value, content: contentInput.value };
       }
 
@@ -9358,6 +9393,7 @@
         if (editingNoteId !== id) return true;
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
+        currentEdit(id); // Flush the latest rich text before validating/closing.
         const title = titleInput.value;
         const content = contentInput.value;
         contentInput.setCustomValidity("");
