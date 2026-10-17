@@ -46,12 +46,25 @@ func TestDictionaryBrowser(t *testing.T) {
 			browser.script(`document.getElementById('auth-username').value='rick'; document.getElementById('auth-password').value='original password'; document.getElementById('auth-form').requestSubmit();`)
 			browser.wait(`!notesLoading && !document.getElementById('app-shell').hidden && document.querySelectorAll('.note-card').length===1`)
 			browser.call("POST", "/goog/cdp/execute", map[string]any{"cmd": "Browser.grantPermissions", "params": map[string]any{"origin": server.URL, "permissions": []string{"clipboardReadWrite", "clipboardSanitizedWrite"}}})
+			// Use actual secondary clicks: synthetic events still implement app shortcuts.
+			rightClickNative := func(selector string) {
+				t.Helper()
+				point := browser.script(fmt.Sprintf(`const root=document.querySelector(%q);root.scrollIntoView({block:'center'});const r=root.getBoundingClientRect();window.nativeContext=null;document.addEventListener('contextmenu',event=>{window.nativeContext={trusted:event.isTrusted,prevented:event.defaultPrevented};},{once:true});return [Math.round(r.left+Math.min(20,r.width/2)),Math.round(r.top+Math.min(10,r.height/2))];`, selector)).([]any)
+				browser.call("POST", "/actions", map[string]any{"actions": []any{map[string]any{"type": "pointer", "id": "native-edit-right-click", "parameters": map[string]string{"pointerType": "mouse"}, "actions": []any{map[string]any{"type": "pointerMove", "duration": 0, "x": point[0], "y": point[1]}, map[string]any{"type": "pointerDown", "button": 2}, map[string]any{"type": "pointerUp", "button": 2}}}}})
+				browser.wait(`window.nativeContext?.trusted && !nativeContext.prevented && document.getElementById('note-context-menu').hidden`)
+			}
 			rightClickTitle := func(selectAll bool) {
 				t.Helper()
 				point := browser.script(fmt.Sprintf(`const title=document.querySelector('.note-view > h2');title.scrollIntoView({block:'center'});const range=document.createRange();range.setStart(title.firstChild,0);range.setEnd(title.firstChild,10);const selection=getSelection();selection.removeAllRanges();if(%t){range.selectNodeContents(title);selection.addRange(range);}const r=range.getBoundingClientRect();return [Math.round((r.left+r.right)/2),Math.round((r.top+r.bottom)/2)];`, selectAll)).([]any)
 				browser.call("POST", "/actions", map[string]any{"actions": []any{map[string]any{"type": "pointer", "id": "title-right-click", "parameters": map[string]string{"pointerType": "mouse"}, "actions": []any{map[string]any{"type": "pointerMove", "duration": 0, "x": point[0], "y": point[1]}, map[string]any{"type": "pointerDown", "button": 2}, map[string]any{"type": "pointerUp", "button": 2}}}}})
 				browser.wait(`!document.getElementById('note-context-menu').hidden && !document.getElementById('dictionary-dialog').open`)
 			}
+			// Draft title, rich text and Markdown source must all keep native Paste.
+			rightClickNative("#title")
+			rightClickNative("#new-rich-editor .tiptap")
+			browser.script(`applyEditorMode(true);`)
+			rightClickNative("#content")
+			browser.script(`applyEditorMode(false);`)
 			rightClickTitle(true)
 			browser.script(`if(!document.getElementById('note-context-paste').disabled||!document.getElementById('note-context-cut').disabled)throw new Error('Editing actions enabled on displayed note');`)
 			click("#note-context-copy")
@@ -110,9 +123,11 @@ func TestDictionaryBrowser(t *testing.T) {
 			// The editor's Dictionary button must preserve the active note.
 			browser.script(`window.dictNoteID=Number(document.querySelector('.note-card').id.slice(5));openNoteEditor(dictNoteID,false);`)
 			browser.wait(`Boolean(richEdit)`)
-			// Firefox editing fields must retain the native menu so Paste does
-			// not invoke the async clipboard API's second confirmation button.
-			browser.script(`Object.defineProperty(navigator,'userAgent',{configurable:true,value:'Mozilla/5.0 Firefox/148.0'});document.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse'}));try{for(const root of [richEdit.editor.view.dom,document.getElementById('edit-title-'+dictNoteID),document.getElementById('title')]){const event=new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2});root.dispatchEvent(event);if(event.defaultPrevented||!document.getElementById('note-context-menu').hidden)throw new Error('Firefox editable field lost native Paste');}applyEditorMode(true);const source=document.getElementById('edit-content-'+dictNoteID);const event=new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2});source.dispatchEvent(event);if(event.defaultPrevented||!document.getElementById('note-context-menu').hidden)throw new Error('Firefox source lost native Paste');applyEditorMode(false);getSelection().removeAllRanges();}finally{delete navigator.userAgent;}`)
+
+			rightClickNative(fmt.Sprintf("#edit-title-%d", int(browser.script(`return dictNoteID;`).(float64))))
+			browser.script(`applyEditorMode(true);`)
+			rightClickNative(fmt.Sprintf("#edit-content-%d", int(browser.script(`return dictNoteID;`).(float64))))
+			browser.script(`applyEditorMode(false);getSelection().removeAllRanges();`)
 			browser.script(`const input=document.getElementById('edit-title-'+dictNoteID);input.focus({preventScroll:true});input.setSelectionRange(0,10);input.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:20,clientY:100}));`)
 			click("#note-context-dictionary")
 			browser.wait(`document.getElementById('dictionary-dialog').open && document.getElementById('dictionary-word').value==='dictionary' && document.querySelectorAll('#dictionary-result li').length>0`)
@@ -121,10 +136,10 @@ func TestDictionaryBrowser(t *testing.T) {
 			browser.script(`if(!richEdit.editor.view.dom.querySelector('[data-spelling-ignored]') || richEdit.getMarkdown().includes('spellcheck')) throw new Error('Ignoring must decorate without altering note content');`)
 			// Exercise an actual secondary click in the rich editor, not only a
 			// dispatched event with a preselected word.
-			editorPoint := browser.script(`richEdit.editor.chain().focus().setTextSelection({from:1,to:12}).run();const p=richEdit.editor.view.dom.querySelector('p');p.scrollIntoView({block:'center'});const node=document.createTreeWalker(p,NodeFilter.SHOW_TEXT).nextNode();const range=document.createRange();range.setStart(node,2);range.setEnd(node,5);const r=range.getBoundingClientRect();window.selectionMenuPoint=[Math.round((r.left+r.right)/2),Math.round((r.top+r.bottom)/2)];return selectionMenuPoint;`).([]any)
+			editorPoint := browser.script(`richEdit.editor.chain().focus().setTextSelection({from:1,to:12}).run();const p=richEdit.editor.view.dom.querySelector('p');p.scrollIntoView({block:'center'});const node=document.createTreeWalker(p,NodeFilter.SHOW_TEXT).nextNode();const range=document.createRange();range.setStart(node,2);range.setEnd(node,5);const r=range.getBoundingClientRect();window.selectionMenuPoint=[Math.round((r.left+r.right)/2),Math.round((r.top+r.bottom)/2)];window.nativeContext=null;document.addEventListener('contextmenu',event=>{window.nativeContext={trusted:event.isTrusted,prevented:event.defaultPrevented};},{once:true});return selectionMenuPoint;`).([]any)
 			browser.call("POST", "/actions", map[string]any{"actions": []any{map[string]any{"type": "pointer", "id": "editor-right-click", "parameters": map[string]string{"pointerType": "mouse"}, "actions": []any{map[string]any{"type": "pointerMove", "duration": 0, "x": editorPoint[0], "y": editorPoint[1]}, map[string]any{"type": "pointerDown", "button": 2}, map[string]any{"type": "pointerUp", "button": 2}}}}})
-			browser.wait(`!document.getElementById('note-context-menu').hidden && !document.getElementById('note-context-dictionary').disabled`)
-			browser.script(`if(document.activeElement!==richEdit.editor.view.dom||getSelection().toString()!=='Serendipity'||richEdit.editor.state.selection.from!==1||richEdit.editor.state.selection.to!==12)throw new Error('Right-click hid or collapsed rich selection');document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));if(!document.getElementById('note-context-menu').contains(document.activeElement))throw new Error('Arrow key did not enter text menu');document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));if(!document.getElementById('note-context-menu').hidden||editingNoteId!==dictNoteID||getSelection().toString()!=='Serendipity')throw new Error('Escape lost selection or closed editor');richEdit.editor.view.dom.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:window.selectionMenuPoint[0],clientY:window.selectionMenuPoint[1]}));`)
+			browser.wait(`window.nativeContext?.trusted && !nativeContext.prevented && document.getElementById('note-context-menu').hidden`)
+			browser.script(`if(document.activeElement!==richEdit.editor.view.dom||getSelection().toString()!=='Serendipity'||richEdit.editor.state.selection.from!==1||richEdit.editor.state.selection.to!==12)throw new Error('Right-click hid or collapsed rich selection');richEdit.editor.view.dom.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:window.selectionMenuPoint[0],clientY:window.selectionMenuPoint[1]}));document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));if(!document.getElementById('note-context-menu').contains(document.activeElement))throw new Error('Arrow key did not enter text menu');document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));if(!document.getElementById('note-context-menu').hidden||editingNoteId!==dictNoteID||getSelection().toString()!=='Serendipity')throw new Error('Escape lost selection or closed editor');richEdit.editor.view.dom.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:window.selectionMenuPoint[0],clientY:window.selectionMenuPoint[1]}));`)
 			click("#note-context-dictionary")
 			browser.wait(`document.getElementById('dictionary-dialog').open && document.getElementById('dictionary-word').value==='serendipity'`)
 			click("#dictionary-close")

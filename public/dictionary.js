@@ -399,10 +399,10 @@
     const textInput = event.target.closest(textInputSelector);
     const root = textInput || event.target.closest(noteTextSelector);
     if (!currentUser || !root || event.target.closest('a, button, pre, code') || (!textInput && event.target.closest('input'))) return;
-    // Firefox requires a second, browser-owned Paste confirmation for readText().
-    // Its native editing menu pastes directly through a trusted paste event.
-    // Keep our Dictionary/spelling menu on displayed notes.
-    if (/Firefox\//.test(navigator.userAgent) && (textInput || root.matches('.tiptap'))) return;
+    // Native Paste inserts directly; readText() can require a second browser
+    // confirmation. Keep real editing menus native in every browser. Synthetic
+    // contextmenu events still serve the app's configurable text shortcuts.
+    if (event.isTrusted && (textInput || root.matches('.tiptap'))) return;
     let word = '', selectedText = '';
     const selection = window.getSelection();
     if (textInput) {
