@@ -30,8 +30,8 @@ func Open(path string, key []byte, mode string) (*sql.DB, error) {
 		if path == ":memory:" || strings.ContainsAny(path, "?#") || strings.HasPrefix(path, "file:") {
 			return nil, errors.New("encrypted database requires a filesystem path without URI parameters")
 		}
-		absolute, err := filepath.Abs(path)
-		if err != nil {
+		absolute, pathErr := filepath.Abs(path)
+		if pathErr != nil {
 			return nil, errors.New("invalid database path")
 		}
 		uri := &url.URL{Scheme: "file", Path: absolute}
@@ -51,15 +51,11 @@ func Open(path string, key []byte, mode string) (*sql.DB, error) {
 		}
 		database, err = openEncrypted(uri.String(), key)
 	} else {
-		separator := "?"
-		if strings.Contains(path, "?") {
-			separator = "&"
+		dsn, dsnErr := plaintextDSN(path, mode)
+		if dsnErr != nil {
+			return nil, dsnErr
 		}
-		q := url.Values{"_pragma": {"busy_timeout(5000)", "foreign_keys(ON)", "synchronous(FULL)", "temp_store(MEMORY)", "mmap_size(0)"}}
-		if path != ":memory:" {
-			q.Set("mode", mode)
-		}
-		database, err = sql.Open("sqlite", path+separator+q.Encode())
+		database, err = sql.Open("sqlite", dsn)
 	}
 	if err != nil {
 		return nil, err
@@ -93,6 +89,41 @@ func Open(path string, key []byte, mode string) (*sql.DB, error) {
 	}
 	ok = true
 	return database, nil
+}
+
+func plaintextDSN(path, mode string) (string, error) {
+	var uri *url.URL
+	var err error
+	if strings.HasPrefix(path, "file:") {
+		uri, err = url.Parse(path)
+	} else if path != ":memory:" {
+		base, query, _ := strings.Cut(path, "?")
+		absolute, pathErr := filepath.Abs(base)
+		if pathErr != nil {
+			return "", errors.New("invalid database path")
+		}
+		uri = &url.URL{Scheme: "file", Path: absolute, RawQuery: query}
+	}
+	if err != nil {
+		return "", errors.New("invalid database URI")
+	}
+	q := url.Values{}
+	if uri != nil {
+		q, err = url.ParseQuery(uri.RawQuery)
+		if err != nil {
+			return "", errors.New("invalid database URI parameters")
+		}
+		// SQLite only honors mode=ro when the filename is a file: URI.
+		q.Set("mode", mode)
+	}
+	for _, pragma := range []string{"busy_timeout(5000)", "foreign_keys(ON)", "synchronous(FULL)", "temp_store(MEMORY)", "mmap_size(0)"} {
+		q.Add("_pragma", pragma)
+	}
+	if uri == nil {
+		return ":memory:?" + q.Encode(), nil
+	}
+	uri.RawQuery = q.Encode()
+	return uri.String(), nil
 }
 
 // Verify checks every page and the minimum schema required by restore tools.

@@ -40,7 +40,7 @@ stage 2. A trustworthy client is needed against an actively malicious web server
 
 Native encryption builds require Go 1.25+, a C compiler, and OpenSSL development
 headers/libraries. Use `make build`, `make check`, `make test-encryption`, and
-`make test-browser` (the last requires ChromeDriver on port 19515). The Makefile
+`make test-operations`, and `make test-browser` (the last requires ChromeDriver on port 19515). The Makefile
 supplies `GOFLAGS=-tags=sqlite_fts5` and
 `CGO_CFLAGS='-O2 -g -ftls-model=initial-exec'`. FTS5 is required for note search;
 the TLS flag supports SQLCipher's native memory protection with Go's linker.
@@ -130,6 +130,10 @@ and application schema before publication. Compressed filenames remain `.db.gz`;
 gzip is compression, not the source of encryption. Partial snapshots are private
 encrypted files and are removed on handled failures. Existing destinations are
 never overwritten. New snapshots include committed WAL transactions.
+
+Encrypted database pages compress poorly. Budget local retention space and
+Wasabi capacity/traffic for snapshots close to the full database size rather
+than the smaller historical plaintext gzip size before activation.
 
 The normal backup/restore scripts keep their existing interfaces. For a manual
 encrypted snapshot or verification:

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/sys/unix"
 )
@@ -70,6 +71,15 @@ func GenerateKey(path string) error {
 	}
 	if err := file.Close(); err != nil {
 		return errors.New("cannot close database key")
+	}
+	directory, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return errors.New("cannot open key directory for sync")
+	}
+	err = directory.Sync()
+	directory.Close()
+	if err != nil {
+		return errors.New("cannot sync key directory")
 	}
 	ok = true
 	return nil

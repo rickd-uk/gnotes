@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -172,5 +173,27 @@ func TestKeyFilesAndFailedMigration(t *testing.T) {
 	partials, _ := filepath.Glob(filepath.Join(dir, ".gnotes-encrypted-*"))
 	if len(partials) != 0 {
 		t.Fatal("failed snapshot left temporary files", partials)
+	}
+}
+
+func TestEncryptedCancellationRetainsKey(t *testing.T) {
+	key := make([]byte, 32)
+	rand.Read(key)
+	database, err := storage.Open(filepath.Join(t.TempDir(), "cancel.db"), key, "rwc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	defer cancel()
+	var result int64
+	err = database.QueryRowContext(ctx, `WITH RECURSIVE numbers(x) AS (
+        SELECT 1 UNION ALL SELECT x+1 FROM numbers WHERE x<100000000
+    ) SELECT sum(x) FROM numbers`).Scan(&result)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("encrypted query did not cancel: %v", err)
+	}
+	if err := database.QueryRow("SELECT 7").Scan(&result); err != nil || result != 7 {
+		t.Fatalf("encrypted database unusable after cancellation: %d %v", result, err)
 	}
 }

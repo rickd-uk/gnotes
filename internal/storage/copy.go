@@ -78,6 +78,26 @@ func Copy(ctx context.Context, source string, sourceKey []byte, output string, o
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_master").Scan(&tables); err != nil {
 		return errors.New("cannot read database snapshot")
 	}
+	// Verify the source inside that same snapshot before exporting it. A
+	// successful logical export must not hide damage in the source database.
+	rows, err := tx.QueryContext(ctx, "PRAGMA main.integrity_check")
+	if err != nil {
+		return errors.New("source database integrity verification failed")
+	}
+	checks := 0
+	for rows.Next() {
+		var result string
+		if err := rows.Scan(&result); err != nil || result != "ok" {
+			rows.Close()
+			return errors.New("source database integrity verification failed")
+		}
+		checks++
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil || checks != 1 {
+		return errors.New("source database integrity verification failed")
+	}
 	var userVersion, applicationID int
 	if err := tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&userVersion); err != nil {
 		return errors.New("cannot read database version")
