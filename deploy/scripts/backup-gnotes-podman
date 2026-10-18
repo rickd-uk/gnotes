@@ -26,6 +26,13 @@ cleanup() { rm -f "$temporary_database" "$temporary_archive"; }
 trap cleanup EXIT
 trap 'exit 130' HUP INT TERM
 
+if [ -n "${GNOTES_DATABASE_KEY_FILE:-}" ]; then
+    storage_tool="${GNOTES_STORAGE_TOOL:-$app_directory/bin/gnotes-db}"
+    [ -x "$storage_tool" ] || fail "encrypted storage tool is missing"
+    rm -f "$temporary_database"
+    "$storage_tool" db snapshot --source "$database_path" --output "$temporary_database"
+else
+    [ "${GNOTES_REQUIRE_ENCRYPTION:-0}" != 1 ] || fail "database encryption key is required"
 python3 - "$database_path" "$temporary_database" <<'PY'
 import sqlite3
 import sys
@@ -36,6 +43,7 @@ source.backup(backup)
 backup.close()
 source.close()
 PY
+fi
 
 gzip -9 -c "$temporary_database" > "$temporary_archive"
 "$restorer" --verify "$temporary_archive"

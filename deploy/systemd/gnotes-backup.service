@@ -8,6 +8,7 @@ Group=gnotes
 EnvironmentFile=/etc/gnotes/gnotes.env
 ExecStart=/opt/gnotes/bin/backup-gnotes
 UMask=0077
+LimitCORE=0
 
 NoNewPrivileges=true
 CapabilityBoundingSet=

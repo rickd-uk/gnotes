@@ -94,6 +94,12 @@ case "$archive" in
     *) cp "$archive" "$candidate" ;;
 esac
 
+storage_tool="${GNOTES_STORAGE_TOOL:-$app_directory/bin/gnotes-db}"
+if [ -n "${GNOTES_DATABASE_KEY_FILE:-}" ]; then
+    [ -x "$storage_tool" ] || fail "encrypted storage tool is missing"
+    "$storage_tool" db verify --source "$candidate" || fail "encrypted backup verification failed"
+else
+    [ "${GNOTES_REQUIRE_ENCRYPTION:-0}" != 1 ] || fail "database encryption key is required"
 python3 - "$candidate" <<'PY'
 import sqlite3
 import sys
@@ -122,6 +128,7 @@ for table, columns in required.items():
         raise SystemExit(f"missing database columns: {table}")
 database.close()
 PY
+fi
 echo "Backup integrity and schema verified: $archive"
 [ "$mode" = --restore ] || exit 0
 
@@ -133,7 +140,12 @@ install -m 0600 "$candidate" "$staged_database"
 service_stopped=true
 systemctl --user stop "$service_name"
 
-if ! python3 - "$database_path" "$saved_database" <<'PY'
+preserve_current() {
+    if [ -n "${GNOTES_DATABASE_KEY_FILE:-}" ]; then
+        "$storage_tool" db snapshot --source "$database_path" --output "$saved_database"
+        return
+    fi
+    python3 - "$database_path" "$saved_database" <<'PY'
 import sqlite3
 import sys
 
@@ -147,7 +159,8 @@ if saved.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
 saved.close()
 source.close()
 PY
-then
+}
+if ! preserve_current; then
     cp "$database_path" "$saved_database" || fail "could not preserve current database"
     if [ -f "$database_path-wal" ]; then
         cp "$database_path-wal" "$saved_database-wal" || fail "could not preserve current WAL"

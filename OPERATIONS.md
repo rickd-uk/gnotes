@@ -18,6 +18,16 @@ Production runs on the Kagoya VPS through rootless Podman. The SSH alias is `KAG
 
 Never commit or attach `.env`, databases, backups, private keys, passwords, or session data to a release.
 
+## Database encryption activation
+
+See [ENCRYPTION.md](ENCRYPTION.md) for the stage-one migration and replacement-host recovery procedure. Production v0.7.63 is not yet encrypted. An encryption-capable release can first run against the existing database unchanged; do not configure a key against a plaintext database or swap databases while users can still write.
+
+The new release build requires OpenSSL 3 and compatible glibc; its Podman image uses Ubuntu 24.04. The updater also installs the matching binary as `~/apps/gnotes/bin/gnotes-db` for host-side `db encrypt`, `db snapshot` and `db verify` commands. Standard `sqlite3` and Python's sqlite3 cannot open SQLCipher databases. After activation, always supply `GNOTES_DATABASE_KEY_FILE` and `GNOTES_REQUIRE_ENCRYPTION=1` to operational commands as well as the application. Never put the key itself in environment variables or command arguments.
+
+Rootless backup, Wasabi and backup-control units read optional `~/.config/gnotes/storage.env` (install the updated units, keep that file mode 0600 in a private directory, and reload/restart the relevant services). It contains only the host key-file path, `GNOTES_REQUIRE_ENCRYPTION=1`, and `GNOTES_STORAGE_TOOL=/home/rick/apps/gnotes/bin/gnotes-db`. Container paths differ from host paths: configure the app's read-only key mount separately. Interactive SSH commands do not inherit systemd unit settings; load the same private storage configuration before invoking encrypted backup/update/restore commands. Database key loss is unrecoverable without another key copy; the Profile Wasabi recovery file is not a substitute.
+
+Retain an encryption-capable rollback image and the matching key. Inventory and migrate old plaintext local backups before retiring them, and verify a restore with the owner's offline key copy before production cutover. Existing plaintext compatibility paths remain for installations that have not migrated. The isolated `make test-encryption` rehearsal exercises migration, server restart, encrypted daily backup and restoration without touching production.
+
 ## Release and deploy
 
 Push a clean `main` commit and a new annotated version tag. The GitHub Release workflow runs Go tests, the race test, vet, ShellCheck, restore tests, and a real-server restore rehearsal. Wait for it to publish the Linux archive and `SHA256SUMS`.
@@ -133,4 +143,4 @@ The update command retains the previous image. To roll back the application imag
 ssh KAG 'podman tag localhost/gnotes:rollback-VERSION localhost/gnotes:latest && systemctl --user restart gnotes.service'
 ```
 
-Application rollback does not reverse database migrations. Use the validated pre-update backup only when a database rollback is required. Backup files contain plaintext private notes; keep them restricted and replicate them to encrypted off-server storage.
+Application rollback does not reverse database migrations. Use the validated pre-update backup only when a database rollback is required. Before encryption activation, backup files contain plaintext private notes; keep them restricted and replicate them to encrypted off-server storage. After activation, new operational snapshots are SQLCipher-encrypted and need the matching database key, including after Restic restoration. Older files do not become encrypted automatically.

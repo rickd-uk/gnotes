@@ -16,6 +16,9 @@ jobs:
   release:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      CGO_CFLAGS: -O2 -g -ftls-model=initial-exec
+      GOFLAGS: -tags=sqlite_fts5
 
     steps:
       - name: Check out source
@@ -39,12 +42,13 @@ jobs:
           fi
 
       - name: Install backup test dependency
-        run: sudo apt-get update && sudo apt-get install -y restic
+        run: sudo apt-get update && sudo apt-get install -y restic libssl-dev
 
       - name: Test
         run: |
           go test ./...
           go test -race ./cmd/server
+          go test -race ./internal/storage
           go vet ./...
           python3 -m unittest discover -s deploy/tests -p "backup_control_test.py"
           shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/backup-gnotes-podman deploy/scripts/replicate-gnotes-wasabi deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/restore-gnotes-podman deploy/scripts/update-gnotes deploy/scripts/update-gnotes-podman deploy/tests/*.sh
@@ -54,6 +58,7 @@ jobs:
           deploy/tests/restore-gnotes-test.sh
           deploy/tests/restore-gnotes-podman-test.sh
           deploy/tests/restore-gnotes-rehearsal.sh
+          deploy/tests/encryption-rehearsal.sh
 
       - name: Build and package
         env:
@@ -64,8 +69,8 @@ jobs:
           asset="gnotes_${RELEASE_VERSION}_linux_amd64.tar.gz"
 
           install -d "$package_dir/bin" "$package_dir/public" "$package_dir/systemd"
-          install -m 0644 deploy/systemd/gnotes-backup-control.service deploy/systemd/gnotes-wasabi-backup.service deploy/systemd/gnotes-wasabi-backup.timer "$package_dir/systemd/"
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+          install -m 0644 deploy/systemd/gnotes-backup-control.service deploy/systemd/gnotes-wasabi-backup.service deploy/systemd/gnotes-wasabi-backup.timer deploy/systemd/gnotes-podman-backup.service deploy/systemd/gnotes-podman-backup.timer "$package_dir/systemd/"
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
             go build -trimpath -ldflags="-s -w" -o "$package_dir/gnotes" ./cmd/server
           cp -a public/. "$package_dir/public/"
           install -m 0755 deploy/scripts/update-gnotes "$package_dir/bin/update-gnotes"
@@ -78,6 +83,7 @@ jobs:
           install -m 0755 deploy/scripts/update-gnotes-podman "$package_dir/bin/update-gnotes-podman"
           printf '%s\n' "$RELEASE_VERSION" > "$package_dir/VERSION"
           cp LICENSE "$package_dir/LICENSE"
+          cp THIRD_PARTY_NOTICES.txt ENCRYPTION.md "$package_dir/"
 
           tar -C "$package_dir" -czf "dist/$asset" .
           (cd dist && sha256sum "$asset" > SHA256SUMS)

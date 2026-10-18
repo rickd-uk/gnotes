@@ -16,11 +16,18 @@ trap cleanup EXIT HUP INT TERM
 
 test -f "$database_path"
 mkdir -p "$backup_directory"
+if [ -n "${GNOTES_DATABASE_KEY_FILE:-}" ]; then
+    storage_tool="${GNOTES_STORAGE_TOOL:-/opt/gnotes/gnotes}"
+    "$storage_tool" db snapshot --source "$database_path" --output "$temporary_backup"
+else
+    [ "${GNOTES_REQUIRE_ENCRYPTION:-0}" != 1 ] || { echo "database encryption key is required" >&2; exit 1; }
 sqlite3 -batch "$database_path" ".timeout 10000" ".backup '$temporary_backup'"
 
 if [ "$(sqlite3 -batch -noheader -cmd '.mode list' "$temporary_backup" "PRAGMA quick_check;")" != "ok" ]; then
     echo "gnotes backup integrity check failed" >&2
     exit 1
+fi
+
 fi
 
 gzip -9 -c "$temporary_backup" > "$final_backup"

@@ -39,7 +39,12 @@ curl -fsS --max-time 10 "$health_url"
 printf '\n'
 
 echo "Checking SQLite integrity..."
-[ "$(sqlite3 -batch -noheader "$database_path" 'PRAGMA quick_check;')" = "ok" ] || fail "SQLite quick_check failed"
+if [ -n "${GNOTES_DATABASE_KEY_FILE:-}" ]; then
+    "${GNOTES_STORAGE_TOOL:-/opt/gnotes/gnotes}" db verify --source "$database_path" || fail "encrypted database verification failed"
+else
+    [ "${GNOTES_REQUIRE_ENCRYPTION:-0}" != 1 ] || fail "database encryption key is required"
+    [ "$(sqlite3 -batch -noheader "$database_path" 'PRAGMA quick_check;')" = "ok" ] || fail "SQLite quick_check failed"
+fi
 echo "SQLite quick_check: ok"
 
 echo "Checking backups..."

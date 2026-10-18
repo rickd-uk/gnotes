@@ -7,6 +7,7 @@ See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command upd
 See [PROGRESS.md](PROGRESS.md) for the current deployed release, completed work, and future plans.
 Production runs on a Kagoya VPS as a rootless Podman container with a validated daily backup timer; the Ubuntu/systemd instructions below are an alternative installation layout.
 See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritized future work.
+See [ENCRYPTION.md](ENCRYPTION.md) for deployment-wide database encryption, key ownership, migration and recovery. Encryption must be activated explicitly; the documented v0.7.63 production database has not been migrated.
 
 ## Current features
 
@@ -92,7 +93,7 @@ The editor stores a Markdown representation of rich text so existing notes, sear
 
 ## Local development
 
-Requirements: Go 1.25 or later. Node.js is needed to rebuild or validate the bundled rich text editor.
+Requirements: Go 1.25 or later, a C compiler and OpenSSL development headers/libraries for SQLCipher. Node.js is needed to rebuild or validate the bundled rich text editor. Use the Makefile to supply the native encryption and FTS5 build flags. For direct Go commands in this document, first export `GOFLAGS=-tags=sqlite_fts5` and `CGO_CFLAGS='-O2 -g -ftls-model=initial-exec'`. Release binaries require compatible glibc and OpenSSL 3; see ENCRYPTION.md.
 
 ```bash
 make run
@@ -117,6 +118,8 @@ Supported environment variables:
 | `HOST` | `127.0.0.1` | HTTP bind address |
 | `PORT` | `8080` | HTTP port |
 | `DATABASE_PATH` | `gnotes.db` | SQLite database location |
+| `GNOTES_DATABASE_KEY_FILE` | none | Private generated 256-bit hex key file; enables SQLCipher for the whole database |
+| `GNOTES_REQUIRE_ENCRYPTION` | unset | Set to `1` after migration to reject startup without a database key |
 | `BACKUP_DIRECTORY` | `/var/backups/gnotes` | Destination used by the backup script |
 | `GNOTES_SECURE_COOKIES` | `false` | Set to `true` behind production HTTPS |
 | `GNOTES_SETUP_TOKEN` | none | Required for first-admin setup when accessed remotely |
@@ -135,9 +138,8 @@ The personal [dictionary](DICTIONARY.md) provides offline English definitions an
 Run validation with:
 
 ```bash
-go test ./...
-go test -race ./cmd/server
-go vet ./...
+make check
+make test-encryption
 ```
 
 ### Generate test notes
@@ -179,7 +181,7 @@ This layout keeps the application private on localhost and exposes it only throu
 Build on the server or build a Linux binary on another compatible machine:
 
 ```bash
-go build -trimpath -ldflags="-s -w" -o gnotes ./cmd/server
+make build
 ```
 
 ### 2. Create the service account and directories

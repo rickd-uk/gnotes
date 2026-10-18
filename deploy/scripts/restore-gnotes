@@ -112,6 +112,11 @@ trap 'exit 130' HUP INT TERM
 
 gzip -t "$archive" || fail "gzip archive is invalid"
 gzip -dc "$archive" > "$candidate" || fail "could not unpack backup"
+storage_tool="${GNOTES_STORAGE_TOOL:-/opt/gnotes/gnotes}"
+if [ -n "${GNOTES_DATABASE_KEY_FILE:-}" ]; then
+    "$storage_tool" db verify --source "$candidate" || fail "encrypted backup verification failed"
+else
+    [ "${GNOTES_REQUIRE_ENCRYPTION:-0}" != 1 ] || fail "database encryption key is required"
 [ "$(sqlite3 -readonly -batch -noheader -cmd '.mode list' "$candidate" 'PRAGMA integrity_check;')" = ok ] || fail "SQLite integrity check failed"
 
 required_tables='users notes sessions drafts settings rate_limits login_cooldowns signup_events invitations security_daily'
@@ -123,6 +128,7 @@ for required in 'users:username' 'users:password_hash' 'notes:user_id' 'notes:co
     column="${required#*:}"
     sqlite3 -readonly -batch -noheader -cmd '.mode list' "$candidate" "PRAGMA table_info($table);" | cut -d '|' -f 2 | grep -Fxq "$column" || fail "missing database column: $required"
 done
+fi
 echo "Backup integrity and schema verified: $archive"
 
 if [ "$mode" = --verify ]; then
@@ -140,8 +146,15 @@ systemctl stop "$service_name"
 
 # SQLite's online backup includes committed WAL transactions. If the current
 # database is damaged, preserve its raw database and WAL files for investigation.
-if ! sqlite3 -batch "$database_path" ".backup '$saved_database'" || \
-    [ "$(sqlite3 -readonly -batch -noheader -cmd '.mode list' "$saved_database" 'PRAGMA integrity_check;' 2>/dev/null)" != ok ]; then
+preserve_current() {
+    if [ -n "${GNOTES_DATABASE_KEY_FILE:-}" ]; then
+        "$storage_tool" db snapshot --source "$database_path" --output "$saved_database"
+    else
+        sqlite3 -batch "$database_path" ".backup '$saved_database'" &&
+        [ "$(sqlite3 -readonly -batch -noheader -cmd '.mode list' "$saved_database" 'PRAGMA integrity_check;' 2>/dev/null)" = ok ]
+    fi
+}
+if ! preserve_current; then
     cp "$database_path" "$saved_database" || fail "could not preserve current database"
     if [ -f "$database_path-wal" ]; then
         cp "$database_path-wal" "$saved_database-wal" || fail "could not preserve current WAL"

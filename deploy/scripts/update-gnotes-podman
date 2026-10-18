@@ -53,6 +53,10 @@ tar -xzf "$stage/$asset" -C "$package_directory"
 [ "$(cat "$package_directory/VERSION")" = "$version" ] || fail "release version mismatch"
 
 backup_path="$backup_directory/gnotes-pre-${version}-$(date -u +%Y%m%dT%H%M%SZ).db"
+if [ -n "${GNOTES_DATABASE_KEY_FILE:-}" ]; then
+    "$package_directory/gnotes" db snapshot --source "$database_path" --output "$backup_path" || fail "encrypted pre-update backup failed"
+else
+    [ "${GNOTES_REQUIRE_ENCRYPTION:-0}" != 1 ] || fail "database encryption key is required"
 python3 - "$database_path" "$backup_path" <<'PY'
 import os
 import sqlite3
@@ -72,11 +76,12 @@ backup.close()
 source.close()
 os.chmod(backup_path, 0o600)
 PY
+fi
 echo "Validated database backup: $backup_path"
 
 cat > "$stage/Containerfile" <<'EOF'
-FROM docker.io/library/debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+FROM docker.io/library/ubuntu:24.04
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl3t64 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package/gnotes /app/gnotes
 COPY package/public /app/public
@@ -133,6 +138,7 @@ running_binary="$(podman exec gnotes sha256sum /app/gnotes | cut -d ' ' -f 1)"
 [ "$running_binary" = "$expected_binary" ] || fail "running binary checksum does not match release"
 
 install -d "$app_directory/bin"
+install -m 0755 "$package_directory/gnotes" "$app_directory/bin/gnotes-db"
 install -m 0755 "$package_directory/bin/restore-gnotes-podman" "$app_directory/bin/restore-gnotes-podman"
 install -m 0755 "$package_directory/bin/backup-gnotes-podman" "$app_directory/bin/backup-gnotes-podman"
 if [ -x "$package_directory/bin/replicate-gnotes-wasabi" ]; then

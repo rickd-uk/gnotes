@@ -3,6 +3,8 @@ Description=Encrypt and upload the latest gnotes backup to Wasabi
 
 [Service]
 Type=oneshot
+EnvironmentFile=-%h/.config/gnotes/storage.env
+LimitCORE=0
 EnvironmentFile=%h/.config/gnotes-backup/wasabi.env
 Environment=GNOTES_RESTIC=%h/.local/bin/restic
 ExecStart=%h/apps/gnotes/bin/replicate-gnotes-wasabi
