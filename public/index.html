@@ -4503,7 +4503,7 @@
               <span title="Choosing a fourth quick action replaces the first">Quick actions · up to 3</span>
               <button class="tool-choice" type="button" data-tool="archive"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3ZM9 11h6"/></svg><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="favorite"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5 6 7-6 7-6-7ZM12 1v2M12 21v2M1 12h2M21 12h2"/></svg><span>Favorites</span><span class="tool-state" aria-hidden="true"></span></button>
-              <button class="tool-choice" type="button" data-tool="lock"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg><span>Lock</span><span class="tool-state" aria-hidden="true"></span></button>
+              <button class="tool-choice" type="button" data-tool="lock"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1 12-12a2.1 2.1 0 0 0-3-3L5 16l-1 4ZM3 3l18 18"/></svg><span>Read only</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="pin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8"/></svg><span>Pin</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="hide"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg><span>Hide</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="color"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z"/><circle cx="8" cy="9" r="1"/><circle cx="13" cy="7" r="1"/></svg><span>Color</span><span class="tool-state" aria-hidden="true"></span></button>
@@ -5059,7 +5059,7 @@
       </div>
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
-        <div><h3>Lock a note</h3><p>Choose Lock note in its ⋯ tools menu. Locked notes keep a padlock indicator; click it to unlock. Title, text, checklists, tags and color are protected across devices. You can add Lock to your quick actions or assign a shortcut.</p></div>
+        <div><h3>Make a note read-only</h3><p>Choose the crossed-out pencil in its ⋯ tools menu. Read-only notes keep that icon visible; click it to enable editing. Title, text, checklists, tags and color cannot be edited across devices. You can add Read only to your quick actions or assign a shortcut.</p></div>
         <div><h3>Vim editing</h3><p>Choose N beside the title to edit Markdown with Vim keys; choose N again to return to the normal editor. Your choice is remembered for this account in this browser. Press i to insert and Escape to return to Normal mode. Use :w to save, or :wq, :x or Ctrl/Command+Enter to save and close. New notes save as drafts with :w and become notes with :wq. Notes autosave, so :q also keeps changes and closes. The eye button previews an existing note.</p></div>
         <div><h3>Your keyboard shortcuts</h3><p>Open Profile → Keyboard shortcuts to search actions and assign keys. Shortcuts are saved for your account in this browser. Note actions use the focused or pointed-at note. Ctrl+Shift+P toggles preview; Escape saves and closes a note, retaining edits if saving fails. Short notes use a centered, content-sized editor.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Tab indents text; Shift+Tab moves it back. In lists, these keys change nesting. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done. Saved links open normally; Shift-click a link to edit its note. While editing, click a link to place the cursor, then choose Link in the formatting toolbar to change its address or open it. Ctrl/Command-click opens a link directly from the editor.</p></div>
@@ -7072,7 +7072,7 @@
             <div class="date-row">
               ${n.favorited ? `<span class="favorite-mark" aria-label="Favorite" title="Favorite"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></span>` : ""}
               ${isArchived && !archiveMode ? '<span class="archived-note-label">Archived</span>' : ""}
-              ${n.locked ? `<button class="note-lock-indicator" type="button" onclick="toggleNoteLock(${n.id})" aria-label="Unlock note" title="Unlock note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg><span>Locked</span></button>` : ""}
+              ${n.locked ? `<button class="note-lock-indicator" type="button" onclick="toggleNoteLock(${n.id})" aria-label="Read-only note: enable editing" title="Read-only note: enable editing"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1 12-12a2.1 2.1 0 0 0-3-3L5 16l-1 4ZM3 3l18 18"/></svg></button>` : ""}
               ${isNewest ? '<span class="latest-marker">Latest</span>' : ""}
               <span class="note-time-controls">
               ${canRoll ? `<button class="note-roll-toggle" type="button" onclick="toggleNoteRoll(${n.id})" aria-controls="note-content-${n.id}" aria-expanded="${String(!isRolledUp)}" aria-label="${isRolledUp ? "Expand" : "Roll up"} note" title="${isRolledUp ? "Expand" : "Roll up"} note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>` : ""}
@@ -7086,7 +7086,7 @@
               <div class="note-safe-actions">
               <button class="note-action" type="button" onclick="openNoteTags(${n.id})" ${n.locked ? "disabled" : ""} aria-label="Edit note tags" title="Edit tags"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7l11 11-7 7L3 10Z"/><circle cx="7" cy="7" r="1"/></svg><span class="visually-hidden">Tags</span></button>
               <button class="note-action favorite-btn ${n.favorited ? "is-favorited" : ""}" data-note-action="favorite" onclick="toggleFavorite(${n.id})" aria-pressed="${Boolean(n.favorited)}" aria-label="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}" title="${n.favorited ? "Remove from Favorites" : "Add to Favorites"}"><svg class="icon favorite-diamond" viewBox="0 0 24 24" aria-hidden="true"><path class="diamond-body" d="m12 5 6 7-6 7-6-7Z"/><path class="diamond-glow" d="M12 1v2M12 21v2M1 12h2M21 12h2M3.5 3.5l1.5 1.5M19 19l1.5 1.5M20.5 3.5 19 5M5 19l-1.5 1.5"/></svg></button>
-              <button class="note-action lock-btn" data-note-action="lock" type="button" onclick="toggleNoteLock(${n.id})" aria-pressed="${Boolean(n.locked)}" aria-label="${n.locked ? 'Unlock' : 'Lock'} note" title="${n.locked ? 'Unlock' : 'Lock'} note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg></button>
+              <button class="note-action lock-btn" data-note-action="lock" type="button" onclick="toggleNoteLock(${n.id})" aria-pressed="${Boolean(n.locked)}" aria-label="${n.locked ? 'Enable editing' : 'Make note read-only'}" title="${n.locked ? 'Enable editing' : 'Make note read-only'}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1 12-12a2.1 2.1 0 0 0-3-3L5 16l-1 4ZM3 3l18 18"/></svg></button>
               <button class="note-action pin-btn ${n.pinned ? "is-pinned" : ""}" data-note-action="pin" onclick="togglePin(${n.id})" aria-label="${n.pinned ? "Unpin" : "Pin"} note" title="${n.pinned ? "Unpin" : "Pin"} note">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M9 4h6l-1 5 3 3H7l3-3ZM12 12v8" />
@@ -8241,7 +8241,7 @@
           const result = await response.json();
           note.locked = result.locked;
           renderLoadedNotes();
-          showNoteActionToast(result.locked ? 'Note locked' : 'Note unlocked');
+          showNoteActionToast(result.locked ? 'Note is read-only' : 'Editing enabled');
         } catch (error) {
           if (currentUser === owner) showNoteActionDialog('Could not change note lock', error.message || 'Check your connection and try again.');
         } finally {

@@ -1,6 +1,6 @@
 # gnotes roadmap
 
-Last reviewed: 2026-10-17
+Last reviewed: 2026-10-18
 
 ## Next development sequence
 
@@ -116,6 +116,13 @@ Deployed in v0.7.48: Profile backup/recovery downloads for personal encrypted no
 
 ## Offline access and encryption
 
+Two-stage encryption plan saved on 2026-10-18:
+
+1. **Now: database encryption and encrypted backups for everyone.** Encrypt the live SQLite database, including WAL/journal data, and local server backups; retain encrypted off-server backups. All accounts keep their normal login and workflow. Keep a separate recovery key safely offline with the owner. Before implementation, decide whether the server restarts automatically using an accessible key or the owner supplies the unlock key after each restart. An automatically usable key on the same stolen drive weakens drive-theft protection. An attacker controlling the unlocked server can still read all retained notes. Include existing-data migration, search indexes, temporary files, backup/restore/update tooling, old plaintext backup retention and wrong/missing-key recovery tests in the implementation design.
+2. **Later: optional end-to-end encryption for the owner's account.** Encrypt and decrypt notes on the owner's devices, with decryption keys unavailable to the server; other users retain the standard account experience unless they opt in. Design encrypted notes/drafts, client-side search/rendering, device access, passphrase changes, recovery keys and backups together. A login-password reset alone cannot recover encrypted notes; losing all unlocking/recovery material loses access. Plan retirement of older server-readable copies and backups. Keep stage-one encryption in place underneath this feature.
+
+Do not add a separate encrypted-archive workflow. Regular server-side key rotation does not hide past notes while the server retains the ability to decrypt them. These stages are a saved plan; implementation and deployment have not started.
+
 Read-only offline snapshots are deployed in v0.7.45: opt-in device encryption, separate unlock passphrase, manual online refresh, local search/collections, and removal on sign-out. Offline editing and conflict synchronization remain out of scope.
 
 Offline storage must be opt-in and encrypted locally. Private notes should not be copied into IndexedDB or a service-worker cache in plaintext, especially on shared or stolen devices.
@@ -129,6 +136,8 @@ An independently trusted client is required if the threat model includes an acti
 SQLite remains appropriate for the current modest, single-instance deployment. Do not operate multiple writable application instances against independent SQLite databases. Consider PostgreSQL and shared rate limiting only when horizontal scaling becomes necessary.
 
 ## Product backlog
+
+Simple mode (after stage-one encryption): new regular accounts start with writing/autosave, reading/editing, basic formatting, search, delete and recovery. Profile on the far right contains Account, Backup & export, More features and Sign out; Controls initially contains Text size and Light/dark appearance. More features enables organization, writing tools, note controls, appearance, advanced editing and offline reading individually, with a Full mode option and Restore Simple defaults. Save choices per account across devices and apply them consistently to menus, toolbars and shortcuts. Hide controls without removing their stored data; recovery, backup/export and account security stay accessible. Existing accounts retain their current experience; admin `rick` defaults to Full mode with all features and administrator controls available. Verify account defaults/persistence and phone/desktop layouts.
 
 - Favorites collection implemented for v0.7.38, separate from Pin and Archive, including archived favorites, text search and tag categories. A thin diamond uses icy blue fill and small glow strokes when selected. Favorites is optimistic with rollback and account isolation; JSON and ZIP transfers preserve the flag. Browser checks cover narrow/desktop layouts, filtering and failure recovery.
 

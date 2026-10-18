@@ -119,7 +119,7 @@
       }, () => Boolean(activeWriter()));
     }
     for (const [key, name, selector] of [
-      ['lock','Lock / unlock note','[data-note-action="lock"]'],['favorite','Toggle Favorite','[data-note-action="favorite"]'],['pin','Pin / unpin','[data-note-action="pin"]'],
+      ['lock','Toggle read-only mode','[data-note-action="lock"]'],['favorite','Toggle Favorite','[data-note-action="favorite"]'],['pin','Pin / unpin','[data-note-action="pin"]'],
       ['hide','Hide','[data-note-action="hide"]'],['archive','Archive / unarchive','[data-note-action="archive"]'],
       ['copy','Copy note text','[data-note-action="copy"]'],['delete','Move to recycle bin','[data-note-action="delete"]'],
       ['tags','Edit tags','[aria-label="Edit note tags"]'],['color','Change color','.color-btn'],['roll','Expand / roll up','.note-roll-toggle'],
