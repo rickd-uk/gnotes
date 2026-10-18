@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""One-time root setup for owner-supplied keys. Never generates or reads keys."""
+import argparse
+import os
+import pathlib
+import pwd
+import subprocess
+import sys
+
+MOUNT = pathlib.Path('/run/gnotes/keys')
+UNIT = 'run-gnotes-keys.mount'
+
+
+def run(*args):
+    return subprocess.run(args, check=True, stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout.strip()
+
+
+def swap_paths(text):
+    lines = text.strip().splitlines()
+    if not lines or not lines[0].startswith('Filename'):
+        raise ValueError('Cannot determine active swap configuration')
+    paths = [line.split()[0] for line in lines[1:] if line.strip()]
+    if any(not path.startswith('/') or any(ch in path for ch in '\\ \t\n') for path in paths):
+        raise ValueError('Unsupported swap path; inspect configuration manually')
+    return paths
+
+
+def swap_headroom(meminfo, swaps):
+    values = {}
+    for line in meminfo.splitlines():
+        name, _, rest = line.partition(':')
+        if rest.strip():
+            values[name] = int(rest.split()[0])
+    used = sum(int(line.split()[3]) for line in swaps.strip().splitlines()[1:])
+    if values.get('MemAvailable', 0) < used + 512 * 1024:
+        raise ValueError('Insufficient free memory to disable swap safely (512 MiB reserve required)')
+
+
+def unit_text(uid, gid):
+    return f'''[Unit]
+Description=Non-swappable volatile gnotes database key storage
+Before=multi-user.target
+
+[Mount]
+What=tmpfs
+Where=/run/gnotes/keys
+Type=tmpfs
+Options=noswap,nodev,nosuid,noexec,size=64K,mode=0700,uid={uid},gid={gid}
+
+[Install]
+WantedBy=multi-user.target
+'''
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--user', default='rick')
+    parser.add_argument('--disable-swap', action='store_true',
+                        help='disable all current/configured host swap so decrypted process memory cannot reach disk')
+    args = parser.parse_args()
+    if os.geteuid() != 0:
+        raise ValueError('Run with sudo; root privileges are needed for swap and the noswap mount')
+    account = pwd.getpwnam(args.user)
+    if account.pw_uid == 0:
+        raise ValueError('Application owner must be an unprivileged account')
+    swaps = pathlib.Path('/proc/swaps').read_text()
+    paths = swap_paths(swaps)
+    if paths and not args.disable_swap:
+        raise ValueError('Active swap found. Review effects, then use --disable-swap to keep key/plaintext memory off disk')
+    # Include inactive fstab swaps so a later boot cannot silently re-enable them.
+    configured = []
+    for line in pathlib.Path('/etc/fstab').read_text().splitlines():
+        fields = line.split()
+        if len(fields) >= 3 and not fields[0].startswith('#') and fields[2] == 'swap':
+            if not fields[0].startswith('/'):
+                raise ValueError('Non-path fstab swap needs manual review before activation')
+            configured.append(fields[0])
+    if configured and not args.disable_swap:
+        raise ValueError('Configured boot-time swap found; explicit --disable-swap is required')
+    for parent in (pathlib.Path('/run/gnotes'), MOUNT):
+        if parent.is_symlink():
+            raise ValueError('Runtime paths must not be symlinks')
+    if MOUNT.exists() and not os.path.ismount(MOUNT) and any(MOUNT.iterdir()):
+        raise ValueError('Refusing to cover existing files with a new runtime mount')
+    destination = pathlib.Path('/etc/systemd/system') / UNIT
+    content = unit_text(account.pw_uid, account.pw_gid)
+    if destination.exists() and destination.read_text() != content:
+        raise ValueError('Existing mount unit differs; inspect it before replacing')
+    if args.disable_swap:
+        swap_headroom(pathlib.Path('/proc/meminfo').read_text(), swaps)
+        # Mask only discovered swap units. The swap file is preserved; no data
+        # file is wiped or resized. This applies to the whole host, not one app.
+        for path in sorted(set(paths + configured)):
+            unit = run('systemd-escape', '--path', '--suffix=swap', path)
+            run('systemctl', 'mask', unit)
+        run('swapoff', '--all')
+    if swap_paths(pathlib.Path('/proc/swaps').read_text()):
+        raise ValueError('Swap is still active; no key storage was configured')
+    MOUNT.mkdir(parents=True, mode=0o700, exist_ok=True)
+    destination.write_text(content)
+    destination.chmod(0o644)
+    run('systemctl', 'daemon-reload')
+    run('systemctl', 'enable', '--now', UNIT)
+    filesystem = run('findmnt', '--mountpoint', str(MOUNT), '--noheadings', '--output', 'FSTYPE,OPTIONS')
+    if not filesystem.startswith('tmpfs ') or 'noswap' not in filesystem.split(None, 1)[1].split(','):
+        raise ValueError('Runtime mount is not verified non-swappable tmpfs')
+    os.chown(MOUNT, account.pw_uid, account.pw_gid)
+    MOUNT.chmod(0o700)
+    print('Verified: host swap disabled and masked; private noswap key storage enabled at boot.')
+    print('No encryption key was generated/read and no application data was changed.')
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (ValueError, KeyError, OSError, subprocess.SubprocessError) as error:
+        # These errors never contain a key: this setup command never handles one.
+        print('prepare-gnotes-volatile-host: ' + str(error), file=sys.stderr)
+        sys.exit(1)

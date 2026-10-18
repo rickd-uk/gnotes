@@ -55,7 +55,7 @@ def environment(values):
     env.update(values)
     # Pass only storage paths/policy, never arbitrary app secrets, through to
     # encrypted snapshot verification during Restic setup and replication.
-    for name in ('GNOTES_DATABASE_KEY_FILE', 'GNOTES_REQUIRE_ENCRYPTION', 'GNOTES_STORAGE_TOOL'):
+    for name in ('GNOTES_DATABASE_KEY_FILE', 'GNOTES_REQUIRE_ENCRYPTION', 'GNOTES_VOLATILE_KEY', 'GNOTES_STORAGE_TOOL'):
         if name in os.environ:
             env[name] = os.environ[name]
     env['GNOTES_RESTIC'] = str(RESTIC)

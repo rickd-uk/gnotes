@@ -120,6 +120,7 @@ Supported environment variables:
 | `DATABASE_PATH` | `gnotes.db` | SQLite database location |
 | `GNOTES_DATABASE_KEY_FILE` | none | Private generated 256-bit hex key file; enables SQLCipher for the whole database |
 | `GNOTES_REQUIRE_ENCRYPTION` | unset | Set to `1` after migration to reject startup without a database key |
+| `GNOTES_VOLATILE_KEY` | unset | Set to `1` for owner-provisioned RAM-only keys; disables core dumps and rejects disk-backed keys or active swap |
 | `BACKUP_DIRECTORY` | `/var/backups/gnotes` | Destination used by the backup script |
 | `GNOTES_SECURE_COOKIES` | `false` | Set to `true` behind production HTTPS |
 | `GNOTES_SETUP_TOKEN` | none | Required for first-admin setup when accessed remotely |

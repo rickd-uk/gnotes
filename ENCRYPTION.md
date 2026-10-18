@@ -36,10 +36,66 @@ A compromised unlocked server can read all retained notes and keys. This is
 unchanged by key rotation. Optional per-account end-to-end encryption remains
 stage 2. A trustworthy client is needed against an actively malicious web server.
 
+## Selected deployment: key kept off Kagoya's drive
+
+The owner selected volatile key storage on 2026-10-18. Kagoya currently has an
+unencrypted swap file, so ordinary tmpfs alone is insufficient. The deployment
+profile sets `GNOTES_VOLATILE_KEY=1`: app and database commands disable their core
+dumps before reading a key, require a tmpfs/ramfs key file, and refuse active
+swap. This protects both the key file and copies of the key/plaintext in process
+memory. Do not weaken this guard merely to make startup succeed.
+
+One-time root preparation (script handles no key or note data):
+
+```sh
+sudo python3 deploy/scripts/prepare-gnotes-volatile-host --user rick --disable-swap
+```
+
+This disables swap for the entire host after checking memory headroom, masks the
+discovered swap units against boot-time reactivation, and installs a boot-enabled
+64 KiB `noswap` tmpfs mount at `/run/gnotes/keys`, owned by the app account with
+mode 0700. The existing swap file is preserved, not wiped; old plaintext remnants
+must be considered historical exposure. Review RAM capacity for all host apps.
+The script refuses unsupported swap configurations or conflicting mount units.
+No key is generated or read by this root step. Re-enabling swap is incompatible
+with this profile; startup and operational checks will refuse it.
+
+After activation, the container mounts `/run/gnotes/keys` read only at
+`/run/gnotes` and receives:
+
+```sh
+GNOTES_DATABASE_KEY_FILE=/run/gnotes/database.key
+GNOTES_REQUIRE_ENCRYPTION=1
+GNOTES_VOLATILE_KEY=1
+```
+
+Host-side backup/control jobs receive the host path
+`GNOTES_DATABASE_KEY_FILE=/run/gnotes/keys/database.key` in their private storage
+configuration, along with both policy flags. Configure the app Quadlet with
+`ConditionPathExists=/run/gnotes/keys/database.key` in `[Unit]`,
+`Ulimit=core=0:0` in `[Container]`, and `LimitCORE=0` plus `MemorySwapMax=0` in
+`[Service]`. Apply those service memory protections to backup/control jobs too.
+The host mount is recreated empty at boot. No startup job retrieves the key
+automatically from another service or a file on the server.
+
+To unlock after a Kagoya reboot, run this on the owner's trusted machine:
+
+```sh
+ssh -T KAG '/home/rick/apps/gnotes/bin/unlock-gnotes-podman' < /PRIVATE/gnotes-database.key
+```
+
+The helper checks non-swappable storage before reading stdin, writes a private
+candidate only in RAM, verifies it against the encrypted database, atomically
+publishes the correct key and starts gnotes. A wrong key cannot replace an
+existing correct key. App restarts and updates can reuse the key while the host
+remains up. All accounts wait after a host reboot until the owner unlocks.
+`--stage-only` is restricted to the initial plaintext migration, refuses an
+existing runtime key, and neither starts nor changes the application.
+
 ## Build and validation
 
 Native encryption builds require Go 1.25+, a C compiler, and OpenSSL development
-headers/libraries. Use `make build`, `make check`, `make test-encryption`, and
+headers/libraries. Use `make build`, `make check`, `make test-encryption`,
 `make test-operations`, and `make test-browser` (the last requires ChromeDriver on port 19515). The Makefile
 supplies `GOFLAGS=-tags=sqlite_fts5` and
 `CGO_CFLAGS='-O2 -g -ftls-model=initial-exec'`. FTS5 is required for note search;

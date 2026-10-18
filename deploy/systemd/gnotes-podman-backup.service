@@ -5,6 +5,7 @@ Description=Create and verify a gnotes Podman database backup
 Type=oneshot
 EnvironmentFile=-%h/.config/gnotes/storage.env
 LimitCORE=0
+MemorySwapMax=0
 ExecStart=%h/apps/gnotes/bin/backup-gnotes-podman
 UMask=0077
 

@@ -72,6 +72,7 @@ func TestEncryptedAccountNoteFlows(t *testing.T) {
 }
 
 func TestDatabaseKeyAndCommands(t *testing.T) {
+	t.Setenv("GNOTES_VOLATILE_KEY", "")
 	t.Setenv("GNOTES_DATABASE_KEY_FILE", "")
 	t.Setenv("GNOTES_REQUIRE_ENCRYPTION", "1")
 	if _, err := databaseKey(); err == nil {
@@ -103,5 +104,14 @@ func TestDatabaseKeyAndCommands(t *testing.T) {
 		if err := runDatabaseCommand(context.Background(), args, &out); err == nil {
 			t.Fatal("invalid command accepted", args)
 		}
+	}
+}
+
+func TestDatabaseKeyVolatileModeRequiresKey(t *testing.T) {
+	t.Setenv("GNOTES_DATABASE_KEY_FILE", "")
+	t.Setenv("GNOTES_REQUIRE_ENCRYPTION", "")
+	t.Setenv("GNOTES_VOLATILE_KEY", "1")
+	if _, err := databaseKey(); err == nil {
+		t.Fatal("volatile mode allowed startup without a key")
 	}
 }

@@ -15,12 +15,21 @@ import (
 func databaseKey() ([]byte, error) {
 	path := os.Getenv("GNOTES_DATABASE_KEY_FILE")
 	if path != "" {
-		return storage.ReadKey(path)
+		return readDatabaseKey(path)
 	}
-	if os.Getenv("GNOTES_REQUIRE_ENCRYPTION") == "1" {
+	if os.Getenv("GNOTES_REQUIRE_ENCRYPTION") == "1" || os.Getenv("GNOTES_VOLATILE_KEY") == "1" {
 		return nil, errors.New("database encryption is required; supply GNOTES_DATABASE_KEY_FILE")
 	}
 	return nil, nil
+}
+
+func readDatabaseKey(path string) ([]byte, error) {
+	if os.Getenv("GNOTES_VOLATILE_KEY") == "1" {
+		if err := storage.CheckVolatileKey(path); err != nil {
+			return nil, err
+		}
+	}
+	return storage.ReadKey(path)
 }
 
 // Database commands operate on explicit files, never start HTTP, and never
@@ -56,13 +65,13 @@ func runDatabaseCommand(ctx context.Context, args []string, output io.Writer) er
 	if *source == "" {
 		return errors.New("database command requires --source DATABASE_FILE")
 	}
-	if *keyFile == "" && os.Getenv("GNOTES_REQUIRE_ENCRYPTION") == "1" {
+	if *keyFile == "" && (os.Getenv("GNOTES_REQUIRE_ENCRYPTION") == "1" || os.Getenv("GNOTES_VOLATILE_KEY") == "1") {
 		return errors.New("database encryption is required; supply --key-file")
 	}
 	var key []byte
 	if *keyFile != "" {
 		var err error
-		key, err = storage.ReadKey(*keyFile)
+		key, err = readDatabaseKey(*keyFile)
 		if err != nil {
 			return err
 		}

@@ -34,6 +34,7 @@ test-encryption:
 	deploy/tests/encryption-rehearsal.sh
 test-operations:
 	python3 -m unittest discover -s deploy/tests -p 'backup_control_test.py'
+	python3 -m unittest discover -s deploy/tests -p 'volatile_key_test.py'
 	shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/backup-gnotes-podman deploy/scripts/replicate-gnotes-wasabi deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/restore-gnotes-podman deploy/scripts/update-gnotes deploy/scripts/update-gnotes-podman deploy/tests/*.sh
 	deploy/tests/backup-gnotes-podman-test.sh
 	deploy/tests/replicate-gnotes-wasabi-test.sh

@@ -23,6 +23,7 @@ class BackupControlTest(unittest.TestCase):
         with patch.dict(os.environ, {
             'GNOTES_DATABASE_KEY_FILE': '/run/gnotes/database.key',
             'GNOTES_REQUIRE_ENCRYPTION': '1',
+            'GNOTES_VOLATILE_KEY': '1',
             'GNOTES_STORAGE_TOOL': '/opt/gnotes/gnotes',
             'GNOTES_SETUP_TOKEN': 'private-setup',
             'RESTIC_PASSWORD': 'unrelated-password',
@@ -30,6 +31,7 @@ class BackupControlTest(unittest.TestCase):
             env = control.environment({'RESTIC_PASSWORD': 'chosen-backup-password'})
         self.assertEqual(env['GNOTES_DATABASE_KEY_FILE'], '/run/gnotes/database.key')
         self.assertEqual(env['GNOTES_REQUIRE_ENCRYPTION'], '1')
+        self.assertEqual(env['GNOTES_VOLATILE_KEY'], '1')
         self.assertEqual(env['GNOTES_STORAGE_TOOL'], '/opt/gnotes/gnotes')
         self.assertNotIn('GNOTES_SETUP_TOKEN', env)
         self.assertEqual(env['RESTIC_PASSWORD'], 'chosen-backup-password')

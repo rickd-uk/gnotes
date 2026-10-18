@@ -139,6 +139,11 @@ running_binary="$(podman exec gnotes sha256sum /app/gnotes | cut -d ' ' -f 1)"
 
 install -d "$app_directory/bin"
 install -m 0755 "$package_directory/gnotes" "$app_directory/bin/gnotes-db"
+for helper in prepare-gnotes-volatile-host unlock-gnotes-podman; do
+    if [ -x "$package_directory/bin/$helper" ]; then
+        install -m 0755 "$package_directory/bin/$helper" "$app_directory/bin/$helper"
+    fi
+done
 install -m 0755 "$package_directory/bin/restore-gnotes-podman" "$app_directory/bin/restore-gnotes-podman"
 install -m 0755 "$package_directory/bin/backup-gnotes-podman" "$app_directory/bin/backup-gnotes-podman"
 if [ -x "$package_directory/bin/replicate-gnotes-wasabi" ]; then

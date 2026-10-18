@@ -4,6 +4,7 @@ Description=Private gnotes backup setup and scheduling control
 [Service]
 EnvironmentFile=-%h/.config/gnotes/storage.env
 LimitCORE=0
+MemorySwapMax=0
 ExecStart=%h/apps/gnotes/bin/gnotes-backup-control
 Restart=on-failure
 RestartSec=5

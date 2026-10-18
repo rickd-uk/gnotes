@@ -51,6 +51,7 @@ jobs:
           go test -race ./internal/storage
           go vet ./...
           python3 -m unittest discover -s deploy/tests -p "backup_control_test.py"
+          python3 -m unittest discover -s deploy/tests -p "volatile_key_test.py"
           shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/backup-gnotes-podman deploy/scripts/replicate-gnotes-wasabi deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/restore-gnotes-podman deploy/scripts/update-gnotes deploy/scripts/update-gnotes-podman deploy/tests/*.sh
           deploy/tests/backup-gnotes-podman-test.sh
           deploy/tests/replicate-gnotes-wasabi-test.sh
@@ -81,6 +82,7 @@ jobs:
           install -m 0755 deploy/scripts/replicate-gnotes-wasabi "$package_dir/bin/replicate-gnotes-wasabi"
           install -m 0755 deploy/scripts/gnotes-backup-control "$package_dir/bin/gnotes-backup-control"
           install -m 0755 deploy/scripts/update-gnotes-podman "$package_dir/bin/update-gnotes-podman"
+          install -m 0755 deploy/scripts/prepare-gnotes-volatile-host deploy/scripts/unlock-gnotes-podman "$package_dir/bin/"
           printf '%s\n' "$RELEASE_VERSION" > "$package_dir/VERSION"
           cp LICENSE "$package_dir/LICENSE"
           cp THIRD_PARTY_NOTICES.txt ENCRYPTION.md "$package_dir/"
@@ -93,7 +95,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_VERSION" \
+          prerelease=""
+          case "$RELEASE_VERSION" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$RELEASE_VERSION" $prerelease \
             "dist/gnotes_${RELEASE_VERSION}_linux_amd64.tar.gz" \
             dist/SHA256SUMS \
             --verify-tag \
