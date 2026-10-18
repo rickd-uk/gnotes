@@ -19,7 +19,7 @@ The operational Wasabi egress fix is installed on Kagoya and included in v0.7.55
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.7.63`. It uses SQLite in WAL mode, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.8.0-rc.3`. It uses SQLCipher-encrypted SQLite in WAL mode, encrypted retained local backups, an owner-supplied RAM-only key, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. Rollback images must support encryption. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -116,12 +116,12 @@ Deployed in v0.7.48: Profile backup/recovery downloads for personal encrypted no
 
 ## Offline access and encryption
 
-Two-stage encryption plan saved on 2026-10-18. Stage-one implementation and final verification safeguards are committed locally through v0.8.0-rc.2; production v0.7.63 is unchanged. See [ENCRYPTION.md](ENCRYPTION.md) for the implemented format, key provisioning and recovery procedure.
+Two-stage encryption plan saved on 2026-10-18. Stage one is deployed as v0.8.0-rc.3: the production database and retained local database snapshots are encrypted, and owner-key recovery has been verified. See [ENCRYPTION.md](ENCRYPTION.md) for the implemented format, key provisioning and recovery procedure.
 
 1. **Now: database encryption and encrypted backups for everyone.** Encrypt the live SQLite database, including WAL/journal data, and local server backups; retain encrypted off-server backups. All accounts keep their normal login and workflow. Keep a separate recovery key safely offline with the owner. Before implementation, decide whether the server restarts automatically using an accessible key or the owner supplies the unlock key after each restart. An automatically usable key on the same stolen drive weakens drive-theft protection. An attacker controlling the unlocked server can still read all retained notes. Include existing-data migration, search indexes, temporary files, backup/restore/update tooling, old plaintext backup retention and wrong/missing-key recovery tests in the implementation design.
 2. **Later: optional end-to-end encryption for the owner's account.** Encrypt and decrypt notes on the owner's devices, with decryption keys unavailable to the server; other users retain the standard account experience unless they opt in. Design encrypted notes/drafts, client-side search/rendering, device access, passphrase changes, recovery keys and backups together. A login-password reset alone cannot recover encrypted notes; losing all unlocking/recovery material loses access. Plan retirement of older server-readable copies and backups. Keep stage-one encryption in place underneath this feature.
 
-Do not add a separate encrypted-archive workflow. Regular server-side key rotation does not hide past notes while the server retains the ability to decrypt them. Stage 1 is implemented; the owner selected volatile storage on 2026-10-18. Production activation requires the staged one-time root swap/noswap setup, key provisioning with an owner-held recovery copy, a verified cutover/rollback plan and old plaintext-backup handling. See PROGRESS for the pending sudo action. Stage 2 and Simple mode have not started.
+Do not add a separate encrypted-archive workflow. Regular server-side key rotation does not hide past notes while the server retains the ability to decrypt them. Stage 1 is active; the owner selected volatile storage on 2026-10-18. Root setup, RAM-only key provisioning, verified cutover, retained local backup conversion, isolated recovery and missing/wrong-key unlocking checks are complete. Old freed disk blocks/provider snapshots are not securely erased, and historical off-server backups remain unchanged. Keep an additional offline owner key copy. Stage 2 and Simple mode have not started. The owner deleted the three other existing accounts and their notes, retaining `rick` as admin, and enabled new-user signup without invitations; Simple mode should still default on for future regular accounts.
 
 Read-only offline snapshots are deployed in v0.7.45: opt-in device encryption, separate unlock passphrase, manual online refresh, local search/collections, and removal on sign-out. Offline editing and conflict synchronization remain out of scope.
 

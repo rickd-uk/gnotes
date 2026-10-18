@@ -3,6 +3,9 @@
 Stage 1 adds optional deployment-wide SQLCipher encryption for every account.
 It does not add a user setting or end-to-end encryption. Production activation
 is a separate migration; installing this code does not silently convert data.
+Kagoya production was activated on 2026-10-18 with `v0.8.0-rc.3`; the live
+database and retained local database backups are encrypted. See [PROGRESS.md](PROGRESS.md)
+for deployment checks and historical-backup limitations.
 
 ## Protection and key ownership
 
@@ -38,8 +41,9 @@ stage 2. A trustworthy client is needed against an actively malicious web server
 
 ## Selected deployment: key kept off Kagoya's drive
 
-The owner selected volatile key storage on 2026-10-18. Kagoya currently has an
-unencrypted swap file, so ordinary tmpfs alone is insufficient. The deployment
+The owner selected volatile key storage on 2026-10-18. Kagoya had an active
+unencrypted swap file, so ordinary tmpfs alone was insufficient; activation
+disabled host swap and installed the dedicated noswap mount. The deployment
 profile sets `GNOTES_VOLATILE_KEY=1`: app and database commands disable their core
 dumps before reading a key, require a tmpfs/ramfs key file, and refuse active
 swap. This protects both the key file and copies of the key/plaintext in process
@@ -83,6 +87,11 @@ To unlock after a Kagoya reboot, run this on the owner's trusted machine:
 ```sh
 ssh -T KAG '/home/rick/apps/gnotes/bin/unlock-gnotes-podman' < /PRIVATE/gnotes-database.key
 ```
+
+On the owner's current workstation, the key path is
+`/home/rick/.config/gnotes/recovery/database-v1.key`. It is outside this checkout;
+retain an additional offline copy. Losing every copy of this file loses access
+to the encrypted data, regardless of the account password.
 
 The helper checks non-swappable storage before reading stdin, writes a private
 candidate only in RAM, verifies it against the encrypted database, atomically

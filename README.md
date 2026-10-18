@@ -7,7 +7,7 @@ See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command upd
 See [PROGRESS.md](PROGRESS.md) for the current deployed release, completed work, and future plans.
 Production runs on a Kagoya VPS as a rootless Podman container with a validated daily backup timer; the Ubuntu/systemd instructions below are an alternative installation layout.
 See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritized future work.
-See [ENCRYPTION.md](ENCRYPTION.md) for deployment-wide database encryption, key ownership, migration and recovery. Encryption must be activated explicitly; the documented v0.7.63 production database has not been migrated.
+See [ENCRYPTION.md](ENCRYPTION.md) for deployment-wide database encryption, key ownership, migration and recovery. Kagoya production uses SQLCipher for the live database and retained local database backups as of v0.8.0-rc.3, with an owner-supplied RAM-only server key. Other installations require explicit activation.
 
 ## Current features
 

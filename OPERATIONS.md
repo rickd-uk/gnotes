@@ -20,11 +20,17 @@ Never commit or attach `.env`, databases, backups, private keys, passwords, or s
 
 ## Database encryption activation
 
-See [ENCRYPTION.md](ENCRYPTION.md) for the stage-one migration and replacement-host recovery procedure. Production v0.7.63 is not yet encrypted. An encryption-capable release can first run against the existing database unchanged; do not configure a key against a plaintext database or swap databases while users can still write.
+See [ENCRYPTION.md](ENCRYPTION.md) for the stage-one migration and replacement-host recovery procedure. Production v0.8.0-rc.3 was encrypted on 2026-10-18, including all retained local database snapshots. The owner provisions `/run/gnotes/keys/database.key` after every host reboot; it remains in private noswap RAM storage and is mounted read only into the app. Host swap is disabled/masked; app and backup/control core dumps are disabled. The recovery key lives on the owner's workstation at `/home/rick/.config/gnotes/recovery/database-v1.key`, outside this checkout; retain an additional offline copy.
+
+After a Kagoya reboot, run on the owner's workstation:
+
+```sh
+ssh -T KAG '/home/rick/apps/gnotes/bin/unlock-gnotes-podman' < /home/rick/.config/gnotes/recovery/database-v1.key
+```
 
 The new release build requires OpenSSL 3 and compatible glibc; its Podman image uses Ubuntu 24.04. The updater also installs the matching binary as `~/apps/gnotes/bin/gnotes-db` for host-side `db encrypt`, `db snapshot` and `db verify` commands. Standard `sqlite3` and Python's sqlite3 cannot open SQLCipher databases. After activation, always supply `GNOTES_DATABASE_KEY_FILE` and `GNOTES_REQUIRE_ENCRYPTION=1` to operational commands as well as the application. Never put the key itself in environment variables or command arguments.
 
-Rootless backup, Wasabi and backup-control units read optional `~/.config/gnotes/storage.env` (install the updated units, keep that file mode 0600 in a private directory, and reload/restart the relevant services). It contains only the host key-file path, `GNOTES_REQUIRE_ENCRYPTION=1`, and `GNOTES_STORAGE_TOOL=/home/rick/apps/gnotes/bin/gnotes-db`. Container paths differ from host paths: configure the app's read-only key mount separately. Interactive SSH commands do not inherit systemd unit settings; load the same private storage configuration before invoking encrypted backup/update/restore commands. Database key loss is unrecoverable without another key copy; the Profile Wasabi recovery file is not a substitute.
+Rootless backup, Wasabi and backup-control units read optional `~/.config/gnotes/storage.env` (installed in production; keep that file mode 0600 in a private directory, and reload/restart services after changes). It contains only the host key-file path, `GNOTES_REQUIRE_ENCRYPTION=1`, `GNOTES_VOLATILE_KEY=1`, and `GNOTES_STORAGE_TOOL=/home/rick/apps/gnotes/bin/gnotes-db`. Container paths differ from host paths: configure the app's read-only key mount separately. Interactive SSH commands do not inherit systemd unit settings; use `set -a; . ~/.config/gnotes/storage.env; set +a` before invoking encrypted backup/update/restore commands. Database key loss is unrecoverable without another key copy; the Profile Wasabi recovery file is not a substitute.
 
 Retain an encryption-capable rollback image and the matching key. Inventory and migrate old plaintext local backups before retiring them, and verify a restore with the owner's offline key copy before production cutover. Existing plaintext compatibility paths remain for installations that have not migrated. The isolated `make test-encryption` rehearsal exercises migration, server restart, encrypted daily backup and restoration without touching production.
 
