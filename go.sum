@@ -1,3 +1,5 @@
+github.com/0xCarbon/go-sqlite3 v1.15.1 h1:jfVViKUBRaMvau068l8jhIbkf3epBBGDlw90kcc+/GM=
+github.com/0xCarbon/go-sqlite3 v1.15.1/go.mod h1:ANMAfeds95Wt2uetNKPPPenXJ6XqHK53ltmgttIvtnQ=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/chroma/v2 v2.2.0/go.mod h1:vf4zrexSH54oEjJ7EdB65tGNHmH3pGZmVkgTP5RHvAs=

@@ -4,11 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
-	"strings"
 
 	_ "github.com/glebarez/go-sqlite"
+	"gnotes/internal/storage"
 )
 
 var DB *sql.DB
@@ -16,42 +15,24 @@ var DB *sql.DB
 const renderedContentCacheVersion = "3"
 
 func InitDB(filepath string) {
-	var err error
-	separator := "?"
-	if strings.Contains(filepath, "?") {
-		separator = "&"
-	}
-	pragmas := url.Values{"_pragma": {"busy_timeout(5000)", "foreign_keys(ON)", "synchronous(FULL)"}}
-	DB, err = sql.Open("sqlite", filepath+separator+pragmas.Encode())
-	if err != nil {
+	if err := InitDBWithKey(filepath, nil); err != nil {
 		log.Fatal(err)
 	}
-	// A single connection avoids SQLite writer contention inside one process.
-	// Per-connection DSN pragmas preserve safety settings if cancellation
-	// causes database/sql to discard and replace that connection.
-	DB.SetMaxOpenConns(1)
-	DB.SetMaxIdleConns(1)
-	if err := DB.Ping(); err != nil {
-		log.Fatal(err)
-	}
-	if _, err := DB.Exec(`
-  PRAGMA busy_timeout = 5000;
-  PRAGMA foreign_keys = ON;
-  PRAGMA synchronous = FULL;
-`); err != nil {
-		log.Fatal(err)
-	}
-	if filepath != ":memory:" {
-		var journalMode string
-		if err := DB.QueryRow("PRAGMA journal_mode = WAL").Scan(&journalMode); err != nil || journalMode != "wal" {
-			log.Fatalf("could not enable SQLite WAL mode: mode=%q error=%v", journalMode, err)
-		}
-	}
-	var integrity string
-	if err := DB.QueryRow("PRAGMA quick_check").Scan(&integrity); err != nil || integrity != "ok" {
-		log.Fatalf("SQLite integrity check failed: result=%q error=%v", integrity, err)
-	}
+}
 
+// InitDBWithKey opens the database with explicit encryption before migrations.
+func InitDBWithKey(filepath string, key []byte) error {
+	var err error
+	DB, err = storage.Open(filepath, key, "rwc")
+	if err != nil {
+		return err
+	}
+	initSchema(filepath)
+	return nil
+}
+
+func initSchema(filepath string) {
+	var err error
 	setupSQL := `
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

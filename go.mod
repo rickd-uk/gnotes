@@ -3,10 +3,12 @@ module gnotes
 go 1.25.0
 
 require (
+	github.com/0xCarbon/go-sqlite3 v1.15.1
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/yuin/goldmark v1.7.17
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	golang.org/x/crypto v0.41.0
+	golang.org/x/sys v0.35.0
 )
 
 require (
@@ -16,7 +18,6 @@ require (
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	golang.org/x/sys v0.35.0 // indirect
 	modernc.org/libc v1.37.6 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.7.2 // indirect

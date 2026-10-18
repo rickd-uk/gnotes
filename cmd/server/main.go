@@ -87,6 +87,12 @@ func mdToHTML(raw string) string {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "db" {
+		if err := runDatabaseCommand(context.Background(), os.Args[2:], os.Stdout); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
@@ -98,7 +104,14 @@ func run() error {
 	if databasePath == "" {
 		databasePath = "gnotes.db"
 	}
-	db.InitDB(databasePath)
+	key, err := databaseKey()
+	if err != nil {
+		return err
+	}
+	defer clear(key)
+	if err := db.InitDBWithKey(databasePath, key); err != nil {
+		return fmt.Errorf("database startup: %w", err)
+	}
 	defer db.DB.Close()
 	if err := dictionary.Load(); err != nil {
 		return fmt.Errorf("offline dictionary: %w", err)
