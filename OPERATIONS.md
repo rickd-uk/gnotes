@@ -47,7 +47,7 @@ Never commit or attach `.env`, databases, backups, private keys, passwords, or s
 
 ## Database encryption activation
 
-See [ENCRYPTION.md](ENCRYPTION.md) for the stage-one migration and replacement-host recovery procedure. Production was encrypted in v0.8.0-rc.3 on 2026-10-18 and now runs v0.8.0-rc.5, including all retained local database snapshots. The owner provisions `/run/gnotes/keys/database.key` after every host reboot; it remains in private noswap RAM storage and is mounted read only into the app. Host swap is disabled/masked; app and backup/control core dumps are disabled. The recovery key lives on the owner's workstation at `/home/rick/.config/gnotes/recovery/database-v1.key`, outside this checkout; retain an additional offline copy.
+See [ENCRYPTION.md](ENCRYPTION.md) for the stage-one migration and replacement-host recovery procedure. Production was encrypted in v0.8.0-rc.3 on 2026-10-18 and now runs v0.8.0-rc.6, including all retained local database snapshots. The owner provisions `/run/gnotes/keys/database.key` after every host reboot; it remains in private noswap RAM storage and is mounted read only into the app. Host swap is disabled/masked; app and backup/control core dumps are disabled. The recovery key lives on the owner's workstation at `/home/rick/.config/gnotes/recovery/database-v1.key`, outside this checkout; retain an additional offline copy.
 
 After a Kagoya reboot, run on the owner's workstation:
 
