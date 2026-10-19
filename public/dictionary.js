@@ -339,6 +339,7 @@
   }
 
   function refreshSelectionActions() {
+    if (!GnotesFeatures.enabled("writing_tools")) { hideSelectionActions(); return; }
     hideSelectionActions();
     if (!currentUser || document.querySelector('dialog[open]')) return;
     selectionWord = selectedNoteWord();
@@ -386,6 +387,7 @@
   window.visualViewport?.addEventListener('resize', refreshSelectionActions);
   window.visualViewport?.addEventListener('scroll', refreshSelectionActions);
   document.addEventListener('contextmenu', (event) => {
+    if (!GnotesFeatures.enabled('writing_tools')) return;
     closeContext();
     // Long presses and selection handles belong to the phone's native text
     // controls. Some mobile browsers report long presses as MouseEvents.

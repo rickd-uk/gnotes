@@ -45,6 +45,17 @@ func initSchema(filepath string) {
     created_at DATETIME NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS feature_preferences (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    organization INTEGER NOT NULL DEFAULT 1,
+    writing_tools INTEGER NOT NULL DEFAULT 1,
+    note_controls INTEGER NOT NULL DEFAULT 1,
+    appearance INTEGER NOT NULL DEFAULT 1,
+    advanced_editing INTEGER NOT NULL DEFAULT 1,
+    offline_reading INTEGER NOT NULL DEFAULT 1,
+    theme TEXT NOT NULL DEFAULT 'light'
+  );
+
   CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 	user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

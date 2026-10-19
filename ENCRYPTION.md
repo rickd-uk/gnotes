@@ -124,6 +124,43 @@ Releases are built on Ubuntu 24.04 with OpenSSL 3 and run in a matching Ubuntu
 Ubuntu 26.04 host was checked). An arbitrary locally built binary must not be
 copied to a host with an older incompatible runtime.
 
+## Repeatable recovery test
+
+Build the encryption-capable binary with `make build`, then test a completed
+`.db` or `.db.gz` backup using a matching offline copy of the database key:
+
+```sh
+./gnotes db recovery-test --source /BACKUPS/gnotes-daily-YYYYMMDDTHHMMSSZ.db.gz --key-file /OFFLINE-COPY/gnotes-database.key
+```
+
+The command reads the source and key, stages the encrypted backup privately,
+rejects missing/wrong keys, creates a fresh encrypted recovery database, compares
+all stored rows, checks integrity/schema, commits a test write, and closes/reopens
+the restored copy to verify that write. It reports account/note counts without
+printing note contents or key bytes. Temporary recovery files are removed on
+exit. It does not start HTTP, migrate the source schema, stop the app, restore
+over the live database, or change the source backup/key. Gzip checksums/truncation
+are validated before recovery. Use completed backups rather than a raw copy of
+a live database with uncheckpointed WAL transactions.
+
+SQLCipher may log expected decryption errors while the wrong-key probe runs;
+only a final “Recovery test passed” and exit status zero indicate success.
+A successful test proves this backup and this key work together; it does not
+prove that another offline key copy or a newer backup works.
+
+The owner workstation test on 2026-10-19 passed using the retained
+`backups/gnotes-wasabi/gnotes-daily-20261018T080236Z.db.gz` archive and owner-held
+`/home/rick/.config/gnotes/recovery/database-v1.key`: one account, 51 notes.
+The production service and stored artifacts were unchanged. Test an additional
+physical offline copy separately.
+
+In **Profile → Backup & recovery**, admins can test the latest local backup or
+download/test the latest configured Wasabi snapshot. Those tests use the
+server's current key, not the owner's offline copy. Recorded evidence names the
+archive/snapshot, SHA-256 and completion time; it does not certify newer notes.
+The browser-only personal backup test uses the separate personal recovery key,
+reads selected files locally, and imports no notes.
+
 ## Generate and test a recovery key
 
 On a trusted machine, with a private existing directory outside the checkout:

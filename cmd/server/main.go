@@ -134,6 +134,7 @@ func run() error {
 	mux.HandleFunc("/api/auth/login", loginHandler)
 	mux.HandleFunc("/api/auth/config", authConfigHandler)
 	mux.HandleFunc("/api/auth/me", protect(meHandler, false))
+	mux.HandleFunc("/api/features", protect(featurePreferencesHandler, false))
 	mux.HandleFunc("/api/auth/recovery/request", recovery.requestReset)
 	mux.HandleFunc("/api/auth/recovery/reset", recovery.resetPassword)
 	mux.HandleFunc("/api/auth/email/request", protect(recovery.requestVerification, true))

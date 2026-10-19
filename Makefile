@@ -30,7 +30,7 @@ check: test
 test-browser:
 	GNOTES_BROWSER_CHECK=1 go test ./... -run '$(BROWSER_TEST)' -count=1
 test-encryption:
-	go test ./internal/storage ./cmd/server -run 'Test(Encrypted|DatabaseKey|DatabaseCommand|KeyFiles)' -count=1 -v
+	go test ./internal/storage ./cmd/server -run 'Test(Encrypted|DatabaseKey|DatabaseCommand|DatabaseRecovery|KeyFiles)' -count=1 -v
 	deploy/tests/encryption-rehearsal.sh
 test-operations:
 	python3 -m unittest discover -s deploy/tests -p 'backup_control_test.py'

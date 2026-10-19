@@ -37,7 +37,7 @@
     catch { status.textContent = 'Could not save shortcuts in this browser.'; }
   }
   function add(id, name, group, run, available = () => true) {
-    if (!actions.has(id)) actions.set(id, { id, name, group, run, available });
+    if (!actions.has(id)) actions.set(id, { id, name, group, run, available: () => GnotesFeatures.actionAllowed(id) && (!actions.get(id)?.element || GnotesFeatures.elementAllowed(actions.get(id).element)) && available() });
   }
   function noteID() {
     const focused = document.activeElement?.closest('.note-card');
@@ -195,6 +195,7 @@
           el.focus();
         } else el.click();
       }, available);
+      actions.get(id).element = el;
     });
   }
   function keyFor(event) {
@@ -210,6 +211,7 @@
     let lastGroup = '';
     const query = search.value.toLowerCase();
     for (const action of [...actions.values()].sort((a,b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name))) {
+      if (!GnotesFeatures.actionAllowed(action.id) || (action.element && !GnotesFeatures.elementAllowed(action.element))) continue;
       if (!`${action.group} ${action.name} ${bindings[action.id] || ''}`.toLowerCase().includes(query)) continue;
       if (action.group !== lastGroup) {
         const heading = document.createElement('h3'); heading.textContent = action.group; list.append(heading); lastGroup = action.group;

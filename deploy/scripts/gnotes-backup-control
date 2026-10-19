@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Private Unix-socket bridge for the gnotes admin backup wizard."""
 import datetime
+import hashlib
 import http.server
 import json
 import os
@@ -24,6 +25,7 @@ REGIONS = ('us-east-1', 'us-east-2', 'us-central-1', 'us-west-1', 'us-west-2', '
            'ap-southeast-2')
 LOCK = threading.Lock()
 JOB = {'busy': False, 'message': '', 'outcome': ''}
+ACTIONS = ('configure', 'enable', 'pause', 'stop', 'run', 'history', 'local-run', 'local-enable', 'local-pause', 'recovery-test', 'offsite-test')
 
 
 def atomic(path, value):
@@ -101,6 +103,81 @@ def validate(data):
             'AWS_SECRET_ACCESS_KEY': secret}
 
 
+def local_archives():
+    directory = APP / 'backups'
+    if directory.is_symlink():
+        raise ValueError('Local backup directory must not be a symlink.')
+    return sorted((path for path in directory.glob('gnotes-daily-*.db.gz')
+                   if path.is_file() and not path.is_symlink()), key=lambda path: path.name, reverse=True)
+
+
+def local_status():
+    timer = properties('gnotes-podman-backup.timer')
+    service = properties('gnotes-podman-backup.service')
+    archives = local_archives()
+    items = [{'name': path.name, 'bytes': path.stat().st_size,
+              'time': datetime.datetime.fromtimestamp(path.stat().st_mtime, datetime.timezone.utc).isoformat()}
+             for path in archives[:20]]
+    return {'schedule_enabled': timer.get('UnitFileState') == 'enabled',
+            'schedule_active': timer.get('ActiveState') == 'active',
+            'next_run': timer.get('NextElapseUSecRealtime', ''),
+            'last_result': service.get('Result', ''),
+            'last_finished': service.get('ExecMainExitTimestamp', ''),
+            'service_state': service.get('ActiveState', ''),
+            'count': len(archives), 'backups': items,
+            'latest': items[0] if items else None,
+            'encryption_required': os.environ.get('GNOTES_REQUIRE_ENCRYPTION') == '1',
+            'key_available': bool(os.environ.get('GNOTES_DATABASE_KEY_FILE')) and
+                             pathlib.Path(os.environ['GNOTES_DATABASE_KEY_FILE']).is_file()}
+
+
+def recovery_test(offsite=False):
+    tool = pathlib.Path(os.environ.get('GNOTES_STORAGE_TOOL', APP / 'bin/gnotes-db'))
+    if not os.environ.get('GNOTES_DATABASE_KEY_FILE'):
+        raise ValueError('The database key is unavailable to the backup service. Supply the key after a host reboot.')
+    snapshot = ''
+    with tempfile.TemporaryDirectory(prefix='gnotes-recovery-check-') as staging:
+        if offsite:
+            values = read_env(PRIVATE / 'wasabi.env')
+            if not values:
+                raise ValueError('Off-server storage is not configured on this server.')
+            env = environment(values)
+            history = snapshots(env)
+            if not history:
+                raise ValueError('No off-server backup is available.')
+            snapshot = history[0]['id']
+            if not re.fullmatch(r'[a-f0-9]{8,64}', snapshot):
+                raise ValueError('Invalid backup identifier.')
+            JOB['message'] = 'Downloading the latest off-server snapshot for an isolated recovery test…'
+            if run([RESTIC, 'restore', snapshot, '--target', staging], env, timeout=600).returncode:
+                raise ValueError('Could not download the off-server backup. Check storage access.')
+            archives = [path for path in pathlib.Path(staging).rglob('gnotes-daily-*.db.gz')
+                        if path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(pathlib.Path(staging).resolve())]
+            if len(archives) != 1:
+                raise ValueError('The snapshot must contain exactly one daily database archive.')
+            archive = archives[0]
+        else:
+            archives = local_archives()
+            if not archives:
+                raise ValueError('No local backup is available. Create a local backup first.')
+            archive = archives[0]
+        with archive.open('rb') as stream:
+            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        JOB['message'] = 'Testing an isolated encrypted restore with the server key. Notes and running service are unchanged…'
+        result = run([tool, 'db', 'recovery-test', '--source', archive], environment({}), timeout=600)
+        if result.returncode:
+            raise ValueError('Recovery test failed. The backup could not be restored, written and reopened with the available database key. Check the key and backup service.')
+        with archive.open('rb') as stream:
+            if hashlib.file_digest(stream, 'sha256').hexdigest() != digest:
+                raise ValueError('The backup changed during testing. Run the recovery test again.')
+        path = PRIVATE / 'recovery-checks.json'
+        checks = json.loads(path.read_text()) if path.exists() else {}
+        checks['offsite' if offsite else 'local'] = {'tested_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'archive': archive.name, 'sha256': digest, 'snapshot': snapshot, 'key_source': 'server'}
+        atomic(path, json.dumps(checks))
+    JOB['message'] = 'Recovery test passed: encrypted restore, stored rows, integrity, writes and reopening verified using the server key. Test your offline key copy separately.'
+
+
 def status():
     values = read_env(PRIVATE / 'wasabi.env')
     metadata = json.loads((PRIVATE / 'verified.json').read_text()) if (PRIVATE / 'verified.json').exists() else {}
@@ -117,7 +194,9 @@ def status():
               'verified_at': metadata.get('verified_at', ''),
               'snapshots': metadata.get('snapshots', []),
               'schedule': 'Daily 04:15–04:30 Asia/Tokyo',
-              'busy': JOB['busy'], 'message': JOB['message'], 'outcome': JOB['outcome']}
+              'busy': JOB['busy'], 'message': JOB['message'], 'outcome': JOB['outcome'],
+              'local': local_status(), 'actions': list(ACTIONS),
+              'recovery_checks': json.loads((PRIVATE / 'recovery-checks.json').read_text()) if (PRIVATE / 'recovery-checks.json').exists() else {}}
     return result
 
 
@@ -193,6 +272,19 @@ def perform(data):
     action = data.get('action')
     if action == 'configure':
         configure(data)
+        return
+    if action in ('recovery-test', 'offsite-test'):
+        recovery_test(offsite=action == 'offsite-test')
+        return
+    if action == 'local-run':
+        JOB['message'] = 'Creating and verifying a local database backup…'
+        systemctl('reset-failed', 'gnotes-podman-backup.service')
+        systemctl('start', '--no-block', 'gnotes-podman-backup.service')
+        JOB['message'] = 'Local backup started. Its completion and result appear in local backup status.'
+        return
+    if action in ('local-enable', 'local-pause'):
+        systemctl('enable' if action == 'local-enable' else 'disable', '--now', 'gnotes-podman-backup.timer')
+        JOB['message'] = 'Local daily backups enabled.' if action == 'local-enable' else 'Local schedule paused. Existing backups are kept.'
         return
     values = read_env(PRIVATE / 'wasabi.env')
     if action in ('enable', 'run') and not values:
@@ -275,7 +367,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not 0 < length <= 8192:
                 raise ValueError('Invalid request size.')
             data = json.loads(self.rfile.read(length))
-            if not isinstance(data, dict) or data.get('action') not in ('configure', 'enable', 'pause', 'stop', 'run', 'history'):
+            if not isinstance(data, dict) or data.get('action') not in ACTIONS:
                 raise ValueError('Unknown backup action.')
             if data['action'] == 'configure':
                 validate(data)

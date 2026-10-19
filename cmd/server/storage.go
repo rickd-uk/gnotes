@@ -36,7 +36,7 @@ func readDatabaseKey(path string) ([]byte, error) {
 // initialize or migrate the application schema during verification/recovery.
 func runDatabaseCommand(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("usage: gnotes db keygen|encrypt|snapshot|verify [options]")
+		return errors.New("usage: gnotes db keygen|encrypt|snapshot|verify|recovery-test [options]")
 	}
 	flags := flag.NewFlagSet("gnotes db "+args[0], flag.ContinueOnError)
 	flags.SetOutput(output)
@@ -59,7 +59,7 @@ func runDatabaseCommand(ctx context.Context, args []string, output io.Writer) er
 		fmt.Fprintln(output, "Database recovery key created. Keep a separate offline copy; key contents are never printed.")
 		return nil
 	}
-	if args[0] != "encrypt" && args[0] != "snapshot" && args[0] != "verify" {
+	if args[0] != "encrypt" && args[0] != "snapshot" && args[0] != "verify" && args[0] != "recovery-test" {
 		return errors.New("unknown database command")
 	}
 	if *source == "" {
@@ -79,6 +79,12 @@ func runDatabaseCommand(ctx context.Context, args []string, output io.Writer) er
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
+	if args[0] == "recovery-test" {
+		if *destination != "" {
+			return errors.New("recovery-test does not accept an output file")
+		}
+		return testDatabaseRecovery(ctx, *source, key, output)
+	}
 	if args[0] == "verify" {
 		if *destination != "" {
 			return errors.New("verify does not accept an output file")

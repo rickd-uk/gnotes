@@ -198,6 +198,14 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not create account", http.StatusInternalServerError)
 		return
 	}
+	if role != "admin" {
+		if _, err := tx.Exec(`INSERT INTO feature_preferences
+            (user_id, organization, writing_tools, note_controls, appearance, advanced_editing, offline_reading)
+            VALUES (?, 0, 0, 0, 0, 0, 0)`, userID); err != nil {
+			http.Error(w, "Could not initialize account", http.StatusInternalServerError)
+			return
+		}
+	}
 	if userCount > 0 {
 		policy, err := loadRegistrationPolicy(tx)
 		if err != nil {
@@ -411,7 +419,13 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
+	prefs, err := loadFeaturePreferences(session.UserID)
+	if err != nil {
+		http.Error(w, "Could not load preferences", 500)
+		return
+	}
 	profile := map[string]any{
+		"features":                  prefs,
 		"username":                  session.Username,
 		"role":                      session.Role,
 		"csrf_token":                session.CSRFToken,
@@ -503,10 +517,16 @@ func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, us
 		http.Error(w, "Could not finish sign in", http.StatusInternalServerError)
 		return
 	}
+	prefs, err := loadFeaturePreferences(userID)
+	if err != nil {
+		http.Error(w, "Could not load preferences", 500)
+		return
+	}
 	setSessionCookie(w, r, sessionToken, expiresAt)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
+		"features":   prefs,
 		"username":   username,
 		"role":       role,
 		"csrf_token": csrfToken,

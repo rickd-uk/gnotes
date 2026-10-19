@@ -11,6 +11,25 @@ See [ENCRYPTION.md](ENCRYPTION.md) for deployment-wide database encryption, key 
 
 ## Current features
 
+New regular accounts start in **Simple mode**: writing/autosave, reading/editing,
+formatting, search, delete/recovery, and account security. **Profile → More features**
+enables Organization, Writing tools, Note controls, Appearance, Advanced editing,
+and Offline reading separately, or switches to Full mode. Restore Simple defaults
+hides those tools while preserving notes and their metadata. These choices and
+light/dark appearance are saved per account on the server; other devices read them
+on sign-in/reload or when returning to the tab. Existing accounts, including `rick`,
+retain Full mode. Basic text size and light/dark appearance stay in Controls.
+
+**Profile → Backup & recovery** opens personal encrypted backup/key downloads,
+export/import, and a browser-only personal recovery test. Administrators also see
+local database backup history/scheduling, Wasabi status, database-key availability,
+and dated recovery-test evidence. Password-confirmed controls create local backups,
+enable/pause either schedule, and test the latest local or off-server database
+backup in isolated temporary files. Off-server tests download a snapshot. Server
+recovery tests use the server key; test an offline key copy separately with
+`gnotes db recovery-test` as described in [ENCRYPTION.md](ENCRYPTION.md).
+
+
 **Profile → Keyboard shortcuts** lists navigation, note actions, editing, formatting, selected-text Cut/Copy/Paste/Dictionary/Ignore, display, search, account, spelling, import/export, offline reading and administration controls. Search for an action and select **Set keys** to record a combination; conflicts are rejected. Clear individual bindings or reset defaults. Assignments are stored per account in this browser. Note commands target the focused or pointed-at note; unavailable commands are ignored. Defaults: `/` finds notes, Ctrl+Enter saves and closes, and Ctrl+Shift+P toggles preview. Standard text editing, Tab indentation, Escape and browser keys retain their roles. Range and selection controls receive keyboard focus so you can adjust them with arrow keys.
 
 Use the **crossed-out pencil** in note tools (⋯) to make a note read-only. The icon stays visible without a text label; click it to enable editing. Read-only mode prevents changes to title, text, checklist items, tags and color on the server, across devices. Add Read only to quick actions under Controls or assign **Toggle read-only mode** in Keyboard shortcuts. This is an editing control, not encryption. Locks survive archiving, recycling/recovery, JSON/encrypted backups and ZIP exports. If another window locks a note while you edit it, rejected edits remain available to save after unlocking.

@@ -1,0 +1,33 @@
+.features-dialog { width: min(520px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; }
+.feature-choices label { display: flex; gap: 12px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.feature-choices input { width: 20px; height: 20px; margin-top: 4px; flex-shrink: 0; accent-color: var(--accent); }
+.feature-choices strong, .feature-choices small { display: block; }
+.feature-choices small { color: var(--muted); }
+.features-dialog footer { display: flex; gap: 8px; flex-wrap: wrap; }
+.features-dialog footer button { padding: 8px 12px; }
+#features-open { width: 100%; text-align: left; }
+.feature-theme-control { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; }
+.feature-theme-control select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); padding: 6px; border-radius: 6px; }
+body[data-feature-appearance="off"] #font-settings > summary,
+body[data-feature-appearance="off"] .note-size-control:has(#note-max-height),
+body[data-feature-appearance="off"][data-feature-note_controls="off"] .date-section-toggle svg,
+body[data-feature-note_controls="off"][data-feature-organization="off"] .note-actions-toggle,
+body[data-feature-note_controls="off"] .note-action-divider,
+body[data-feature-organization="off"] #account-notes-section > .account-menu-label { display: none!important; }
+body[data-feature-appearance="off"] #font-settings { border: 0; }
+body[data-feature-appearance="off"] .note-card { max-height: none; }
+body[data-feature-note_controls="off"] #notes-list.tool-all-hidden .note-actions { display: flex; }
+:root[data-theme="dark"] { color-scheme: dark; --paper: #202522; --ink: #e5e8e3; --muted: #b1b8af; --line: #4b554c; --accent: #9fceb3; --accent-hover: #b6dfc7; --danger: #ffa59c; --edit-ink: #a9d1e5; }
+:root[data-theme="dark"] :is(.site-header,.view-menu,.account-menu,.note-card,.note-editor,.note-form,.search-panel,.trash-panel,.profile-panel,.admin-panel,dialog,.auth-card,.format-toolbar,.format-menu,.note-tools,.note-context-menu,.dictionary-panel,.shortcuts-dialog,.hidden-notes-panel) { background: #262e28; color: var(--ink); border-color: var(--line); }
+:root[data-theme="dark"] :is(input,textarea,select,.note-text-preview,.tiptap,.note-content pre,.note-content code,.note-undo-toast,.note-action-toast) { background-color: #202522; color: var(--ink); border-color: var(--line); }
+:root[data-theme="dark"] :is(.site-header h1,.note-view h2,.edit-title,.account-menu-label,.menu-entry,.format-command,.link-style-toggle,.toolbar-button,.date-section-toggle,.note-time,.note-save,.format-toggle,.auth-card h1) { color: var(--ink); }
+:root[data-theme="dark"] :is(.header-actions,.note-safe-actions,.note-edit-actions,.edit-topbar,.rich-toolbar,.format-more-menu,.code-language-menu,.note-color-menu) { background-color: #262e28; }
+:root[data-theme="dark"] a { color: #a9d1e5; }
+body[data-feature-appearance="off"] .date-section-toggle:disabled { color: inherit; opacity: 1; cursor: default; }
+:root[data-theme="dark"] #primary-navigation { background: #262e28; border-color: var(--line); }
+:root[data-theme="dark"] .note-card[class*="note-color-"] { background: color-mix(in srgb, var(--note-surface) 15%, #202522); --note-surface-ink: #e5e8e3; }
+:root[data-theme="dark"] :is(.rich-format-toolbar,.rich-context-menu,.welcome-card,.info-panel,.archive-panel,.note-tools,.account-control > summary) { background: #262e28; color: var(--ink); border-color: var(--line); }
+:root[data-theme="dark"] :is(.note-save,.format-toggle,.note-action-dialog button) { background: #354a3c; color: var(--ink); }
+body[data-feature-organization="off"][data-feature-writing_tools="off"] #account-notes-section,
+body[data-feature-advanced_editing="off"] .account-menu-section:has(> #account-advanced),
+body[data-feature-writing_tools="off"] .account-menu-section:has(> #shortcuts-open) { display: none; }

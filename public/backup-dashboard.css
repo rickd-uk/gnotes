@@ -1,0 +1,15 @@
+.backup-protection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 16px 0; }
+.backup-protection-card { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--paper) 92%, var(--ink) 8%); }
+.backup-protection-card h3 { margin: 0 0 8px; color: var(--muted); font-weight: 600; font-size: 0.8rem; line-height: 1.4; }
+.backup-protection-card strong { display: block; font-size: 1rem; }
+.backup-protection-card p { margin-bottom: 0; }
+.backup-protection-card[data-tone="success"] { border-color: #5b9677; }
+.backup-protection-card[data-tone="attention"] { border-color: #b18b48; }
+.backups-view > .profile-details,.backups-view > #profile-role,.backups-view > #recovery-email-form { display: none; }
+#backup-local-history,#site-backup-history { padding-left: 20px; overflow-wrap: anywhere; }
+.backup-recovery-guide { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+.backup-recovery-guide pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }
+.personal-recovery-test { padding: 12px 0; }
+#personal-recovery-test-form input[type="file"] { width: 100%; max-width: 100%; }
+#site-backup-overview dd { overflow-wrap: anywhere; }
+@media(max-width:560px) { .backup-protection-grid { grid-template-columns: minmax(0,1fr); } }

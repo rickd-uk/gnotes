@@ -2,6 +2,33 @@
 
 Production runs on the Kagoya VPS through rootless Podman. The SSH alias is `KAG` and uses the `KG-OSK` key. The former `hz-sin` systemd installation is separate and does not serve the public domain.
 
+## Backup visibility and recovery controls (local implementation, not deployed)
+
+**Profile → Backup & recovery** opens the backup dashboard directly. Personal
+backup/key downloads, export/import and a browser-only personal recovery test
+remain available in Simple mode. Admins additionally see local daily archives,
+local and Wasabi schedules, last job results, encryption policy/key availability,
+and named, dated recovery-test evidence. Unknown/unconfigured/unavailable states
+are explicit. A recent archive is not presented as proof of successful recovery.
+
+Local controls operate only on `gnotes-podman-backup.service` and its timer;
+Wasabi controls operate only on `gnotes-wasabi-backup.service` and its timer.
+Actions retain current-password, admin-session and CSRF checks. Recovery tests
+select the latest daily archive or restore the latest Wasabi snapshot into
+private temporary storage, then invoke `gnotes-db db recovery-test`. They do
+not stop the app or replace the live database. Off-server tests download a
+snapshot; ordinary status polling does not access Wasabi. Success evidence is
+stored in private `~/.config/gnotes-backup/recovery-checks.json`; failed tests do
+not overwrite a previous success. The last action's failure is shown separately.
+An offline database key copy still needs testing on another computer.
+
+Deployment must update the browser assets, application binary, host
+`bin/gnotes-db`, and `bin/gnotes-backup-control` together, then restart
+`gnotes-backup-control.service` so its running process reports the new actions.
+The existing updater installs the helper but does not restart that service.
+An older helper leaves the new actions disabled rather than claiming support.
+No scheduling or storage credentials are changed by installing this UI.
+
 ## Production inventory
 
 | Item | Value |
@@ -120,7 +147,7 @@ Restic 0.18.1, the replication script and both user units are installed on Kagoy
 
 Deployed in v0.7.50 on 2026-10-10. The control service is enabled and active; the Wasabi timer remains disabled until setup is completed. Restic 0.17 or newer is needed for automatic missing-repository detection (Kagoya has 0.18.1).
 
-The admin Profile dashboard uses `deploy/scripts/gnotes-backup-control`, a Python standard-library Unix-socket service on the host. It exposes only backup status and the fixed configure/enable/pause/stop/run/history actions. No TCP port or host systemd socket is exposed to the app. Cloud credentials stay in `~/.config/gnotes-backup/wasabi.env` (0600, directory 0700); the app mounts only `~/apps/gnotes/backup-control` read only at `/run/gnotes-backup-control`. The socket itself is 0600. The helper runs as the deployment user, not root.
+The admin Profile dashboard uses `deploy/scripts/gnotes-backup-control`, a Python standard-library Unix-socket service on the host. It exposes backup status and a fixed action allowlist: configure/enable/pause/stop/run/history for off-server storage, local-run/local-enable/local-pause for the local job, and recovery-test/offsite-test for isolated database recovery. No TCP port or host systemd socket is exposed to the app. Cloud credentials stay in `~/.config/gnotes-backup/wasabi.env` (0600, directory 0700); the app mounts only `~/apps/gnotes/backup-control` read only at `/run/gnotes-backup-control`. The socket itself is 0600. The helper runs as the deployment user, not root.
 
 Install the helper in `~/apps/gnotes/bin`, install `deploy/systemd/gnotes-backup-control.service` in `~/.config/systemd/user`, create the socket directory with mode 0700, and enable the helper with `systemctl --user enable --now gnotes-backup-control.service`. In the Quadlet Container section add `Volume=%h/apps/gnotes/backup-control:/run/gnotes-backup-control:ro,Z` and `Environment=GNOTES_BACKUP_CONTROL_SOCKET=/run/gnotes-backup-control/control.sock`; reload systemd and restart gnotes after the usual validated backup. The existing site recovery key, Restic, local backup script and Wasabi units must already be installed. Restart the control service after upgrading its helper. It does not need Wasabi IAM administrator credentials.
 

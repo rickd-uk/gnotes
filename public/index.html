@@ -8,6 +8,8 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/dictionary.css" />
     <link rel="stylesheet" href="/shortcuts.css" />
+    <link rel="stylesheet" href="/features.css" />
+    <link rel="stylesheet" href="/backup-dashboard.css" />
     <style>
       :root {
         color-scheme: light;
@@ -4516,6 +4518,7 @@
               <button class="tool-choice" type="button" data-tool="delete"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/></svg><span>Delete</span><span class="tool-state" aria-hidden="true"></span></button>
             </div>
           </section>
+          <label class="feature-theme-control">Appearance<select id="feature-theme" aria-label="Light or dark appearance" onchange="GnotesFeatures.save({theme:this.value})"><option value="light">Light</option><option value="dark">Dark</option></select></label>
           <section class="controls-group" aria-label="Appearance">
             <h2 class="controls-group-title">Display</h2>
             <div class="display-options" role="group" aria-label="Display options">
@@ -4618,7 +4621,7 @@
               <span class="account-name-text" id="account-name">Account</span>
             </summary>
             <div class="account-menu">
-              <button class="menu-entry account-menu-username" id="account-menu-username" type="button" title="Your profile"><svg class="menu-item-icon" style="color: #426a83" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><span>Profile</span></button>
+              <button class="menu-entry account-menu-username" id="account-menu-username" type="button" title="Your profile"><svg class="menu-item-icon" style="color: #426a83" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><span>Account</span></button>
               <div class="account-menu-section">
                 <button class="menu-entry" id="help-open" type="button"><svg class="menu-item-icon" style="color: #517c83" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg><span>Help</span></button>
                 <details class="markdown-help" id="markdown-help">
@@ -4652,9 +4655,10 @@
               </div>
               <div class="account-menu-section" id="account-data-section">
                 <span class="account-menu-label">Data</span>
-                <button class="menu-entry" id="transfer-open" type="button"><svg class="menu-item-icon" style="color: #426a83" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v13m-4-4 4 4 4-4M17 21V8m-4 4 4-4 4 4"/></svg><span>Export &amp; import</span></button>
+                <button class="menu-entry" id="backup-open" type="button" onclick="openProfilePanel({backups:true})"><svg class="menu-item-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 7v6c0 5 9 8 9 8s9-3 9-8V7l-9-4Z"/><path d="m8 12 3 3 5-6"/></svg><span>Backup &amp; recovery</span></button>
                 <a href="/offline.html" class="offline-reading-link menu-entry"><svg class="menu-item-icon" style="color: #617f64" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5V3ZM14 3v5h5M8 12h8M8 16h6"/></svg><span>Offline reading</span></a>
               </div>
+              <div class="account-menu-section"><button class="menu-entry" id="features-open" type="button" onclick="GnotesFeatures.open()"><svg class="menu-item-icon" style="color: #7b6b91" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg><span>More features</span></button></div>
               <div class="account-menu-section">
                 <details class="account-advanced" id="account-advanced">
                   <summary class="menu-entry"><svg class="menu-item-icon" style="color: #7b6b91" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg><span>Advanced</span></summary>
@@ -4935,23 +4939,50 @@
         <div><dt>Recycled notes</dt><dd id="profile-recycled-notes"></dd></div>
       </dl>
       <details id="profile-backups" class="profile-backups">
-        <summary>Backup &amp; recovery</summary>
+        <summary>My encrypted note backup</summary>
+        <p>Keep a copy you control, outside this server. This backup contains only your account’s notes; its recovery key is separate from the server’s database key.</p>
+        <button class="menu-entry" id="transfer-open" type="button"><svg class="menu-item-icon" style="color: #426a83" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v13m-4-4 4 4 4-4M17 21V8m-4 4 4-4 4 4"/></svg><span>Export &amp; import</span></button>
+        <details class="personal-recovery-test"><summary>Test a personal backup</summary>
+          <p>Choose a downloaded backup and its personal recovery key. The test runs in this browser and imports no notes. These files are not uploaded.</p>
+          <form id="personal-recovery-test-form" class="auth-form">
+            <label>Encrypted note backup<input type="file" id="personal-recovery-backup" accept=".gnotes-backup" required></label>
+            <label>Personal recovery key<input type="file" id="personal-recovery-key" accept=".json" required></label>
+            <button class="backup-button backup-blue" type="submit">Test personal recovery</button>
+            <p id="personal-recovery-result" role="status"></p>
+          </form>
+        </details>
         <form class="auth-form" id="profile-backup-form">
           <p>Download an encrypted copy of your notes and its recovery key. Save the key separately; it unlocks your personal backups.</p>
           <label>Current password<input id="profile-backup-password" type="password" autocomplete="current-password" maxlength="72" required /></label>
           <button class="backup-button backup-green" type="submit" value="personal-key"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14a6 6 0 1 0-4-4L3 17v4h4v-3h3l4-4Z"/></svg><span>Download my recovery key</span></button>
           <button class="backup-button backup-blue" type="submit" value="personal-backup"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Download my encrypted backup</span></button>
           <div id="profile-site-backup" hidden>
-            <p><strong>Whole-site recovery · Admin only</strong><br>This key unlocks the Wasabi database backup for all accounts. Wasabi access is also required.</p>
-            <button class="backup-button backup-green" id="profile-site-key" type="submit" value="site-key"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14a6 6 0 1 0-4-4L3 17v4h4v-3h3l4-4Z"/></svg><span>Download whole-site recovery key</span></button>
+            <p><strong>Whole-site recovery · Admin only</strong><br>This file unlocks the off-server storage repository. Restoring an encrypted database also requires your separate offline database key and storage access.</p>
+            <button class="backup-button backup-green" id="profile-site-key" type="submit" value="site-key"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14a6 6 0 1 0-4-4L3 17v4h4v-3h3l4-4Z"/></svg><span>Download off-server storage recovery file</span></button>
             <p id="profile-site-key-unavailable" hidden>The whole-site recovery key has not been configured.</p>
           </div>
           <p class="auth-status" id="profile-backup-status" role="status" aria-live="polite"></p>
         </form>
       </details>
       <details id="site-backup-admin" class="profile-backups" hidden>
-        <summary>Whole-site backup dashboard · Admin</summary>
-        <p>Encrypted backups cover every account. Each completed upload is downloaded and checked for recovery.</p>
+        <summary>Server backups &amp; recovery · Admin</summary>
+        <p>Database backups cover every account. Local copies protect against mistakes; an off-server copy also protects against losing this server. A backup’s existence and a successful recovery test are shown separately.</p>
+        <p id="backup-checked-at" role="status">Checking backup protection…</p>
+        <div class="backup-protection-grid">
+          <section class="backup-protection-card"><h3>Local database backups</h3><strong id="backup-local-headline">Unknown</strong><p id="backup-local-detail">Refresh status to check.</p></section>
+          <section class="backup-protection-card"><h3>Off-server backups</h3><strong id="backup-offsite-headline">Unknown</strong><p id="backup-offsite-detail">Refresh status to check.</p></section>
+          <section class="backup-protection-card"><h3>Database encryption</h3><strong id="backup-encryption-headline">Not confirmed</strong><p id="backup-encryption-detail">A database key is required to recover an encrypted database.</p></section>
+          <section class="backup-protection-card"><h3>Recovery tests</h3><strong id="backup-recovery-headline">Not recorded</strong><p id="backup-recovery-detail">Test a backup to verify it can be restored.</p></section>
+        </div>
+        <details class="backup-recovery-guide"><summary>What I need to recover</summary>
+          <ol><li>An encrypted database backup stored outside this server.</li><li>The matching database key, kept separately and offline. This key is not offered as a browser download.</li><li>For Wasabi: storage credentials and the off-server storage recovery file. That file does not replace the database key.</li></ol>
+          <p>“Test local recovery” restores the latest daily archive into temporary files, compares stored data, checks integrity, rejects wrong keys, and tests writes and reopening. “Test off-server recovery” first downloads the latest Wasabi snapshot. Both use the server’s current database key and leave the running service unchanged.</p>
+          <p>To verify your offline key copy, run this on a separate computer with a downloaded database backup and an encryption-capable gnotes binary:</p>
+          <pre><code>./gnotes db recovery-test --source backup.db.gz --key-file /path/to/offline-database.key</code></pre>
+          <p>Personal note backups use their own recovery key and can be tested in “My encrypted note backup”. Recycled notes can be recovered from the recycle bin.</p>
+        </details>
+        <h3>Retained local daily backups</h3><ul id="backup-local-history"><li>Not loaded.</li></ul>
+        <h3>Off-server status</h3>
         <dl class="profile-details" id="site-backup-overview"></dl>
         <p class="backup-feedback" id="site-backup-message" role="status" aria-live="off"></p>
         <button class="backup-button " type="button" id="site-backup-refresh"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 2M4 17l2 2a7 7 0 0 0 12-2"/></svg><span>Refresh status</span></button>
@@ -4998,14 +5029,24 @@
           </form>
         </details>
         <form class="auth-form" id="site-backup-actions">
-          <p>After setup, download the whole-site recovery file from Backup &amp; recovery above and keep it outside this server.</p>
-          <label><input id="site-backup-recovery-saved" type="checkbox" /> I saved the current whole-site recovery file separately</label>
+          <h3>Local database backups</h3>
+          <p>Actions below require your current password. Recovery tests never replace the running database.</p>
+          <label>Current gnotes password<input id="backup-local-password" type="password" autocomplete="current-password" maxlength="72" /></label>
+          <button class="backup-button backup-blue" type="submit" value="local-run"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Create local backup now</span></button>
+          <button class="backup-button backup-green" type="submit" value="recovery-test"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test local recovery</span></button>
+          <button class="backup-button backup-green" type="submit" value="local-enable"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable local daily backups</span></button>
+          <button class="backup-button backup-amber" type="submit" value="local-pause"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause local schedule</span></button>
+          <h3>Off-server backups · Wasabi</h3>
+          <p>After setup, download the off-server storage recovery file above and keep it outside this server. Keep your database key separately too.</p>
+          <label><input id="site-backup-recovery-saved" type="checkbox" /> I saved the current off-server storage recovery file separately</label>
           <label>Current gnotes password<input id="site-backup-action-password" type="password" autocomplete="current-password" maxlength="72" /></label>
-          <button class="backup-button backup-green" type="submit" value="enable"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable / resume daily backups</span></button>
-          <button class="backup-button backup-blue" type="submit" value="run"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 4 14 8-14 8Z"/></svg><span>Run backup now</span></button>
-          <button class="backup-button backup-amber" type="submit" value="pause"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause daily schedule</span></button>
+          <button class="backup-button backup-green" type="submit" value="enable"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable / resume off-server daily backups</span></button>
+          <button class="backup-button backup-blue" type="submit" value="run"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 4 14 8-14 8Z"/></svg><span>Run off-server backup now</span></button>
+          <button class="backup-button backup-amber" type="submit" value="pause"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause off-server schedule</span></button>
           <button class="backup-button backup-red" type="submit" value="stop"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5Z"/></svg><span>Stop current backup</span></button>
           <button class="backup-button " type="submit" value="history"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 2M4 17l2 2a7 7 0 0 0 12-2"/></svg><span>Refresh backup history</span></button>
+          <button class="backup-button backup-green" type="submit" value="offsite-test"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test off-server recovery</span></button>
+          <p>Off-server recovery tests download the latest snapshot and may use storage-provider download allowance.</p>
           <p class="backup-feedback" id="site-backup-action-feedback" role="status" aria-live="polite" hidden></p>
           <p>Pause prevents future scheduled runs and lets a running backup finish. Stop cancels the current run and leaves the schedule unchanged. Neither deletes stored backups.</p>
         </form>
@@ -5163,6 +5204,8 @@
 
     <script src="/note-list.js"></script>
     <script src="/rich-editor.js"></script>
+    <script src="/features.js"></script>
+    <script src="/backup-dashboard.js"></script>
     <script>
       let csrfToken = "";
       let currentUser = null;
@@ -5536,7 +5579,7 @@
         input.classList.remove("force-source");
         richDraftFallback = false;
         richDraft = editor;
-        editor.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
+        editor.setSpelling(spellcheckEnabled && GnotesFeatures.enabled("writing_tools"), ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
         mountRichToolbar(host, editor);
         toggle.hidden = false;
       }
@@ -5573,7 +5616,7 @@
         }
         input.classList.remove("force-source");
         richEdit = editor;
-        editor.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
+        editor.setSpelling(spellcheckEnabled && GnotesFeatures.enabled("writing_tools"), ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
         mountRichToolbar(host, editor);
         document.getElementById(`edit-rich-format-toggle-${id}`).hidden = false;
       }
@@ -5880,16 +5923,19 @@
       }
 
       function refreshQuickActions(cards = document.querySelectorAll("#notes-list .note-card")) {
+        const effectiveQuickActions = GnotesFeatures.enabled('note_controls')
+          ? quickActions.filter(key => !['archive','favorite','pin'].includes(key) || GnotesFeatures.enabled('organization')) : ['delete'];
         cards.forEach((card) => {
           const quick = card.querySelector(".note-quick-actions");
           const menu = card.querySelector(".note-tools");
           if (!quick || !menu) return;
+          card.style.setProperty("--quick-action-count", String(effectiveQuickActions.length));
           const safe = menu.querySelector(".note-safe-actions");
           const divider = menu.querySelector(".note-action-divider");
           const actions = new Map([...card.querySelectorAll("[data-note-action]")]
             .map((element) => [element.dataset.noteAction, element]));
           if (archiveMode || card.classList.contains("is-archived")) {
-            card.style.setProperty("--quick-action-count", "4");
+            card.style.setProperty("--quick-action-count", GnotesFeatures.enabled("note_controls") ? "4" : "3");
             quick.append(actions.get("favorite"), actions.get("archive"), actions.get("copy"), actions.get("delete"));
             actions.forEach((element) => { if (menu.contains(element)) element.hidden = element.dataset.noteAction !== "lock"; });
             divider.hidden = true;
@@ -5898,15 +5944,15 @@
           noteTools.forEach((key) => {
             const element = actions.get(key);
             if (!element) return;
-            if (quickActions.includes(key)) quick.append(element);
+            if (effectiveQuickActions.includes(key)) quick.append(element);
             else if (key === "delete") menu.append(element);
             else safe.append(element);
           });
-          quickActions.forEach((key) => {
+          effectiveQuickActions.forEach((key) => {
             const element = actions.get(key);
             if (element) quick.append(element);
           });
-          divider.hidden = !safe.children.length || quickActions.includes("delete");
+          divider.hidden = !safe.children.length || effectiveQuickActions.includes("delete");
         });
       }
 
@@ -5937,7 +5983,7 @@
         const notesList = document.getElementById("notes-list");
         const toggle = document.getElementById("density-toggle");
         const label = document.getElementById("density-toggle-label");
-        const mode = densityModes[densityIndex];
+        const mode = GnotesFeatures.enabled("appearance") ? densityModes[densityIndex] : "full";
         notesList.classList.remove("density-compact", "density-titles");
         if (mode !== "full") notesList.classList.add(`density-${mode}`);
         const modeLabel = mode === "full" ? "Full" : mode === "compact" ? "Compact" : "Titles";
@@ -5969,6 +6015,7 @@
 
       function applySpelling(enabled = true, words = ignoredSpellingWords, names = spellingNames) {
         spellcheckEnabled = enabled !== false;
+        const effectiveSpelling = spellcheckEnabled && GnotesFeatures.enabled("writing_tools");
         ignoredSpellingWords = [...new Set((Array.isArray(words) ? words : []).map(spellingWord).filter(Boolean))].slice(0, 2000);
         const seen = new Set();
         spellingNames = (Array.isArray(names) ? names : []).filter(entry => {
@@ -5979,9 +6026,9 @@
         document.getElementById('spelling-enabled').checked = spellcheckEnabled;
         document.getElementById('spelling-builtin-enabled').checked = builtinSpellingEnabled;
         document.getElementById('spelling-state').textContent = spellcheckEnabled ? 'On' : 'Off';
-        document.querySelectorAll('#title, #content, .edit-title, .edit-content').forEach(input => { input.spellcheck = spellcheckEnabled; });
-        richDraft?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
-        richEdit?.setSpelling(spellcheckEnabled, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
+        document.querySelectorAll('#title, #content, .edit-title, .edit-content').forEach(input => { input.spellcheck = effectiveSpelling; });
+        richDraft?.setSpelling(effectiveSpelling, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
+        richEdit?.setSpelling(effectiveSpelling, ignoredSpellingWords, spellingNames, builtinSpellingEnabled);
         if (currentUser && spellcheckEnabled && builtinSpellingEnabled) loadBuiltinNames();
         renderSpellingLists();
         refreshSpellingControls();
@@ -6187,7 +6234,7 @@
 
       function applyNewNoteArea(shown) {
         showNewNoteArea = shown !== false;
-        document.getElementById('note-form').hidden = !showNewNoteArea;
+        document.getElementById('note-form').hidden = GnotesFeatures.enabled('appearance') && !showNewNoteArea;
         const collapse = document.getElementById('new-note-collapse');
         collapse.setAttribute('aria-expanded', String(showNewNoteArea));
         collapse.setAttribute('aria-label', showNewNoteArea ? 'Collapse new note box' : 'Expand new note box');
@@ -6303,8 +6350,8 @@
         builtinSpellingEnabled = state.builtinSpellingEnabled !== false;
         applySpelling(state.spellcheckEnabled, spellingListsMigrated ? [] : state.ignoredSpellingWords || [], spellingListsMigrated ? [] : state.spellingNames || []);
         richToolbarVisible = state.richToolbarVisible === true;
-        applyEditorMode(Boolean(state.markdownSource));
-        setVimMode(state.vimModeEnabled === true, { focus: false, persist: false });
+        applyEditorMode(GnotesFeatures.enabled("advanced_editing") && Boolean(state.markdownSource));
+        setVimMode(GnotesFeatures.enabled("advanced_editing") && state.vimModeEnabled === true, { focus: false, persist: false });
         adminUserFilter = ["all", "signed-in"].includes(state.adminUserFilter)
           ? state.adminUserFilter
           : "all";
@@ -6427,6 +6474,8 @@
         document.getElementById("markdown-help").open = false;
         csrfToken = "";
         currentUser = null;
+        GnotesFeatures.reset();
+        GnotesBackupDashboard.reset();
         clearBackupSecrets();
         clearTimeout(backupPollTimer);
         document.getElementById('site-backup-admin').hidden = true;
@@ -6506,10 +6555,12 @@
       async function enterApp(session, newAccount = false) {
         csrfToken = session.csrf_token;
         currentUser = session;
+        GnotesFeatures.apply(session.features || {});
         loadCollapsedDateSections();
         loadRolledNotes();
         loadHiddenNoteIds();
         const restoredUI = loadUIState();
+        document.getElementById("font-settings").open = !GnotesFeatures.enabled("appearance");
         document.getElementById("account-name").textContent = session.username;
         document.getElementById("account-admin-section").hidden = session.role !== "admin";
         document.getElementById("auth-screen").hidden = true;
@@ -7069,7 +7120,7 @@
         const displayTitle = getDisplayTitle(n);
         const noteColor = noteColorKeys.has(n.background_color) ? n.background_color : "";
         const canRoll = Boolean(n.content.trim());
-        const isRolledUp = canRoll && rolledNoteIds.has(n.id);
+        const isRolledUp = GnotesFeatures.enabled("appearance") && canRoll && rolledNoteIds.has(n.id);
 
         return `
         <article class="note-card ${n.locked ? "is-locked" : ""} ${(n.tags || []).length ? "has-tags" : ""} ${isArchived ? "is-archived" : ""} ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
@@ -7208,13 +7259,13 @@
           const sectionKey = pinned ? 'pinned' : `${archiveMode ? 'archive-date' : 'date'}:${dateKey}`;
           if (!group || group.key !== sectionKey) {
             const dateSection = pinned ? 'Pinned' : formatDateSection(noteDate, now, dateContext);
-            const sectionCollapsed = !searchActive && collapsedDateSections.has(sectionKey);
+            const sectionCollapsed = GnotesFeatures.enabled("appearance") && !searchActive && collapsedDateSections.has(sectionKey);
             const dateSectionKey = sectionKey;
             group = { key: sectionKey, pinned: Boolean(pinned), collapsed: sectionCollapsed, cards: [] };
             groups.push(group);
             group.headingHTML = `
                   <h3 class="date-section-heading archive-date-heading" id="date-section-${groups.length - 1}">
-                    <button class="date-section-toggle" type="button" data-section-key="${dateSectionKey}" aria-expanded="${String(!sectionCollapsed)}" onclick="toggleDateSection(this)">
+                    <button class="date-section-toggle" type="button" ${GnotesFeatures.enabled("appearance") ? "" : "disabled"} data-section-key="${dateSectionKey}" aria-expanded="${String(!sectionCollapsed)}" onclick="toggleDateSection(this)">
                       <span>${escapeHTML(dateSection)}</span>
                       <svg class="date-section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                     </button>
@@ -7226,7 +7277,7 @@
           group.cards.push({ id: n.id,
             state: [currentUser?.username, n.title, n.content, n.html_content, n.created_at, n.archived_at,
               n.pinned, n.favorited, n.locked, n.background_color, (n.tags || []).join('\n'), isNewest,
-              rolledNoteIds.has(n.id), archiveMode,
+              rolledNoteIds.has(n.id), GnotesFeatures.enabled("appearance"), archiveMode,
               dateContext.timeZone, dateContext.todayKey, searchActive, calendarActive,
               highlightQuery, highlightScope, highlightMatchCase],
             html: () => noteCardHTML(n, isNewest, now, dateContext),
@@ -10246,7 +10297,8 @@
 
         const profilePanel = document.getElementById("profile-panel");
         if (!profilePanel.hidden && !profilePanel.contains(event.target) &&
-            !document.getElementById("account-menu-username").contains(event.target)) closeProfilePanel();
+            !document.getElementById("account-menu-username").contains(event.target) &&
+            !document.getElementById("backup-open").contains(event.target)) closeProfilePanel();
 
         const helpPanel = document.getElementById("help-panel");
         if (!helpPanel.hidden && !helpPanel.contains(event.target) &&
@@ -10715,7 +10767,7 @@
         await loadAdmin();
       });
 
-      let backupWizardStep = 0, backupPollTimer, backupSubmitting = false, backupWorkerBusy = false, backupConfigured = false, backupClientError = '';
+      let backupWizardStep = 0, backupPollTimer, backupSubmitting = false, backupWorkerBusy = false, backupConfigured = false, backupClientError = '', backupSupportedActions = [], backupControlAvailable = false;
       function setBackupFeedback(text, tone = 'info') {
         for (const id of ['site-backup-message', 'site-backup-setup-feedback', 'site-backup-action-feedback']) {
           const node = document.getElementById(id); node.textContent = text; node.hidden = !text; node.dataset.tone = tone;
@@ -10726,8 +10778,9 @@
       function updateBackupButtons() {
         const busy = backupSubmitting || backupWorkerBusy;
         document.querySelectorAll('#site-backup-setup button, #site-backup-actions button').forEach(button => {
-          const needsStorage = ['enable', 'run', 'history'].includes(button.value);
-          button.disabled = busy || (needsStorage && !backupConfigured);
+          const needsStorage = ['enable', 'run', 'history', 'offsite-test'].includes(button.value);
+          const addedAction = ['local-run','local-enable','local-pause','recovery-test','offsite-test'].includes(button.value);
+          button.disabled = busy || (needsStorage && !backupConfigured) || (addedAction && (!backupControlAvailable || !backupSupportedActions.includes(button.value)));
         });
         document.getElementById('site-backup-test').setAttribute('aria-busy', String(busy));
       }
@@ -10758,7 +10811,7 @@
         document.getElementById('site-backup-review').textContent = `Destination: ${bucket}/${prefix} · ${region}. All accounts will be backed up here.`;
       }
       function clearBackupSecrets() {
-        for (const id of ['site-backup-access','site-backup-secret','site-backup-setup-password','site-backup-action-password']) document.getElementById(id).value = '';
+        for (const id of ['site-backup-access','site-backup-secret','site-backup-setup-password','site-backup-action-password','backup-local-password']) document.getElementById(id).value = '';
       }
       async function refreshBackupStatus() {
         clearTimeout(backupPollTimer);
@@ -10770,6 +10823,8 @@
           if (!response.ok) throw new Error((await response.text()).trim() || 'Backup status unavailable.');
           const info = await response.json();
           if (currentUser?.username !== owner || csrfToken !== token || document.getElementById('profile-panel').hidden) return;
+          backupControlAvailable = true; backupSupportedActions = info.actions || [];
+          GnotesBackupDashboard.render(info);
           const rows = [['Storage',info.repository || 'Setup needed'],['Daily schedule',info.schedule_enabled && info.schedule_active ? 'Enabled' : 'Paused / not enabled'],['Schedule',info.schedule],['Next run',info.next_run || 'None scheduled'],['Current job',info.service_state || 'Unknown'],['Last job result',info.last_finished ? info.last_result : 'No scheduled job completed yet'],['Last job finished',info.last_finished || 'None'],['Setup restore verified',info.verified_at || 'Not tested yet']];
           const overview = document.getElementById('site-backup-overview'); overview.replaceChildren();
           for (const [label,value] of rows) { const row = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent=label; dd.textContent=value; row.append(dt,dd); overview.append(row); }
@@ -10783,7 +10838,7 @@
             const location = info.repository.match(/^s3:https:\/\/[^/]+\/([^/]+)\/(.+)$/);
             if (location) { document.getElementById('site-backup-bucket').value=location[1]; document.getElementById('site-backup-prefix').value=location[2]; document.getElementById('site-backup-region').value=info.region; }
           }
-        } catch (error) { if (currentUser?.username === owner && csrfToken === token && !backupClientError && !backupSubmitting) setBackupFeedback(error.message || 'Backup status unavailable.', 'error'); }
+        } catch (error) { if (currentUser?.username === owner && csrfToken === token) { backupControlAvailable=false; backupSupportedActions=[]; updateBackupButtons(); GnotesBackupDashboard.unavailable(); if (!backupClientError && !backupSubmitting) setBackupFeedback(error.message || 'Backup status unavailable.', 'error'); } }
         if (currentUser?.username === owner && csrfToken === token && !document.getElementById('profile-panel').hidden && document.getElementById('site-backup-admin').open) backupPollTimer=setTimeout(refreshBackupStatus,5000);
       }
       async function submitBackupAction(data, passwordInput) {
@@ -10828,27 +10883,35 @@
       document.getElementById('site-backup-actions').addEventListener('submit',event=>{
         event.preventDefault(); const action=event.submitter?.value; if(!action)return;
         if(action==='enable' && !document.getElementById('site-backup-recovery-saved').checked) { backupFormError('Download the whole-site recovery file above and confirm you saved it first.'); return; }
-        submitBackupAction({action,recovery_saved:document.getElementById('site-backup-recovery-saved').checked},document.getElementById('site-backup-action-password'));
+        submitBackupAction({action,recovery_saved:document.getElementById('site-backup-recovery-saved').checked},document.getElementById(action.startsWith('local-') || action==='recovery-test' ? 'backup-local-password' : 'site-backup-action-password'));
       });
       document.getElementById('site-backup-refresh').addEventListener('click',refreshBackupStatus);
       document.getElementById('site-backup-admin').addEventListener('toggle',()=>{if(document.getElementById('site-backup-admin').open)refreshBackupStatus();else{clearTimeout(backupPollTimer);clearBackupSecrets();}});
       document.getElementById('site-backup-wizard').addEventListener('toggle',()=>{if(document.getElementById('site-backup-wizard').open)showBackupStep(0);else clearBackupSecrets();});
 
-      async function openProfilePanel() {
+      async function openProfilePanel(options = {}) {
+        const profileOwner = currentUser;
+        const backupsView = options.backups === true;
+        const personalBackups = document.getElementById('profile-backups');
+        const serverBackups = document.getElementById('site-backup-admin');
+        if (backupsView && currentUser.role === 'admin') personalBackups.before(serverBackups);
+        else personalBackups.after(serverBackups);
+        document.getElementById("profile-panel").classList.toggle("backups-view", backupsView);
+        GnotesBackupDashboard.reset();
         closeAdminPanel();
         closeHelpPanel();
         closeArchiveOverview();
         document.getElementById("account-control").open = false;
         document.getElementById("profile-panel").hidden = false;
-        document.getElementById("profile-heading").textContent = currentUser.username;
+        document.getElementById("profile-heading").textContent = backupsView ? "Backup & recovery" : currentUser.username;
         document.getElementById("profile-role").textContent = `${currentUser.role === "admin" ? "Admin" : "User"} · Signed in`;
-        document.getElementById('profile-backups').open = false;
+        document.getElementById('profile-backups').open = backupsView;
         document.getElementById('profile-backup-password').value = '';
         document.getElementById('profile-backup-status').textContent = '';
         document.getElementById('profile-site-backup').hidden = true;
         document.getElementById('site-backup-admin').hidden = true;
         document.getElementById('site-backup-admin').open = false;
-        backupClientError=''; backupWorkerBusy=false; backupSubmitting=false; backupConfigured=false;
+        backupClientError=''; backupWorkerBusy=false; backupSubmitting=false; backupConfigured=false; backupControlAvailable=false; backupSupportedActions=[];
         setBackupFeedback(''); updateBackupButtons();
         clearBackupSecrets();
         document.getElementById("recovery-email-form").hidden = true;
@@ -10860,8 +10923,10 @@
           const response = await apiFetch("/api/auth/me");
           if (!response.ok) throw new Error("Profile unavailable");
           const profile = await response.json();
+          if (currentUser !== profileOwner || document.getElementById("profile-panel").hidden) return;
           document.getElementById('profile-site-backup').hidden = profile.role !== 'admin';
           document.getElementById('site-backup-admin').hidden = profile.role !== 'admin';
+          if (backupsView && profile.role === 'admin') { document.getElementById('site-backup-admin').open = true; refreshBackupStatus(); }
           document.getElementById('profile-site-key').disabled = !profile.site_backup_key_available;
           document.getElementById('profile-site-key-unavailable').hidden = !!profile.site_backup_key_available;
           document.getElementById("profile-email").textContent = profile.email
@@ -10883,6 +10948,7 @@
       function closeProfilePanel() {
         clearTimeout(backupPollTimer);
         clearBackupSecrets();
+        GnotesBackupDashboard.resetPersonal();
         document.getElementById("profile-panel").hidden = true;
         document.getElementById("profile-recovery-password").value = "";
         document.getElementById('profile-backup-password').value = '';

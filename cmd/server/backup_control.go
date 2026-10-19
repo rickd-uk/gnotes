@@ -77,7 +77,7 @@ func backupControlActionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch input.Action {
-	case "configure", "enable", "pause", "stop", "run", "history":
+	case "configure", "enable", "pause", "stop", "run", "history", "local-run", "local-enable", "local-pause", "recovery-test", "offsite-test":
 	default:
 		http.Error(w, "Choose a backup action", 400)
 		return

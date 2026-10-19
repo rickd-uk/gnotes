@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,17 +27,27 @@ func TestProfileBackupBrowser(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			actions := make(chan map[string]any, 4)
+			actions := make(chan map[string]any, 8)
+			var recoveryVerified atomic.Bool
 			bridge := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				if r.URL.Path == "/action" {
 					var data map[string]any
 					json.NewDecoder(r.Body).Decode(&data)
 					actions <- data
+					if data["action"] == "recovery-test" {
+						recoveryVerified.Store(true)
+					}
 					w.WriteHeader(202)
 					w.Write([]byte(`{"message":"accepted"}`))
 				} else {
-					w.Write([]byte(`{"configured":false,"schedule":"Daily 04:15–04:30 Asia/Tokyo","message":"Fixture ready","snapshots":[]}`))
+					checks := map[string]any{}
+					if recoveryVerified.Load() {
+						checks["local"] = map[string]any{"tested_at": time.Now().UTC().Format(time.RFC3339), "archive": "gnotes-daily-fixture.db.gz", "key_source": "server"}
+					}
+					json.NewEncoder(w).Encode(map[string]any{"configured": false, "schedule": "Daily 04:15–04:30 Asia/Tokyo", "message": "Fixture ready", "snapshots": []any{},
+						"actions": []string{"configure", "local-run", "recovery-test", "local-enable", "local-pause"},
+						"local":   map[string]any{"schedule_enabled": true, "schedule_active": true, "count": 1, "latest": map[string]any{"name": "gnotes-daily-fixture.db.gz", "time": time.Now().UTC().Format(time.RFC3339)}, "encryption_required": true, "key_available": true}, "recovery_checks": checks})
 				}
 			})}
 			go bridge.Serve(listener)
@@ -77,9 +88,24 @@ func TestProfileBackupBrowser(t *testing.T) {
 			browser.wait(`!document.getElementById('auth-screen').hidden`)
 			browser.script(`document.getElementById('auth-username').value='rick';document.getElementById('auth-password').value='original password';document.getElementById('auth-form').requestSubmit();`)
 			browser.wait(`!document.getElementById('app-shell').hidden&&!notesLoading`)
-			browser.script(`document.getElementById('account-menu-username').click();`)
+			browser.script(`document.getElementById('backup-open').click();`)
 			browser.wait(`!document.getElementById('profile-site-backup').hidden&&!document.getElementById('profile-site-key').disabled`)
 
+			browser.wait(`document.getElementById('backup-local-headline').textContent==='Recent backup available'`)
+			browser.script(`if(document.getElementById('profile-heading').textContent!=='Backup & recovery'||document.getElementById('backup-offsite-headline').textContent!=='Not configured on this server'||document.getElementById('backup-recovery-headline').textContent!=='No recovery test recorded')throw new Error('Backup evidence is misleading');document.getElementById('backup-local-password').value='original password';document.getElementById('site-backup-actions').requestSubmit(document.querySelector('[value="recovery-test"]'));`)
+			browser.wait(`document.getElementById('backup-recovery-headline').textContent==='Recovery checks recorded' && !backupSubmitting`)
+			select {
+			case action := <-actions:
+				if action["action"] != "recovery-test" {
+					t.Fatal("wrong recovery action", action["action"])
+				}
+				if _, ok := action["password"]; ok {
+					t.Fatal("login password forwarded to backup service")
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatal("recovery test was not submitted")
+			}
+			browser.script(`if(!document.getElementById('backup-recovery-detail').textContent.includes('offline key copy')||document.getElementById('backup-local-password').value)throw new Error('Recovery result lost scope or password retained');`)
 			browser.script(`document.getElementById('site-backup-admin').open=true;`)
 			browser.wait(`document.getElementById('site-backup-message').textContent==='Fixture ready'`)
 			browser.script(`document.getElementById('site-backup-wizard').open=true;`)
@@ -142,6 +168,10 @@ func TestProfileBackupBrowser(t *testing.T) {
 			backup := readDownload("*.gnotes-backup")
 			browser.script(fmt.Sprintf(`window.testBackup=new File([%q],'restore.gnotes-backup');window.testKey=new File([%q],'recovery.json');decryptPersonalBackup(testBackup,testKey).then(b=>b.text()).then(t=>window.restoredPersonal=JSON.parse(t));`, string(backup), string(key)))
 			browser.wait(`window.restoredPersonal?.notes.length===1`)
+			browser.script(`document.querySelector('.personal-recovery-test').open=true;const f=new DataTransfer();f.items.add(testBackup);document.getElementById('personal-recovery-backup').files=f.files;const k=new DataTransfer();k.items.add(testKey);document.getElementById('personal-recovery-key').files=k.files;document.getElementById('personal-recovery-test-form').requestSubmit();`)
+			browser.wait(`document.getElementById('personal-recovery-result').textContent.includes('Recovery test passed: 1 note')`)
+			browser.script(`if(document.getElementById('personal-recovery-backup').value||document.getElementById('personal-recovery-key').value)throw new Error('Recovery files retained');`)
+
 			browser.script(fmt.Sprintf(`const damaged=JSON.parse(%q);damaged.ciphertext=(damaged.ciphertext[0]==='A'?'B':'A')+damaged.ciphertext.slice(1);decryptPersonalBackup(new File([JSON.stringify(damaged)],'damaged.gnotes-backup'),testKey).then(()=>window.tamperRejected=false,()=>window.tamperRejected=true);`, string(backup)))
 			browser.wait(`window.tamperRejected===true`)
 			browser.script(`if(restoredPersonal.notes[0].title!=='Personal archive'||!restoredPersonal.notes[0].favorited||restoredPersonal.notes[0].tags[0]!=='restore')throw new Error('Personal decrypt lost details');const r=document.getElementById('profile-backup-form').getBoundingClientRect();if(r.left<0||r.right>innerWidth||document.documentElement.scrollWidth>innerWidth)throw new Error('Profile backups overflow');`)

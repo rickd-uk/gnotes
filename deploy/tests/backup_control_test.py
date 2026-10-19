@@ -127,6 +127,67 @@ class BackupControlTest(unittest.TestCase):
         self.assertFalse(control.JOB['busy'])
         self.assertEqual(control.JOB['outcome'], 'error')
 
+    def test_local_recovery_evidence_and_failure_preserves_last_success(self):
+        directory = control.APP / 'backups'
+        directory.mkdir(parents=True)
+        old = directory / 'gnotes-daily-20261018T080236Z.db.gz'
+        latest = directory / 'gnotes-daily-20261019T080236Z.db.gz'
+        old.write_bytes(b'old encrypted archive')
+        latest.write_bytes(b'latest encrypted archive')
+        with patch.dict(os.environ, {'GNOTES_DATABASE_KEY_FILE': '/private/key'}), \
+             patch.object(control, 'run', return_value=subprocess.CompletedProcess([], 0, b'', b'')) as run, \
+             patch.object(control, 'systemctl') as systemctl:
+            control.perform({'action':'recovery-test'})
+            command = run.call_args.args[0]
+            self.assertEqual(command[1:4], ['db', 'recovery-test', '--source'])
+            self.assertEqual(command[4], latest)
+            systemctl.assert_not_called()
+            evidence = (control.PRIVATE / 'recovery-checks.json').read_text()
+            self.assertEqual(json.loads(evidence)['local']['archive'], latest.name)
+            self.assertNotIn('/private/key', evidence)
+            run.return_value = subprocess.CompletedProcess([], 1, b'', b'private error')
+            with self.assertRaises(ValueError):
+                control.perform({'action':'recovery-test'})
+            self.assertEqual((control.PRIVATE / 'recovery-checks.json').read_text(), evidence)
+        self.assertEqual(latest.read_bytes(), b'latest encrypted archive')
+
+    def test_local_status_and_schedule_do_not_require_cloud_credentials(self):
+        directory = control.APP / 'backups'
+        directory.mkdir(parents=True)
+        archive = directory / 'gnotes-daily-20261019T080236Z.db.gz'
+        archive.write_bytes(b'encrypted archive')
+        (directory / 'gnotes-daily-20990101T000000Z.db.gz').symlink_to(archive)
+        with patch.object(control, 'properties', return_value={'ActiveState':'active','UnitFileState':'enabled','Result':'success'}):
+            info = control.status()
+        self.assertFalse(info['configured'])
+        self.assertEqual(info['local']['count'], 1)
+        self.assertEqual(info['local']['latest']['name'], archive.name)
+        self.assertTrue(info['local']['schedule_enabled'])
+        self.assertEqual(info['recovery_checks'], {})
+        with patch.object(control, 'systemctl') as systemctl:
+            control.perform({'action':'local-pause'})
+            systemctl.assert_called_once_with('disable','--now','gnotes-podman-backup.timer')
+        with patch.object(control, 'systemctl') as systemctl:
+            control.perform({'action':'local-run'})
+            systemctl.assert_any_call('start','--no-block','gnotes-podman-backup.service')
+        self.assertEqual(archive.read_bytes(), b'encrypted archive')
+
+    def test_offsite_recovery_downloads_then_tests_and_records_snapshot(self):
+        control.atomic(control.PRIVATE / 'wasabi.env','RESTIC_REPOSITORY=fixture\n')
+        def run(args, env=None, timeout=120):
+            if args[1] == 'restore':
+                staging = pathlib.Path(args[-1])
+                (staging / 'gnotes-daily-20261019T080236Z.db.gz').write_bytes(b'encrypted downloaded archive')
+            return subprocess.CompletedProcess(args,0,b'',b'')
+        with patch.dict(os.environ, {'GNOTES_DATABASE_KEY_FILE':'/private/key'}), \
+             patch.object(control,'snapshots',return_value=[{'id':'abcdef123456','time':'fixture'}]), \
+             patch.object(control,'run',side_effect=run) as execute:
+            control.perform({'action':'offsite-test'})
+            self.assertEqual(execute.call_count,2)
+        evidence = json.loads((control.PRIVATE / 'recovery-checks.json').read_text())['offsite']
+        self.assertEqual(evidence['snapshot'],'abcdef123456')
+        self.assertEqual(evidence['key_source'],'server')
+
     @unittest.skipUnless(shutil.which('restic'), 'Restic required')
     def test_real_repository_setup_and_restore(self):
         bin_dir = control.APP / 'bin'
