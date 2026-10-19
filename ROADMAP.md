@@ -13,7 +13,7 @@ Session handoff and future plans saved on 2026-10-16 in [PROGRESS.md](PROGRESS.m
 5. Add administrator MFA/recovery codes and privacy-conscious audit logging with documented retention.
 6. Consider scoped editor additions such as editable tables after reliability and security work.
 
-Also verify the recovery email and a real password-reset email. Offline notes remain read only with manual snapshot refresh; offline editing/synchronization is not planned in this handoff. These are recorded future priorities, not instructions to begin implementation.
+Also verify the recovery email and a real password-reset email. Offline notes remain read only with opt-in automatic encrypted snapshot refresh; offline editing/synchronization is not planned in this handoff. These are recorded future priorities, not instructions to begin implementation.
 
 The operational Wasabi egress fix is installed on Kagoya and included in v0.7.55. Daily replication checks local database integrity and repository metadata without routine payload downloads. Explicit setup tests retain latest-snapshot restore verification. Automatic Wasabi scheduling remains disabled pending setup, and future full integrity/restore tests need an egress budget.
 
@@ -123,7 +123,7 @@ Two-stage encryption plan saved on 2026-10-18. Stage one is deployed as v0.8.0-r
 
 Do not add a separate encrypted-archive workflow. Regular server-side key rotation does not hide past notes while the server retains the ability to decrypt them. Stage 1 is active; the owner selected volatile storage on 2026-10-18. Root setup, RAM-only key provisioning, verified cutover, retained local backup conversion, isolated recovery and missing/wrong-key unlocking checks are complete. At the owner's request, pre-cleanup local/workstation snapshots were subsequently deleted, and a verified post-cleanup encrypted Wasabi snapshot replaces the historical one. Old freed disk blocks/provider snapshots are not securely erased. Keep an additional offline owner key copy. Stage 2 has not started. Simple mode was deployed in v0.8.0-rc.4 on 2026-10-19; see the implementation status below. The owner deleted the three other existing accounts and their notes, retaining `rick` as admin, and enabled new-user signup without invitations; Simple mode should still default on for future regular accounts.
 
-Read-only offline snapshots are deployed in v0.7.45: opt-in device encryption, separate unlock passphrase, manual online refresh, local search/collections, and removal on sign-out. Offline editing and conflict synchronization remain out of scope.
+Read-only offline snapshots are deployed in v0.7.45: opt-in device encryption, separate unlock passphrase, online refresh, local search/collections, and removal on sign-out. Automatic refresh using a public encryption key is now implemented; existing copies can enable it when refreshed. Offline editing and conflict synchronization remain out of scope.
 
 Offline storage must be opt-in and encrypted locally. Private notes should not be copied into IndexedDB or a service-worker cache in plaintext, especially on shared or stolen devices.
 

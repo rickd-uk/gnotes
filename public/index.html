@@ -1142,6 +1142,7 @@
       .archive-mode-banner strong { display: block; font-size: 1rem; }
       .archive-mode-banner span { display: block; margin-top: 2px; font-size: 0.78rem; }
       .archive-mode-banner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+      #archive-query { flex: 1 1 180px; min-width: 0; max-width: 100%; height: 34px; margin: 0; padding: 6px 10px; border: 1px solid #b9cec4; border-radius: 7px; background: var(--paper); color: var(--ink); font: inherit; font-size: 0.8rem; }
       .archive-mode-banner[hidden] { display: none; }
       .archive-remove-all {
         min-height: 38px;
@@ -1987,6 +1988,11 @@
         );
       }
 
+      #offline-sync-status { display: block; font-size: 0.72rem; color: var(--muted); }
+      #offline-connection-status { padding: 12px; border: 1px solid var(--accent); border-radius: 8px; }
+
+      #home-link { color: inherit; text-decoration: none; }
+
       .newest-note .note-view > h2 {
         color: #173f32;
         font-weight: 600;
@@ -2004,26 +2010,21 @@
       }
 
       .note-card:not(.is-editing) .note-view {
-        display: contents;
+        display: block;
+        min-width: 0;
       }
 
       .note-card:not(.is-editing) .note-view > h2 {
-        position: absolute;
-        top: 15px;
-        right: calc(104px + 44px * var(--quick-action-count));
-        left: 104px;
+        position: static;
         max-width: none;
-        margin: 2px 0 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        margin: 8px 0 0;
+        overflow-wrap: anywhere;
+        white-space: normal;
       }
 
       .note-card:not(.is-editing) .note-view .note-content {
         margin-top: 12px;
       }
-
-      .note-card.has-roll-control:not(.is-editing) .note-view > h2 { left: 132px; }
 
       .note-roll-toggle {
         flex-shrink: 0;
@@ -4491,7 +4492,7 @@
 
     <main class="shell" id="app-shell" hidden>
       <header class="site-header">
-        <h1>gnotes</h1>
+        <h1><a href="/" id="home-link" aria-label="gnotes — Recent notes">gnotes</a></h1>
         <nav class="header-actions" id="primary-navigation" aria-label="Main navigation">
           <div class="view-control" id="view-control">
             <button class="view-toggle" id="view-toggle" type="button" aria-controls="view-menu" aria-expanded="false" aria-label="Open controls menu" title="Open controls menu">
@@ -4660,7 +4661,7 @@
               <div class="account-menu-section" id="account-data-section">
                 <span class="account-menu-label">Data</span>
                 <button class="menu-entry" id="backup-open" type="button" onclick="openProfilePanel({backups:true})"><svg class="menu-item-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 7v6c0 5 9 8 9 8s9-3 9-8V7l-9-4Z"/><path d="m8 12 3 3 5-6"/></svg><span>Backup &amp; recovery</span></button>
-                <a href="/offline.html" class="offline-reading-link menu-entry"><svg class="menu-item-icon" style="color: #617f64" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5V3ZM14 3v5h5M8 12h8M8 16h6"/></svg><span>Offline reading</span></a>
+                <a href="/offline.html" class="offline-reading-link menu-entry"><svg class="menu-item-icon" style="color: #617f64" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5V3ZM14 3v5h5M8 12h8M8 16h6"/></svg><span>Offline reading<small id="offline-sync-status" aria-live="polite"></small></span></a>
               </div>
               <div class="account-menu-section"><button class="menu-entry" id="features-open" type="button" onclick="GnotesFeatures.open()"><svg class="menu-item-icon" style="color: #7b6b91" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg><span>More features</span></button></div>
               <div class="account-menu-section">
@@ -4686,11 +4687,13 @@
         </nav>
       </header>
 
+      <p id="offline-connection-status" role="status" hidden>Connection lost. Unsaved changes remain in this page. <a href="/offline.html" id="offline-saved-link" hidden>Read your saved offline copy</a></p>
+
       <section class="search-panel" id="search-panel" aria-label="Find notes" hidden>
         <form id="search-form">
           <div class="search-query-row">
             <div class="search-query-control">
-              <input type="search" id="search-query" placeholder="Search title or content…" aria-label="Search text" />
+              <input type="search" id="search-query" placeholder="Search all notes, favorites and archives…" aria-label="Search text" />
               <button class="search-clear" id="search-clear" type="button" aria-label="Clear search" title="Clear search" hidden>×</button>
             </div>
             <div class="search-scope-options" id="search-scope-options" role="group" aria-label="Search within">
@@ -4739,6 +4742,7 @@
       </div>
       <div class="archive-mode-banner" id="archive-mode-banner" hidden>
         <div><strong>Archived notes</strong><span>Saved for later · select the archive icon to return to recent notes</span></div>
+        <input id="archive-query" type="search" placeholder="Search archived notes" aria-label="Search archived notes">
         <button class="archive-remove-all" type="button" onclick="promptArchiveRemoval('all')">Move all to recycle bin</button>
       </div>
 
@@ -5137,7 +5141,7 @@
         <div><h3>Vim editing</h3><p>Choose N beside the title to edit Markdown with Vim keys; choose N again to return to the normal editor. Your choice is remembered for this account in this browser. Press i to insert and Escape to return to Normal mode. Use :w to save, or :wq, :x or Ctrl/Command+Enter to save and close. New notes save as drafts with :w and become notes with :wq. Notes autosave, so :q also keeps changes and closes. The eye button previews an existing note.</p></div>
         <div><h3>Your keyboard shortcuts</h3><p>Open Profile → Keyboard shortcuts to search actions and assign keys. Shortcuts are saved for your account in this browser. Note actions use the focused or pointed-at note. Ctrl+Shift+P toggles preview; Escape saves and closes a note, retaining edits if saving fails. Short notes use a centered, content-sized editor.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Tab indents text; Shift+Tab moves it back. In lists, these keys change nesting. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done. Saved links open normally; Shift-click a link to edit its note. While editing, click a link to place the cursor, then choose Link in the formatting toolbar to change its address or open it. Ctrl/Command-click opens a link directly from the editor.</p></div>
-        <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Favorites are hidden from the main view and Archive by default. To show them there too, enable Controls → Display → Favorites. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
+        <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Favorites are hidden from the main view and Archive by default, but are always included when searching. General search includes archived notes too; use the search box in Archive to search only archived notes. To show them there too, enable Controls → Display → Favorites. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
         <div><h3>Find a note</h3><p>Use the search icon to search titles and content, or open Dates and options to jump to a day.</p></div>
         <div><h3>Edit a note</h3><p>Tap or click a note to open a larger editing view. Copy highlighted text at the bottom left, or copy the whole note, including its title, when nothing is selected. Use the eye icon to preview your current text and the pencil to return to editing. Notes open in edit mode. Choose the green check mark to save and return to your notes.</p></div>
         <div><h3>Note actions on a phone</h3><p>Use the quick actions beside a note or tap the three-dot button for the rest. Swipe left to open the menu and right to close it.</p></div>
@@ -6401,6 +6405,8 @@
         const response = await fetch(url, request);
         if (response.status === 401 && owner === currentUser && token === csrfToken && !request.signal?.aborted)
           showAuth("Your session ended. Please sign in again.");
+        const path = new URL(url, location.origin).pathname;
+        if (response.ok && method !== 'GET' && method !== 'HEAD' && (path.startsWith('/api/notes/') && path !== '/api/notes/preview' || path === '/api/draft/finalize')) window.GnotesOfflineSync?.schedule();
         return response;
       }
 
@@ -6583,6 +6589,7 @@
       async function enterApp(session, newAccount = false) {
         csrfToken = session.csrf_token;
         currentUser = session;
+        window.GnotesOfflineSync?.schedule();
         GnotesFeatures.apply(session.features || {});
         loadCollapsedDateSections();
         loadRolledNotes();
@@ -7054,7 +7061,8 @@
         if (archived) pageURL.searchParams.set('archive', '1');
         if (favorites) pageURL.searchParams.set('favorites', '1');
         pageURL.searchParams.delete('hide_favorites');
-        if (!favorites && !showFavoritesInMain) pageURL.searchParams.set('hide_favorites', '1');
+        if (!searchActive && !favorites && !showFavoritesInMain) pageURL.searchParams.set('hide_favorites', '1');
+        if (searchActive && !calendarActive && !archived && !favorites) pageURL.searchParams.set('include_archived', '1');
         pageURL.searchParams.set('limit', '50');
         const pageKey = `${pageURL.pathname}${pageURL.search}`;
         // A cursor belongs to the filter/view that produced it, including
@@ -7420,6 +7428,7 @@
           liveSearchTimer = setTimeout(runTextSearch, 100);
           return false;
         }
+        if (archiveMode) document.getElementById('archive-query').value = document.getElementById('search-query').value;
         searchActive = true;
         expandVisibleSearchSections();
         calendarActive = false;
@@ -8077,7 +8086,7 @@
       async function toggleFavorite(id) {
         const note = loadedNotes.get(id);
         if (!note) return;
-        const previous = Boolean(note.favorited), removeFromView = (favoritesMode && previous) || (!favoritesMode && !showFavoritesInMain && !previous);
+        const previous = Boolean(note.favorited), removeFromView = (favoritesMode && previous) || (!searchActive && !favoritesMode && !showFavoritesInMain && !previous);
         const saved = await optimisticNoteAction(id, `/api/notes/favorite?id=${id}`, () => {
           note.favorited = !previous;
           if (removeFromView) { loadedNotes.delete(id); notesTotal = Math.max(0, notesTotal - 1); }
@@ -8107,6 +8116,7 @@
         favoritesMode = false;
         updateFavoritesView();
         archiveMode = !archiveMode;
+        document.getElementById('archive-query').value = '';
         const shell = document.getElementById("app-shell");
         shell.classList.toggle("archive-mode", archiveMode);
         document.getElementById("archive-mode-banner").hidden = !archiveMode;
@@ -10061,6 +10071,11 @@
         await runLiveSearch();
       });
 
+      document.getElementById('archive-query').addEventListener('input', event => {
+        document.getElementById('search-query').value = event.target.value;
+        syncSearchClear();
+        scheduleLiveSearch();
+      });
       document.getElementById("search-query").addEventListener("input", () => {
         syncSearchClear();
         scheduleLiveSearch();
@@ -10090,8 +10105,33 @@
         if (document.getElementById("search-query").value.trim() || document.getElementById("search-tag").value) scheduleLiveSearch();
       });
 
+      document.getElementById('home-link').addEventListener('click', async event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (pendingNoteActions.size) { setTimeout(() => { if (currentUser) document.getElementById('home-link').click(); }, 150); return; }
+        if (editingNoteId !== null && !await updateNote(editingNoteId)) return;
+        closeAdminPanel(); closeProfilePanel(); closeHelpPanel(); closeArchiveOverview();
+        closeTrashPanel(); closeHiddenNotesPanel(); closeViewMenu();
+        document.getElementById('account-control').open = false;
+        favoritesMode = false;
+        archiveMode = false;
+        updateFavoritesView();
+        document.getElementById('app-shell').classList.remove('archive-mode');
+        document.getElementById('archive-mode-banner').hidden = true;
+        const archiveButton = document.getElementById('archived-quick-open');
+        archiveButton.setAttribute('aria-pressed', 'false');
+        archiveButton.setAttribute('aria-label', 'Show archived notes');
+        archiveButton.title = 'Show archived notes';
+        for (const id of ['favorites-query', 'archive-query']) document.getElementById(id).value = '';
+        document.getElementById('favorites-category').value = '';
+        notesList.style.setProperty('--quick-action-count', String(quickActions.length));
+        await showRecentNotes();
+        window.scrollTo({ top: 0 });
+      });
+
       async function showRecentNotes() {
         clearTimeout(liveSearchTimer);
+        document.getElementById('archive-query').value = '';
         if (favoritesMode) {
           document.getElementById('favorites-query').value = '';
           document.getElementById('favorites-category').value = '';
@@ -11109,5 +11149,6 @@
     <script src="/dictionary.js"></script>
     <script src="/shortcuts.js"></script>
     <script src="/offline-store.js"></script>
+    <script src="/offline-sync.js"></script>
   </body>
 </html>

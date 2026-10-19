@@ -1,5 +1,5 @@
 /* Static reader only. Never cache API responses, the signed-in app or notes. */
-const READER_CACHE = 'gnotes-offline-reader-v1';
+const READER_CACHE = 'gnotes-offline-reader-v2';
 const FILES = ['/offline.html', '/offline.css', '/offline-store.js', '/offline-reader.js'];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {

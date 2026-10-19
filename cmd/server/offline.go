@@ -9,8 +9,8 @@ import (
 	"gnotes/internal/db"
 )
 
-// This snapshot is fetched only on explicit request and must never be cached
-// by HTTP or the service worker. The browser encrypts it before persisting it.
+// This snapshot supports opted-in offline copies and their automatic refresh.
+// HTTP and service workers must never cache it; the browser encrypts it first.
 func offlineSnapshotHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodGet {

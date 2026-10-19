@@ -53,14 +53,24 @@
     $('offline-more').hidden = matches.length <= visibleCount;
   }
   async function prepareReader() {
-    await navigator.serviceWorker.register('/offline-sw.js', { scope: '/' });
+    const registration = await navigator.serviceWorker.register('/offline-sw.js', { scope: '/' });
     let timeout;
+    const installed = async () => {
+      const worker = registration.installing || registration.waiting;
+      if (worker && worker.state !== 'activated') await new Promise((resolve, reject) => {
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'activated') resolve();
+          if (worker.state === 'redundant') reject(new Error('Offline reader update failed. Reconnect and try again.'));
+        });
+      });
+      return navigator.serviceWorker.ready;
+    };
     const ready = await Promise.race([
-      navigator.serviceWorker.ready,
+      installed(),
       new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Offline reader could not finish installing. Reconnect and try again.')), 15000); }),
     ]).finally(() => clearTimeout(timeout));
     if (!ready.active) throw new Error('Offline reader could not be installed. Try again while online.');
-    const cache = await caches.open('gnotes-offline-reader-v1');
+    const cache = await caches.open('gnotes-offline-reader-v2');
     for (const path of ['/offline.html', '/offline.css', '/offline-store.js', '/offline-reader.js']) {
       if (!await cache.match(path)) throw new Error('Offline reader is incomplete. Reconnect and try again.');
     }
@@ -92,7 +102,7 @@
         if (old.owner !== snapshot.owner) throw new Error('Remove the other account’s saved copy before saving this account.');
       }
       await prepareReader();
-      const encrypted = await store.encrypt(snapshot, passphrase);
+      const encrypted = await store.encrypt(snapshot, passphrase, $('offline-automatic').checked);
       const latestSession = await account();
       if (latestSession?.username !== expectedUser) throw new Error('Your session changed. Sign in online and try again.');
       await store.save(encrypted, revision);
@@ -100,7 +110,7 @@
       $('offline-save-form').reset();
       lock(); updateControls();
       navigator.storage?.persist?.().catch(() => {});
-      status(`${snapshot.notes.length} ${snapshot.notes.length === 1 ? 'note' : 'notes'} saved for offline reading. Unlock them below. Refresh this copy after changing notes online.`);
+      status(`${snapshot.notes.length} ${snapshot.notes.length === 1 ? 'note' : 'notes'} saved for offline reading. Unlock them below. ${encrypted.version === 2 ? 'Updates are automatic while you use gnotes online.' : 'Refresh this copy after changing notes online.'}`);
     }).finally(() => { $('offline-new-passphrase').value = ''; $('offline-confirm-passphrase').value = ''; });
   });
   $('offline-unlock-form').addEventListener('submit', event => {
@@ -122,7 +132,7 @@
     });
   });
   $('offline-refresh').addEventListener('click', () => {
-    lock(); $('offline-setup').hidden = false; $('offline-unlock-form').hidden = true; $('offline-cancel-setup').hidden = false;
+    lock(); $('offline-automatic').checked = record?.version === 2; $('offline-setup').hidden = false; $('offline-unlock-form').hidden = true; $('offline-cancel-setup').hidden = false;
     $('offline-account').textContent = `Refresh the copy for ${session.username} using its existing offline passphrase.`;
     status('Save again while online to replace the copy with your latest active and archived notes.');
   });
@@ -146,7 +156,7 @@
     try {
       [record, session] = await Promise.all([store.get(), account()]);
       updateControls();
-      status(record ? 'An encrypted copy is saved on this device. Enter your offline passphrase to read it.'
+      status(record ? `An encrypted copy is saved on this device. ${record.version === 2 ? 'Automatic updates are on. ' : ''}Enter your offline passphrase to read it.`
         : session ? 'Offline reading is off. Choose a passphrase to save a copy on this device.' : 'No offline copy is saved. Sign in online first, then choose Offline reading from your account menu.');
     } catch { status('Device storage is unavailable. Check your browser’s storage settings.', true); }
   })();

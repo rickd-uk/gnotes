@@ -10,7 +10,7 @@
   <main>
     <header><h1>gnotes</h1><a href="/">Online notes</a></header>
     <h2>Offline reading</h2>
-    <p>Read a saved copy of your active and archived notes on this device. Changes made online appear here after you refresh the copy.</p>
+    <p>Read a saved copy of your active and archived notes on this device. After setup, gnotes can keep this encrypted copy up to date automatically while you use it online. Your offline passphrase is still needed to read it.</p>
     <p id="offline-status" role="status" aria-live="polite">Checking this device…</p>
     <section id="offline-setup" hidden>
       <form id="offline-save-form">
@@ -18,6 +18,7 @@
         <label>Offline passphrase<input id="offline-new-passphrase" type="password" minlength="12" maxlength="256" autocomplete="new-password" required></label>
         <label>Confirm passphrase<input id="offline-confirm-passphrase" type="password" minlength="12" maxlength="256" autocomplete="new-password" required></label>
         <p>Choose at least 12 characters. This passphrase unlocks the copy on this device and cannot be recovered. It can be different from your sign-in password.</p>
+        <label class="check"><input id="offline-automatic" type="checkbox" checked>Update automatically while I use gnotes online.</label>
         <label class="check"><input id="offline-consent" type="checkbox" required>Save an encrypted copy on this device. Signing out removes it.</label>
         <button id="offline-save" type="submit">Save offline copy</button>
       </form>

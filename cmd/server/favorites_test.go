@@ -54,6 +54,8 @@ func TestFavoritesIndependentArchiveIsolationAndTransfer(t *testing.T) {
 		{"/api/notes/page?archive=1", false, 1},
 		{"/api/notes/page?favorites=1&hide_favorites=1", false, 2},
 		{"/api/notes/search-page?hide_favorites=1&q=important", true, 1},
+		{"/api/notes/search-page?include_archived=1&q=important", true, 3},
+		{"/api/notes/search-page?include_archived=1&archive=1&q=important", true, 1},
 		{"/api/notes/search-page?archive=1&hide_favorites=1&tag=work", true, 0},
 		{"/api/notes/search-page?favorites=1&hide_favorites=1&q=important", true, 2},
 	} {
@@ -65,6 +67,12 @@ func TestFavoritesIndependentArchiveIsolationAndTransfer(t *testing.T) {
 		if page.Total != tc.want || len(page.Notes) != tc.want {
 			t.Fatalf("favorite visibility %s: %+v", tc.path, page)
 		}
+	}
+
+	first := requestNotePage(t, pagedSearchNotesHandler, "/api/notes/search-page?include_archived=1&q=important&limit=1", owner)
+	second := requestNotePage(t, pagedSearchNotesHandler, "/api/notes/search-page?include_archived=1&q=important&limit=1&cursor="+first.NextCursor, owner)
+	if first.Total != 3 || second.Total != 3 || first.NextCursor == "" || first.Notes[0].ID == second.Notes[0].ID {
+		t.Fatalf("global search pagination: first=%+v second=%+v", first, second)
 	}
 
 	var activeID, privateID, deletedID int

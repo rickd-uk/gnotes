@@ -351,6 +351,9 @@ func pagedSearchFilter(r *http.Request) (string, []string, []any, error) {
 	archived := r.URL.Query().Get("archive") == "1"
 	favorites := r.URL.Query().Get("favorites") == "1"
 	archiveCondition := "n.archived_at IS NULL"
+	if r.URL.Query().Get("include_archived") == "1" {
+		archiveCondition = "1 = 1"
+	}
 	if favorites {
 		archiveCondition = "n.favorited = 1"
 	}
