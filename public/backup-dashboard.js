@@ -1,5 +1,51 @@
 /* Backup evidence is server-reported; unknown and failed checks stay explicit. */
 window.GnotesBackupDashboard = (() => {
+  let tabsEnabled = false, adminTabs = false, activeTab = 'overview';
+  const tabList = document.getElementById('backup-tabs');
+  function updateTabs() {
+    tabList.hidden = !tabsEnabled;
+    tabList.querySelectorAll('[data-backup-tab]').forEach(button => {
+      const selected = button.dataset.backupTab === activeTab;
+      button.hidden = !adminTabs && button.dataset.backupTab !== 'personal';
+      button.setAttribute('aria-selected', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    });
+    document.querySelectorAll('[data-backup-panel]').forEach(panel => { panel.hidden = tabsEnabled && panel.dataset.backupPanel !== activeTab; });
+    const personal = document.getElementById('profile-backups');
+    personal.hidden = tabsEnabled && activeTab !== 'personal';
+    document.getElementById('site-backup-admin').hidden = !adminTabs || (tabsEnabled && activeTab === 'personal');
+    if (tabsEnabled) {
+      personal.setAttribute('role', 'tabpanel'); personal.setAttribute('aria-labelledby', 'backup-tab-personal'); personal.tabIndex = 0;
+    } else {
+      personal.removeAttribute('role'); personal.removeAttribute('aria-labelledby'); personal.removeAttribute('tabindex');
+    }
+  }
+  function configureTabs(enabled, admin) {
+    tabsEnabled = enabled; adminTabs = admin; activeTab = admin ? 'overview' : 'personal';
+    updateTabs();
+    document.getElementById('profile-panel').scrollTop = 0;
+  }
+  function selectTab(name, focus = false) {
+    if (!tabsEnabled || (!adminTabs && name !== 'personal')) return;
+    clearBackupSecrets();
+    document.getElementById('profile-backup-password').value = '';
+    activeTab = name;
+    updateTabs();
+    document.getElementById('profile-panel').scrollTop = 0;
+    if (focus) document.getElementById('backup-tab-' + name).focus();
+  }
+  tabList.addEventListener('click', event => {
+    const button = event.target.closest('[data-backup-tab]');
+    if (button) selectTab(button.dataset.backupTab);
+  });
+  tabList.addEventListener('keydown', event => {
+    if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+    const buttons = [...tabList.querySelectorAll('[data-backup-tab]')].filter(button => !button.hidden);
+    const current = buttons.findIndex(button => button === document.activeElement);
+    if (current < 0) return;
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+    event.preventDefault(); selectTab(buttons[next].dataset.backupTab, true);
+  });
   const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString() : value || 'Not recorded';
   function card(name, headline, detail, tone = 'unknown') {
     const heading = document.getElementById(`backup-${name}-headline`);
@@ -30,6 +76,29 @@ window.GnotesBackupDashboard = (() => {
     for (const name of ['local','offsite','encryption','recovery']) card(name, 'Status unavailable', 'Backup protection could not be checked. Refresh to retry.', 'unknown');
     document.getElementById('backup-checked-at').textContent = 'Could not refresh backup status. Previous results are not current confirmation.';
   }
+  let commandCopyTimer;
+  document.getElementById('backup-recovery-command-copy').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    const command = document.getElementById('backup-recovery-command');
+    const status = document.getElementById('backup-recovery-command-status');
+    const label = button.querySelector('span');
+    clearTimeout(commandCopyTimer);
+    status.textContent = '';
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(command.textContent.trim());
+      copied = true;
+    } catch {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(command);
+      selection.removeAllRanges(); selection.addRange(range);
+      try { copied = document.execCommand('copy'); } catch {}
+    }
+    label.textContent = copied ? 'Copied' : 'Copy command';
+    status.textContent = copied ? 'Recovery command copied.' : 'Command selected. Use your browser’s Copy action.';
+    commandCopyTimer = setTimeout(() => { label.textContent = 'Copy command'; status.textContent = ''; }, 3000);
+  });
   let personalRevision = 0;
   function resetPersonal() {
     personalRevision++;
@@ -64,5 +133,5 @@ window.GnotesBackupDashboard = (() => {
       }
     }
   });
-  return {render, unavailable, reset, resetPersonal};
+  return {render, unavailable, reset, resetPersonal, configureTabs, updateTabs, selectTab, get activeTab() { return activeTab; }};
 })();

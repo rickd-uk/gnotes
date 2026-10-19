@@ -13,3 +13,22 @@
 #personal-recovery-test-form input[type="file"] { width: 100%; max-width: 100%; }
 #site-backup-overview dd { overflow-wrap: anywhere; }
 @media(max-width:560px) { .backup-protection-grid { grid-template-columns: minmax(0,1fr); } }
+
+.recovery-command-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+#backup-recovery-command-status { color: var(--muted); font-size: 0.85rem; }
+.backup-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 12px 0; }
+.backup-tabs[hidden], .backup-tabs button[hidden], .backup-tab-panel[hidden], .profile-backups[hidden] { display: none; }
+.backup-tabs button { min-width: 0; min-height: 44px; padding: 8px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); font: 600 0.82rem var(--note-body-font); cursor: pointer; }
+.backup-tabs button[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: var(--ink); border-color: var(--accent); }
+.backup-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.backup-tabs:has(button[hidden]) { grid-template-columns: minmax(0,1fr); }
+.backups-view #backup-modal-header { position: sticky; top: -20px; padding-top: 12px; background: var(--paper); z-index: 2; }
+.backups-view { background: var(--paper); }
+.backups-view :is(#site-backup-admin,#profile-backups) { margin-top: 0; padding-top: 0; border-top: 0; }
+.backups-view :is(#site-backup-admin,#profile-backups) > summary { display: none; }
+.backup-shared-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.backup-shared-status > p { flex: 1; margin: 0; }
+.backup-recovery-guide pre { -webkit-user-select: text; user-select: text; }
+#profile-panel .backup-export-button { width: auto; min-height: 40px; padding: 8px 12px; font-size: 0.82rem; }
+#profile-panel .backup-export-button .icon { width: 18px; height: 18px; flex-basis: 18px; }
+@media(max-width:560px) { .backup-tabs button { font-size: 0.72rem; padding: 8px 3px; } }

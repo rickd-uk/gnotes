@@ -2619,6 +2619,10 @@
         text-align: left;
       }
 
+      .note-content table { width: 100%; min-width: 40rem; table-layout: fixed; border-collapse: collapse; margin: 12px 0; }
+      .note-content :is(th, td) { padding: 9px 12px; vertical-align: top; overflow-wrap: anywhere; border-bottom: 1px solid var(--line); }
+      .note-content th { font-weight: 700; background: color-mix(in srgb, var(--paper) 92%, var(--ink) 8%); }
+
       .note-content > :first-child {
         margin-top: 0;
       }
@@ -4926,9 +4930,17 @@
     </section>
 
     <section class="info-panel" id="profile-panel" role="dialog" aria-labelledby="profile-heading" hidden>
+      <div id="backup-modal-header">
       <div class="info-panel-header">
         <h2 id="profile-heading">Profile</h2>
         <button class="admin-close" id="profile-close" type="button" aria-label="Close profile">×</button>
+      </div>
+        <div class="backup-tabs" id="backup-tabs" role="tablist" aria-label="Backup and recovery sections" hidden>
+          <button type="button" id="backup-tab-overview" role="tab" data-backup-tab="overview" aria-controls="backup-panel-overview" aria-selected="true" tabindex="0">Overview</button>
+          <button type="button" id="backup-tab-local" role="tab" data-backup-tab="local" aria-controls="backup-panel-local" aria-selected="false" tabindex="-1">Local backups</button>
+          <button type="button" id="backup-tab-offsite" role="tab" data-backup-tab="offsite" aria-controls="backup-panel-offsite" aria-selected="false" tabindex="-1">Off-server</button>
+          <button type="button" id="backup-tab-personal" role="tab" data-backup-tab="personal" aria-controls="profile-backups" aria-selected="false" tabindex="-1">My notes</button>
+        </div>
       </div>
       <p class="profile-role" id="profile-role"></p>
       <dl class="profile-details">
@@ -4941,7 +4953,7 @@
       <details id="profile-backups" class="profile-backups">
         <summary>My encrypted note backup</summary>
         <p>Keep a copy you control, outside this server. This backup contains only your account’s notes; its recovery key is separate from the server’s database key.</p>
-        <button class="menu-entry" id="transfer-open" type="button"><svg class="menu-item-icon" style="color: #426a83" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v13m-4-4 4 4 4-4M17 21V8m-4 4 4-4 4 4"/></svg><span>Export &amp; import</span></button>
+        <button class="backup-button backup-export-button" id="transfer-open" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13H5V3ZM14 3v5h5M8 12h8M8 16h6"/></svg><span>Export &amp; import</span></button>
         <details class="personal-recovery-test"><summary>Test a personal backup</summary>
           <p>Choose a downloaded backup and its personal recovery key. The test runs in this browser and imports no notes. These files are not uploaded.</p>
           <form id="personal-recovery-test-form" class="auth-form">
@@ -4966,6 +4978,11 @@
       </details>
       <details id="site-backup-admin" class="profile-backups" hidden>
         <summary>Server backups &amp; recovery · Admin</summary>
+        <div class="backup-shared-status">
+        <p class="backup-feedback" id="site-backup-message" role="status" aria-live="off"></p>
+        <button class="backup-button " type="button" id="site-backup-refresh"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 2M4 17l2 2a7 7 0 0 0 12-2"/></svg><span>Refresh status</span></button>
+        </div>
+        <section id="backup-panel-overview" class="backup-tab-panel" data-backup-panel="overview" role="tabpanel" aria-labelledby="backup-tab-overview" tabindex="0">
         <p>Database backups cover every account. Local copies protect against mistakes; an off-server copy also protects against losing this server. A backup’s existence and a successful recovery test are shown separately.</p>
         <p id="backup-checked-at" role="status">Checking backup protection…</p>
         <div class="backup-protection-grid">
@@ -4978,14 +4995,31 @@
           <ol><li>An encrypted database backup stored outside this server.</li><li>The matching database key, kept separately and offline. This key is not offered as a browser download.</li><li>For Wasabi: storage credentials and the off-server storage recovery file. That file does not replace the database key.</li></ol>
           <p>“Test local recovery” restores the latest daily archive into temporary files, compares stored data, checks integrity, rejects wrong keys, and tests writes and reopening. “Test off-server recovery” first downloads the latest Wasabi snapshot. Both use the server’s current database key and leave the running service unchanged.</p>
           <p>To verify your offline key copy, run this on a separate computer with a downloaded database backup and an encryption-capable gnotes binary:</p>
-          <pre><code>./gnotes db recovery-test --source backup.db.gz --key-file /path/to/offline-database.key</code></pre>
+          <pre><code id="backup-recovery-command">./gnotes db recovery-test --source backup.db.gz --key-file /path/to/offline-database.key</code></pre>
+          <div class="recovery-command-actions">
+            <button class="backup-button" type="button" id="backup-recovery-command-copy" aria-label="Copy recovery command"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h12v13H8ZM16 8V3H3v13h5"/></svg><span>Copy command</span></button>
+            <span id="backup-recovery-command-status" role="status"></span>
+          </div>
           <p>Personal note backups use their own recovery key and can be tested in “My encrypted note backup”. Recycled notes can be recovered from the recycle bin.</p>
         </details>
+        </section>
+        <section id="backup-panel-local" class="backup-tab-panel" data-backup-panel="local" role="tabpanel" aria-labelledby="backup-tab-local" tabindex="0">
+        <form class="auth-form" id="site-backup-local-actions">
+          <h3>Local database backups</h3>
+          <p>Actions below require your current password. Recovery tests never replace the running database.</p>
+          <label>Current gnotes password<input id="backup-local-password" type="password" autocomplete="current-password" maxlength="72" /></label>
+          <button class="backup-button backup-blue" type="submit" value="local-run"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Create local backup now</span></button>
+          <button class="backup-button backup-green" type="submit" value="recovery-test"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test local recovery</span></button>
+          <button class="backup-button backup-green" type="submit" value="local-enable"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable local daily backups</span></button>
+          <button class="backup-button backup-amber" type="submit" value="local-pause"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause local schedule</span></button>
+          <p class="backup-feedback" id="site-backup-local-feedback" role="status" aria-live="polite" hidden></p>
+          <p>Pausing prevents future scheduled runs and keeps existing backups.</p>
+        </form>
         <h3>Retained local daily backups</h3><ul id="backup-local-history"><li>Not loaded.</li></ul>
+        </section>
+        <section id="backup-panel-offsite" class="backup-tab-panel" data-backup-panel="offsite" role="tabpanel" aria-labelledby="backup-tab-offsite" tabindex="0">
         <h3>Off-server status</h3>
         <dl class="profile-details" id="site-backup-overview"></dl>
-        <p class="backup-feedback" id="site-backup-message" role="status" aria-live="off"></p>
-        <button class="backup-button " type="button" id="site-backup-refresh"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 2M4 17l2 2a7 7 0 0 0 12-2"/></svg><span>Refresh status</span></button>
         <details id="site-backup-wizard">
           <summary>Set up or change Wasabi storage</summary>
           <p>Use a dedicated Wasabi backup user restricted to this folder. Keep older recovery files when changing location; old backups stay in their original location.</p>
@@ -5029,13 +5063,6 @@
           </form>
         </details>
         <form class="auth-form" id="site-backup-actions">
-          <h3>Local database backups</h3>
-          <p>Actions below require your current password. Recovery tests never replace the running database.</p>
-          <label>Current gnotes password<input id="backup-local-password" type="password" autocomplete="current-password" maxlength="72" /></label>
-          <button class="backup-button backup-blue" type="submit" value="local-run"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Create local backup now</span></button>
-          <button class="backup-button backup-green" type="submit" value="recovery-test"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test local recovery</span></button>
-          <button class="backup-button backup-green" type="submit" value="local-enable"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable local daily backups</span></button>
-          <button class="backup-button backup-amber" type="submit" value="local-pause"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause local schedule</span></button>
           <h3>Off-server backups · Wasabi</h3>
           <p>After setup, download the off-server storage recovery file above and keep it outside this server. Keep your database key separately too.</p>
           <label><input id="site-backup-recovery-saved" type="checkbox" /> I saved the current off-server storage recovery file separately</label>
@@ -5053,6 +5080,7 @@
         <h3>Recent backups</h3>
         <p>History is refreshed after setup or with “Refresh backup history”. A snapshot alone does not prove its restore check passed; see the last job result above.</p>
         <ul id="site-backup-history"></ul>
+        </section>
       </details>
       <form class="auth-form recovery-email-form" id="recovery-email-form" hidden>
         <p class="auth-intro">Set or verify your password recovery email. A replacement takes effect only after you confirm the link.</p>
@@ -10769,15 +10797,15 @@
 
       let backupWizardStep = 0, backupPollTimer, backupSubmitting = false, backupWorkerBusy = false, backupConfigured = false, backupClientError = '', backupSupportedActions = [], backupControlAvailable = false;
       function setBackupFeedback(text, tone = 'info') {
-        for (const id of ['site-backup-message', 'site-backup-setup-feedback', 'site-backup-action-feedback']) {
+        for (const id of ['site-backup-message', 'site-backup-setup-feedback', 'site-backup-action-feedback', 'site-backup-local-feedback']) {
           const node = document.getElementById(id); node.textContent = text; node.hidden = !text; node.dataset.tone = tone;
-          node.setAttribute('aria-live', id === (document.getElementById('site-backup-wizard').open ? 'site-backup-setup-feedback' : 'site-backup-action-feedback') ? 'polite' : 'off');
+          node.setAttribute('aria-live', id === (GnotesBackupDashboard.activeTab === 'local' ? 'site-backup-local-feedback' : document.getElementById('site-backup-wizard').open ? 'site-backup-setup-feedback' : 'site-backup-action-feedback') ? 'polite' : 'off');
         }
       }
       function backupFormError(text) { backupClientError = text; setBackupFeedback(text, 'error'); }
       function updateBackupButtons() {
         const busy = backupSubmitting || backupWorkerBusy;
-        document.querySelectorAll('#site-backup-setup button, #site-backup-actions button').forEach(button => {
+        document.querySelectorAll('#site-backup-setup button, #site-backup-actions button, #site-backup-local-actions button').forEach(button => {
           const needsStorage = ['enable', 'run', 'history', 'offsite-test'].includes(button.value);
           const addedAction = ['local-run','local-enable','local-pause','recovery-test','offsite-test'].includes(button.value);
           button.disabled = busy || (needsStorage && !backupConfigured) || (addedAction && (!backupControlAvailable || !backupSupportedActions.includes(button.value)));
@@ -10880,7 +10908,7 @@
         document.getElementById('site-backup-access').value=''; document.getElementById('site-backup-secret').value=''; document.getElementById('site-backup-recovery-saved').checked=false;
         await submitBackupAction(data,document.getElementById('site-backup-setup-password'));
       });
-      document.getElementById('site-backup-actions').addEventListener('submit',event=>{
+      for (const id of ['site-backup-actions', 'site-backup-local-actions']) document.getElementById(id).addEventListener('submit',event=>{
         event.preventDefault(); const action=event.submitter?.value; if(!action)return;
         if(action==='enable' && !document.getElementById('site-backup-recovery-saved').checked) { backupFormError('Download the whole-site recovery file above and confirm you saved it first.'); return; }
         submitBackupAction({action,recovery_saved:document.getElementById('site-backup-recovery-saved').checked},document.getElementById(action.startsWith('local-') || action==='recovery-test' ? 'backup-local-password' : 'site-backup-action-password'));
@@ -10898,6 +10926,7 @@
         else personalBackups.after(serverBackups);
         document.getElementById("profile-panel").classList.toggle("backups-view", backupsView);
         GnotesBackupDashboard.reset();
+        GnotesBackupDashboard.configureTabs(backupsView, currentUser.role === 'admin');
         closeAdminPanel();
         closeHelpPanel();
         closeArchiveOverview();
@@ -10925,7 +10954,7 @@
           const profile = await response.json();
           if (currentUser !== profileOwner || document.getElementById("profile-panel").hidden) return;
           document.getElementById('profile-site-backup').hidden = profile.role !== 'admin';
-          document.getElementById('site-backup-admin').hidden = profile.role !== 'admin';
+          GnotesBackupDashboard.updateTabs();
           if (backupsView && profile.role === 'admin') { document.getElementById('site-backup-admin').open = true; refreshBackupStatus(); }
           document.getElementById('profile-site-key').disabled = !profile.site_backup_key_available;
           document.getElementById('profile-site-key-unavailable').hidden = !!profile.site_backup_key_available;

@@ -20,7 +20,7 @@ light/dark appearance are saved per account on the server; other devices read th
 on sign-in/reload or when returning to the tab. Existing accounts, including `rick`,
 retain Full mode. Basic text size and light/dark appearance stay in Controls.
 
-**Profile → Backup & recovery** opens personal encrypted backup/key downloads,
+**Profile → Backup & recovery** uses Overview, Local backups, Off-server and My notes tabs to keep status and actions separate. The recovery guide includes a Copy command button, and Export & import uses a compact file button. The modal opens personal encrypted backup/key downloads,
 export/import, and a browser-only personal recovery test. Administrators also see
 local database backup history/scheduling, Wasabi status, database-key availability,
 and dated recovery-test evidence. Password-confirmed controls create local backups,

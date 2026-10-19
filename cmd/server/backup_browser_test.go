@@ -92,7 +92,7 @@ func TestProfileBackupBrowser(t *testing.T) {
 			browser.wait(`!document.getElementById('profile-site-backup').hidden&&!document.getElementById('profile-site-key').disabled`)
 
 			browser.wait(`document.getElementById('backup-local-headline').textContent==='Recent backup available'`)
-			browser.script(`if(document.getElementById('profile-heading').textContent!=='Backup & recovery'||document.getElementById('backup-offsite-headline').textContent!=='Not configured on this server'||document.getElementById('backup-recovery-headline').textContent!=='No recovery test recorded')throw new Error('Backup evidence is misleading');document.getElementById('backup-local-password').value='original password';document.getElementById('site-backup-actions').requestSubmit(document.querySelector('[value="recovery-test"]'));`)
+			browser.script(`if(document.getElementById('profile-heading').textContent!=='Backup & recovery'||document.getElementById('backup-offsite-headline').textContent!=='Not configured on this server'||document.getElementById('backup-recovery-headline').textContent!=='No recovery test recorded')throw new Error('Backup evidence is misleading');if(document.getElementById('backup-panel-overview').hidden||!document.getElementById('backup-panel-local').hidden||!document.getElementById('backup-panel-offsite').hidden||!document.getElementById('profile-backups').hidden)throw new Error('Backup tabs did not isolate the overview');document.getElementById('backup-tab-local').click();document.getElementById('backup-local-password').value='original password';document.getElementById('site-backup-local-actions').requestSubmit(document.querySelector('[value="recovery-test"]'));`)
 			browser.wait(`document.getElementById('backup-recovery-headline').textContent==='Recovery checks recorded' && !backupSubmitting`)
 			select {
 			case action := <-actions:
@@ -106,7 +106,7 @@ func TestProfileBackupBrowser(t *testing.T) {
 				t.Fatal("recovery test was not submitted")
 			}
 			browser.script(`if(!document.getElementById('backup-recovery-detail').textContent.includes('offline key copy')||document.getElementById('backup-local-password').value)throw new Error('Recovery result lost scope or password retained');`)
-			browser.script(`document.getElementById('site-backup-admin').open=true;`)
+			browser.script(`document.getElementById('backup-tab-offsite').click();document.getElementById('site-backup-admin').open=true;`)
 			browser.wait(`document.getElementById('site-backup-message').textContent==='Fixture ready'`)
 			browser.script(`document.getElementById('site-backup-wizard').open=true;`)
 			browser.wait(`!document.querySelector('[data-backup-step="0"]').hidden`)
@@ -134,7 +134,7 @@ func TestProfileBackupBrowser(t *testing.T) {
 				t.Fatal("wizard did not submit")
 			}
 			browser.script(`if(document.getElementById('site-backup-access').value||document.getElementById('site-backup-secret').value||document.getElementById('site-backup-setup-password').value)throw new Error('Credentials retained');if(document.documentElement.scrollWidth>innerWidth+1)throw new Error('Wizard page overflows');if(innerWidth>560&&document.getElementById('profile-panel').getBoundingClientRect().width<Math.min(1200,innerWidth-40))throw new Error('Profile modal too narrow');if(!document.querySelector('#site-backup-actions [value="enable"]').disabled||!document.querySelector('#site-backup-actions [value="run"]').disabled)throw new Error('Unconfigured controls enabled');for(const button of document.querySelectorAll('#site-backup-admin button'))if(!button.querySelector('svg'))throw new Error('Missing backup icon');const colors=['enable','run','pause','stop'].map(value=>getComputedStyle(document.querySelector('#site-backup-actions [value="'+value+'"]')).backgroundColor);if(new Set(colors).size!==4)throw new Error('Backup action colors missing');`)
-			browser.script(`document.getElementById('site-backup-wizard').open=false;document.getElementById('site-backup-admin').open=false;`)
+			browser.script(`document.getElementById('site-backup-wizard').open=false;document.getElementById('backup-tab-personal').click();document.getElementById('site-backup-admin').open=false;`)
 			browser.script(`document.getElementById('profile-backups').open=true;document.getElementById('profile-backup-password').value='wrong password';document.getElementById('profile-backup-form').requestSubmit(document.querySelector('[value="personal-key"]'));`)
 			browser.wait(`document.getElementById('profile-backup-status').textContent==='Current password is incorrect'`)
 			browser.script(`if(document.getElementById('app-shell').hidden||document.getElementById('profile-backup-password').value)throw new Error('Wrong password signed out or persisted');`)
