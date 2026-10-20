@@ -184,7 +184,7 @@ func TestDictionaryBrowser(t *testing.T) {
 			browser.script(`richEdit.editor.chain().focus().setTextSelection({from:1,to:12}).run();`)
 			if width == 320 {
 				browser.wait(`!document.getElementById('note-selection-actions').hidden && document.querySelector('.rich-context-menu').hidden`)
-				browser.script(`const r=document.getElementById('note-selection-actions').getBoundingClientRect(),footer=document.querySelector('.note-card.is-editing .editor-actions').getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.bottom>footer.top||r.top<0)throw new Error('Selection actions cover editor controls');`)
+				browser.script(`const r=document.getElementById('note-selection-actions').getBoundingClientRect(),footer=document.querySelector('.note-card.is-editing .editor-footer').getBoundingClientRect();if(r.left<0||r.right>innerWidth||r.bottom>footer.top||r.top<0)throw new Error('Selection actions cover editor controls');`)
 				click("#dictionary-selection")
 			} else {
 				browser.wait(`!document.querySelector('.rich-context-menu').hidden && Boolean(document.querySelector('[data-rich-dictionary]'))`)

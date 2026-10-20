@@ -11,7 +11,7 @@ window.GnotesFeatures = (() => {
   const selectors = {
     organization: '#favorites-quick-open,#archived-quick-open,#favorites-main-toggle,#unpin-all-notes,[data-note-action="favorite"],[data-note-action="archive"],[data-note-action="pin"],[aria-label="Edit note tags"],.date-section-favorite,#search-tag,.note-tags',
     writing_tools: '.dictionary-ui,#shortcuts-dialog,[data-rich-dictionary],#dictionary-open,#spelling-open,#shortcuts-open,#note-selection-actions,#note-context-dictionary,#note-context-ignore',
-    note_controls: '[aria-label="Note actions"].controls-group,[data-note-action="lock"],[data-note-action="hide"],[data-note-action="color"],[data-note-action="copy"],#hidden-notes-control,.active-section-remove,.active-notes-bulk-actions,#account-maintenance-section,#controls-toggle',
+    note_controls: '[aria-label="Note actions"].controls-group,.customize-note-buttons,[data-note-action="lock"],[data-note-action="hide"],[data-note-action="color"],[data-note-action="copy"],#hidden-notes-control,.active-section-remove,.active-notes-bulk-actions,#account-maintenance-section,#controls-toggle',
     appearance: '#density-toggle,#date-sections-toggle,#font-settings > summary,.note-roll-toggle,.new-note-collapse,.date-section-chevron,#new-note-area-toggle,#link-style-toggle,.time-zone-control,.menu-opacity-control,#font-choices,.font-control-label,.note-text-preview,#note-max-height',
     advanced_editing: '#account-advanced,#markdown-help,.vim-toggle',
     offline_reading: '.offline-reading-link',

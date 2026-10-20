@@ -368,7 +368,7 @@
     if (docked) {
       const navigation = document.getElementById('primary-navigation');
       if (navigation && getComputedStyle(navigation).position === 'fixed') bottom = Math.min(bottom, navigation.getBoundingClientRect().top - 8);
-      const footer = document.querySelector('.note-card.is-editing .editor-actions')?.getBoundingClientRect();
+      const footer = document.querySelector('.note-card.is-editing .editor-footer')?.getBoundingClientRect();
       if (footer && footer.top > viewportTop && footer.top < viewportBottom) bottom = Math.min(bottom, footer.top - 8);
     }
     selectionActions.style.top = `${Math.max(viewportTop + 8, docked ? bottom - height : Math.min(rect.bottom + 6, viewportBottom - height - 8))}px`;

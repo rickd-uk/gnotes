@@ -49,7 +49,7 @@ func TestSelectionOrientationBrowser(t *testing.T) {
 			browser.wait(`Boolean(richEdit)`)
 			browser.script(`richEdit.editor.chain().focus().setTextSelection({from:1,to:12}).run();`)
 			browser.wait(`!document.getElementById('note-selection-actions').hidden`)
-			browser.script(`const r=document.getElementById('note-selection-actions').getBoundingClientRect(),f=document.querySelector('.note-card.is-editing .editor-actions').getBoundingClientRect(),v=visualViewport;if(r.left<v.offsetLeft||r.right>v.offsetLeft+v.width||r.top<v.offsetTop||r.bottom>f.top||r.bottom>v.offsetTop+v.height||!document.querySelector('.rich-context-menu').hidden)throw new Error('Editor bar overlaps selection or Copy/Done controls');`)
+			browser.script(`const r=document.getElementById('note-selection-actions').getBoundingClientRect(),f=document.querySelector('.note-card.is-editing .editor-footer').getBoundingClientRect(),v=visualViewport;if(r.left<v.offsetLeft||r.right>v.offsetLeft+v.width||r.top<v.offsetTop||r.bottom>f.top||r.bottom>v.offsetTop+v.height||!document.querySelector('.rich-context-menu').hidden)throw new Error('Editor bar overlaps selection or Copy/Done controls');`)
 			t.Logf("Verified %s (%dx%d), read view and editor", layout.name, layout.width, layout.height)
 			browser.script(`updateNote(layoutNoteID);`)
 			browser.wait(`editingNoteId===null && !notesLoading`)
@@ -61,7 +61,7 @@ func TestSelectionOrientationBrowser(t *testing.T) {
 	browser.script(`richEdit.editor.chain().focus().setTextSelection({from:1,to:12}).run();`)
 	for _, size := range [][2]int{{360, 800}, {800, 360}, {768, 1024}, {1024, 768}} {
 		browser.call("POST", "/goog/cdp/execute", map[string]any{"cmd": "Emulation.setDeviceMetricsOverride", "params": map[string]any{"width": size[0], "height": size[1], "deviceScaleFactor": 1, "mobile": false}})
-		browser.wait(fmt.Sprintf(`innerWidth===%d && innerHeight===%d && !document.getElementById('note-selection-actions').hidden && document.getElementById('note-selection-actions').getBoundingClientRect().bottom <= document.querySelector('.note-card.is-editing .editor-actions').getBoundingClientRect().top`, size[0], size[1]))
+		browser.wait(fmt.Sprintf(`innerWidth===%d && innerHeight===%d && !document.getElementById('note-selection-actions').hidden && document.getElementById('note-selection-actions').getBoundingClientRect().bottom <= document.querySelector('.note-card.is-editing .editor-footer').getBoundingClientRect().top`, size[0], size[1]))
 		browser.script(`if(getSelection().toString()!=='Serendipity')throw new Error('Rotating cleared native selection');`)
 	}
 }

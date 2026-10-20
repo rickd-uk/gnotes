@@ -11,6 +11,10 @@ See [ENCRYPTION.md](ENCRYPTION.md) for deployment-wide database encryption, key 
 
 ## Current features
 
+**Controls → Display** has separate **Reading width** (note list/new-note box) and **Editing width** (note editor) sliders. Each offers Compact, Comfortable and Full width presets; Reset widths restores 880 px reading and 1040 px editing. Sliders stop at the available screen width, Full width follows window resizing, and smaller screens constrain saved wider preferences. Choices are remembered per account in this browser.
+
+Existing-note editors show the same quick note buttons and More menu at the bottom, separated from preview, formatting and save/close controls. Narrow screens use two rows. Pin, color, Favorites and tags retain the open editor; actions that leave editing save the latest text first, and failed saves keep it available for retry. Saving/Saved/Couldn’t save feedback sits beside the bottom buttons, with Retry after failure. Older save responses never mark newer unsaved text as saved. **More → Customize buttons** opens Controls at the quick-action choices, with help explaining the three-button limit.
+
 New regular accounts start in **Simple mode**: writing/autosave, reading/editing,
 formatting, search, delete/recovery, and account security. **Profile → More features**
 enables Organization, Writing tools, Note controls, Appearance, Advanced editing,
