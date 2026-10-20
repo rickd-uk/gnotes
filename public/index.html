@@ -3001,6 +3001,7 @@
       .auth-link { padding: 8px 0; border: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 0.82rem; text-align: left; text-decoration: underline; }
       .recovery-email-form { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
       .auth-form label { display: grid; gap: 4px; color: var(--muted); font-size: 0.82rem; }
+      #auth-mfa-label[hidden] { display: none; }
 
       .auth-intro,
       .auth-help,
@@ -4487,6 +4488,7 @@
         <form class="auth-form" id="auth-form">
           <input id="auth-username" name="username" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9](?:[A-Za-z0-9_]|-){2,31}" placeholder="Username" aria-label="Username" required />
           <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="72" placeholder="Password" aria-label="Password" required />
+          <label id="auth-mfa-label" hidden>Authenticator or recovery code<input id="auth-mfa-code" name="mfa-code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="64" placeholder="6-digit code or recovery code" disabled /></label>
           <input id="setup-token" name="setup-token" type="password" autocomplete="off" placeholder="Administrator setup token" aria-label="Administrator setup token" hidden />
           <input id="invite-code" name="invite-code" type="text" autocomplete="off" maxlength="80" placeholder="Invitation code" aria-label="Invitation code" hidden />
           <details class="optional-email" id="optional-email" hidden>
@@ -5143,6 +5145,11 @@
         <ul id="site-backup-history"></ul>
         </section>
       </details>
+      <section id="mfa-account-section" class="profile-backups">
+        <h3>Two-step verification</h3>
+        <p id="mfa-account-status">Use an authenticator app to protect sign-in.</p>
+        <button class="backup-button" id="mfa-open" type="button" onclick="GnotesMFA.open()">Manage two-step verification</button>
+      </section>
       <form class="auth-form recovery-email-form" id="recovery-email-form" hidden>
         <p class="auth-intro">Set or verify your password recovery email. A replacement takes effect only after you confirm the link.</p>
         <label>Recovery email<input id="profile-recovery-email" type="email" autocomplete="email" maxlength="254" required /></label>
@@ -5299,6 +5306,7 @@
       let csrfToken = "";
       let currentUser = null;
       let authMode = "login";
+      let authRequestVersion = 0;
       let recoveryEnabled = false;
       const accountLinkParams = new URLSearchParams(location.hash.slice(1));
       const accountLinkAction = accountLinkParams.has("reset-password") ? "reset-password" : accountLinkParams.has("verify-email") ? "verify-email" : "";
@@ -6515,6 +6523,8 @@
       }
 
       function switchAuthMode(mode) {
+        authRequestVersion++;
+        window.GnotesMFA?.resetLogin();
         authMode = mode;
         const registering = mode === "register";
         document.getElementById("login-tab").setAttribute("aria-selected", String(!registering));
@@ -6556,7 +6566,7 @@
             document.getElementById("auth-intro").textContent = config.signups_enabled
               ? "Sign in to your private notes."
               : "Sign in to your private notes. New account signups are closed.";
-            if (!config.signups_enabled) switchAuthMode("login");
+            if (!config.signups_enabled && authMode !== "login") switchAuthMode("login");
           }
         } catch {
           document.getElementById("auth-status").textContent = "Could not reach the server.";
@@ -6564,6 +6574,8 @@
       }
 
       function showAuth(message = "") {
+        authRequestVersion++;
+        window.GnotesMFA?.reset();
         cancelNotesLoad();
         notesPageURL = "";
         clearTimeout(draftSaveTimer);
@@ -10742,6 +10754,8 @@
       }
 
       document.getElementById("forgot-password").addEventListener("click", () => {
+        authRequestVersion++;
+        window.GnotesMFA?.resetLogin();
         document.getElementById("auth-form").hidden = true;
         document.querySelector(".auth-tabs").hidden = true;
         document.getElementById("forgot-password").hidden = true;
@@ -10829,6 +10843,9 @@
         status.textContent = "";
         const newAccount = authMode === "register";
         const endpoint = newAccount ? "/api/auth/register" : "/api/auth/login";
+        const requestVersion = ++authRequestVersion;
+        const button = document.getElementById('auth-submit');
+        button.disabled = true;
         try {
           const response = await fetch(endpoint, {
             method: "POST",
@@ -10839,18 +10856,31 @@
               setup_token: document.getElementById("setup-token").value,
               invite_code: document.getElementById("invite-code").value,
               email: newAccount ? document.getElementById("auth-email").value.trim() : "",
+              mfa_code: newAccount ? '' : document.getElementById('auth-mfa-code').value.trim(),
             }),
           });
+          if (requestVersion !== authRequestVersion) return;
           if (!response.ok) {
             status.textContent = (await response.text()).trim() || "Could not sign in.";
             return;
           }
+          const result = await response.json();
+          if (requestVersion !== authRequestVersion) return;
+          if (result.mfa_required) {
+            window.GnotesMFA?.showLogin();
+            status.textContent = 'Enter a code from your authenticator app, or an unused recovery code.';
+            return;
+          }
+          if (!result.username || !result.csrf_token) throw new Error('Invalid sign-in response');
           document.getElementById("auth-password").value = "";
           document.getElementById("invite-code").value = "";
           document.getElementById("auth-email").value = "";
-          await enterApp(await response.json(), newAccount);
+          window.GnotesMFA?.resetLogin();
+          await enterApp(result, newAccount);
         } catch {
-          status.textContent = "Could not reach the server.";
+          if (requestVersion === authRequestVersion) status.textContent = "Could not reach the server.";
+        } finally {
+          button.disabled = false;
         }
       });
 
@@ -11206,6 +11236,7 @@
           if (!response.ok) throw new Error("Profile unavailable");
           const profile = await response.json();
           if (currentUser !== profileOwner || document.getElementById("profile-panel").hidden) return;
+          window.GnotesMFA?.refresh();
           document.getElementById('profile-site-backup').hidden = profile.role !== 'admin';
           GnotesBackupDashboard.updateTabs();
           if (backupsView && profile.role === 'admin') { document.getElementById('site-backup-admin').open = true; refreshBackupStatus(); }
@@ -11359,6 +11390,7 @@
       setDefaultSearchDates();
       initializeAuth();
     </script>
+    <script src="/mfa.js"></script>
     <script src="/dictionary.js"></script>
     <script src="/shortcuts.js"></script>
     <script src="/offline-store.js"></script>

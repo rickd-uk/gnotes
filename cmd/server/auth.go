@@ -50,6 +50,7 @@ type credentials struct {
 	SetupToken string `json:"setup_token,omitempty"`
 	InviteCode string `json:"invite_code,omitempty"`
 	Email      string `json:"email,omitempty"`
+	MFACode    string `json:"mfa_code,omitempty"`
 }
 
 var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$`)
@@ -339,11 +340,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			passwordHash = upgradedHash
 		}
 	}
-	if err := clearLoginCooldown(creds.Username); err != nil {
-		http.Error(w, "Could not sign in", http.StatusInternalServerError)
-		return
-	}
-	finishAuthentication(w, r, userID, username, role, passwordHash)
+	finishAuthenticationWithMFA(w, r, userID, username, role, creds.MFACode, passwordHash)
 }
 
 func loginWaitMessage(wait time.Duration) string {
@@ -451,6 +448,10 @@ func nullableEmail(email string) any {
 }
 
 func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, username, role string, expectedHash ...[]byte) {
+	finishAuthenticationWithMFA(w, r, userID, username, role, "", expectedHash...)
+}
+
+func finishAuthenticationWithMFA(w http.ResponseWriter, r *http.Request, userID int, username, role, mfaCode string, expectedHash ...[]byte) {
 	sessionToken, err := randomToken()
 	if err != nil {
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
@@ -470,6 +471,18 @@ func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, us
 		return
 	}
 	defer tx.Rollback()
+	if err := authorizeMFALogin(tx, userID, mfaCode, now); err != nil {
+		tx.Rollback()
+		switch {
+		case errors.Is(err, errMFARequired):
+			writeMFAJSON(w, map[string]any{"mfa_required": true})
+		case errors.Is(err, errMFAInvalid):
+			writeMFAFailure(w, username)
+		default:
+			http.Error(w, "Could not verify sign-in", http.StatusInternalServerError)
+		}
+		return
+	}
 	if cookie, err := r.Cookie(sessionCookieName); err == nil {
 		if _, err := tx.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(cookie.Value)); err != nil {
 			http.Error(w, "Could not start session", http.StatusInternalServerError)
@@ -514,6 +527,10 @@ func finishAuthentication(w http.ResponseWriter, r *http.Request, userID int, us
 		return
 	}
 	if err := tx.Commit(); err != nil {
+		http.Error(w, "Could not finish sign in", http.StatusInternalServerError)
+		return
+	}
+	if err := clearLoginCooldown(username); err != nil {
 		http.Error(w, "Could not finish sign in", http.StatusInternalServerError)
 		return
 	}
@@ -562,7 +579,8 @@ func protect(handler http.HandlerFunc, requireCSRF bool) http.HandlerFunc {
 			if r.Context().Err() != nil {
 				return // A canceled lookup says nothing about session validity.
 			}
-			clearSessionCookie(w, r)
+			// A delayed request may carry a just-rotated session. Reject it
+			// without erasing the newer browser cookie; explicit logout clears it.
 			http.Error(w, "Authentication required", http.StatusUnauthorized)
 			return
 		}

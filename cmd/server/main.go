@@ -132,6 +132,7 @@ func run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/auth/register", registerHandler)
 	mux.HandleFunc("/api/auth/login", loginHandler)
+	registerMFARoutes(mux)
 	mux.HandleFunc("/api/auth/config", authConfigHandler)
 	mux.HandleFunc("/api/auth/me", protect(meHandler, false))
 	mux.HandleFunc("/api/features", protect(featurePreferencesHandler, false))

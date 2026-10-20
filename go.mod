@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/0xCarbon/go-sqlite3 v1.15.1
 	github.com/glebarez/go-sqlite v1.22.0
+	github.com/pquerna/otp v1.5.0
 	github.com/yuin/goldmark v1.7.17
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	golang.org/x/crypto v0.41.0
@@ -13,6 +14,7 @@ require (
 
 require (
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.5.0 // indirect

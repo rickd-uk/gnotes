@@ -5,7 +5,7 @@
 .backup-protection-card p { margin-bottom: 0; }
 .backup-protection-card[data-tone="success"] { border-color: #5b9677; }
 .backup-protection-card[data-tone="attention"] { border-color: #b18b48; }
-.backups-view > .profile-details,.backups-view > #profile-role,.backups-view > #recovery-email-form { display: none; }
+.backups-view > .profile-details,.backups-view > #profile-role,.backups-view > #recovery-email-form,.backups-view > #mfa-account-section { display: none; }
 #backup-local-history,#site-backup-history { padding-left: 20px; overflow-wrap: anywhere; }
 .backup-recovery-guide { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
 .backup-recovery-guide pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -69,6 +70,40 @@ func TestEncryptedAccountNoteFlows(t *testing.T) {
 	if err := db.DB.QueryRow("SELECT created_at FROM notes WHERE id=1").Scan(&createdAt); err != nil || createdAt.Year() < 2026 {
 		t.Fatalf("encrypted timestamp: %v %v", createdAt, err)
 	}
+}
+
+func TestEncryptedMFAStateSurvivesSnapshotAndRestart(t *testing.T) {
+	login, path, keyFile := encryptedFixture(t)
+	login, enabled, secret := mfaTestEnable(t, login)
+	key, err := storage.ReadKey(keyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clear(key)
+	snapshot := filepath.Join(t.TempDir(), "mfa-snapshot.db")
+	if err := storage.Copy(context.Background(), path, key, snapshot, key); err != nil {
+		t.Fatal(err)
+	}
+	contents, err := os.ReadFile(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(contents, []byte(secret)) || bytes.Contains(contents, []byte(enabled.Codes[0])) {
+		t.Fatal("MFA material exposed in encrypted snapshot")
+	}
+	db.DB.Close()
+	if err := db.InitDBWithKey(snapshot, key); err != nil {
+		t.Fatal(err)
+	}
+	status := authenticatedRequest(t, protect(mfaStatusHandler, false), "GET", "/api/auth/mfa", "", login, false)
+	if data := mfaTestJSON(t, status); !data.Enabled || data.Remaining != 10 {
+		t.Fatal("restart lost MFA state")
+	}
+	firstStep := mfaSignIn(t, "rick", "original password", "")
+	if !mfaTestJSON(t, firstStep).Required {
+		t.Fatal("snapshot/restart bypassed MFA")
+	}
+	mfaTestLogin(t, mfaSignIn(t, "rick", "original password", enabled.Codes[0]))
 }
 
 func TestDatabaseKeyAndCommands(t *testing.T) {

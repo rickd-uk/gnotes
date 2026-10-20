@@ -63,6 +63,8 @@ Retain an encryption-capable rollback image and the matching key. Inventory and 
 
 ## Release and deploy
 
+Authenticator MFA is opt-in under Profile → Two-step verification. Do not configure an authenticator or discard recovery codes on a user's behalf. Existing account sign-in stays unchanged until the owner verifies setup. After any account enrolls, never roll back to an application version without MFA support: older binaries do not enforce the new factor tables. Retain an MFA-capable rollback image. Restoring a backup from before enrollment also restores its older security state. Password-reset email does not reset MFA; users need their authenticator or an unused recovery code.
+
 Push a clean `main` commit and a new annotated version tag. The GitHub Release workflow runs Go tests, the race test, vet, ShellCheck, restore tests, and a real-server restore rehearsal. Wait for it to publish the Linux archive and `SHA256SUMS`.
 
 Download both release files locally, verify `sha256sum -c SHA256SUMS`, then copy them to a private staging directory on Kagoya together with `update-gnotes-podman`. For example, for `v0.7.2`:

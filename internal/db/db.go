@@ -82,6 +82,23 @@ func initSchema(filepath string) {
     updated_at DATETIME NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS mfa_factors (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    secret TEXT NOT NULL,
+    enabled_at DATETIME,
+    last_step INTEGER NOT NULL DEFAULT -1,
+    setup_id TEXT,
+    setup_expires_at DATETIME,
+    setup_session_hash TEXT,
+    setup_password_hash BLOB
+  );
+
+  CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
+    user_id INTEGER NOT NULL REFERENCES mfa_factors(user_id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    PRIMARY KEY (user_id, code_hash)
+  );
+
   CREATE TABLE IF NOT EXISTS backup_keys (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     key BLOB NOT NULL CHECK(length(key) = 32)
