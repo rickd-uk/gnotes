@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
+      CGO_ENABLED: "1"
       CGO_CFLAGS: -O2 -g -ftls-model=initial-exec
       GOFLAGS: -tags=sqlite_fts5
 

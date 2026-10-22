@@ -1,6 +1,6 @@
 module gnotes
 
-go 1.25.0
+go 1.26.10
 
 require (
 	github.com/0xCarbon/go-sqlite3 v1.15.1

@@ -5,6 +5,7 @@
 CGO_CFLAGS ?= -O2 -g
 export CGO_CFLAGS := $(CGO_CFLAGS) -ftls-model=initial-exec
 export GOFLAGS ?= -tags=sqlite_fts5
+export CGO_ENABLED := 1
 
 SEED_DATABASE ?= gnotes.db
 SEED_USER ?= rick

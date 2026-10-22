@@ -118,7 +118,7 @@ The editor stores a Markdown representation of rich text so existing notes, sear
 
 ## Local development
 
-Requirements: Go 1.25 or later, a C compiler and OpenSSL development headers/libraries for SQLCipher. Node.js is needed to rebuild or validate the bundled rich text editor. Use the Makefile to supply the native encryption and FTS5 build flags. For direct Go commands in this document, first export `GOFLAGS=-tags=sqlite_fts5` and `CGO_CFLAGS='-O2 -g -ftls-model=initial-exec'`. Release binaries require compatible glibc and OpenSSL 3; see ENCRYPTION.md.
+Requirements: Go 1.26.10 or later, a C compiler and OpenSSL development headers/libraries for SQLCipher. Release CI uses the patched Go version pinned in `go.mod`. Node.js is needed to rebuild or validate the bundled rich text editor. Use the Makefile to supply the native encryption and FTS5 build flags. For direct Go commands in this document, first export `CGO_ENABLED=1`, `GOFLAGS=-tags=sqlite_fts5` and `CGO_CFLAGS='-O2 -g -ftls-model=initial-exec'`. Release binaries require compatible glibc and OpenSSL 3; see ENCRYPTION.md.
 
 ```bash
 make run
