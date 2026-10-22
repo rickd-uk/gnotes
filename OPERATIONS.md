@@ -2,6 +2,8 @@
 
 Production runs on the Kagoya VPS through rootless Podman. The SSH alias is `KAG` and uses the `KG-OSK` key. The former `hz-sin` systemd installation is separate and does not serve the public domain.
 
+Production is v0.8.0-rc.9 as of 2026-10-22, rebuilt with Go 1.26.10. Release CI selects the patched version from `go.mod`; builds retain `CGO_ENABLED=1`, `-tags=sqlite_fts5` and the SQLCipher native compiler flags. Verify release build metadata with `go version -m` and match the running container binary checksum after deployment. Updating the host Go installation alone does not update an existing application binary.
+
 ## Backup visibility and recovery controls (deployed v0.8.0-rc.4)
 
 **Profile → Backup & recovery** opens the backup dashboard directly. Personal
@@ -47,7 +49,7 @@ Never commit or attach `.env`, databases, backups, private keys, passwords, or s
 
 ## Database encryption activation
 
-See [ENCRYPTION.md](ENCRYPTION.md) for the stage-one migration and replacement-host recovery procedure. Production was encrypted in v0.8.0-rc.3 on 2026-10-18 and now runs v0.8.0-rc.8, including all retained local database snapshots. The owner provisions `/run/gnotes/keys/database.key` after every host reboot; it remains in private noswap RAM storage and is mounted read only into the app. Host swap is disabled/masked; app and backup/control core dumps are disabled. The recovery key lives on the owner's workstation at `/home/rick/.config/gnotes/recovery/database-v1.key`, outside this checkout; retain an additional offline copy.
+See [ENCRYPTION.md](ENCRYPTION.md) for the stage-one migration and replacement-host recovery procedure. Production was encrypted in v0.8.0-rc.3 on 2026-10-18 and now runs v0.8.0-rc.9, including all retained local database snapshots. The owner provisions `/run/gnotes/keys/database.key` after every host reboot; it remains in private noswap RAM storage and is mounted read only into the app. Host swap is disabled/masked; app and backup/control core dumps are disabled. The recovery key lives on the owner's workstation at `/home/rick/.config/gnotes/recovery/database-v1.key`, outside this checkout; retain an additional offline copy.
 
 After a Kagoya reboot, run on the owner's workstation:
 
