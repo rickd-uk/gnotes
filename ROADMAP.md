@@ -1,6 +1,6 @@
 # gnotes roadmap
 
-Last reviewed: 2026-10-19
+Last reviewed: 2026-10-23
 
 ## Next development sequence
 
@@ -10,7 +10,7 @@ Session handoff and future plans saved on 2026-10-16 in [PROGRESS.md](PROGRESS.m
 2. Finish encrypted off-server backup activation through the existing wizard; choose an alert destination and monitor stale/failed backups and service health. Budget occasional full integrity and restore checks for their storage egress.
 3. Extract inline scripts/styles into versioned assets and tighten Content Security Policy.
 4. Complete account data export and self-service account deletion after reviewing existing coverage and retention behavior.
-5. Add administrator MFA/recovery codes and privacy-conscious audit logging with documented retention.
+5. Add privacy-conscious audit logging with documented retention. Optional authenticator MFA/recovery codes are deployed in v0.8.0-rc.8.
 6. Consider scoped editor additions such as editable tables after reliability and security work.
 
 Also verify the recovery email and a real password-reset email. Offline notes remain read only with opt-in automatic encrypted snapshot refresh; offline editing/synchronization is not planned in this handoff. These are recorded future priorities, not instructions to begin implementation.
@@ -19,7 +19,7 @@ The operational Wasabi egress fix is installed on Kagoya and included in v0.7.55
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.8.0-rc.3`. It uses SQLCipher-encrypted SQLite in WAL mode, encrypted retained local backups, an owner-supplied RAM-only key, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. Rollback images must support encryption. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.8.0-rc.10`. It uses SQLCipher-encrypted SQLite in WAL mode, encrypted retained local backups, an owner-supplied RAM-only key, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. Rollback images must support encryption and MFA. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
@@ -100,6 +100,8 @@ Wasabi was selected on 2026-10-10. A first all-account snapshot is encrypted in 
 Admin backup wizard/dashboard deployed in v0.7.50: four-step Wasabi location/permissions/credentials/verified-test setup, with password-protected scheduling/run/stop controls and snapshot history. Bucket and IAM creation remain in the Wasabi administrator console; the app stores only the backup identity and can create an encrypted repository. Activation still requires the user's storage credentials through the wizard. External alerts remain open.
 
 ## Mobile verification
+
+2026-10-23 checkpoint: native Pixel 6a checks cover authenticated Chrome, Brave, Epic and Firefox selection/editing. Chrome additionally passed encrypted offline reading/search with browser networking disabled, manual/automatic refresh and sign-out removal, using synthetic notes on a separate localhost origin. The reproduced Dictionary keyboard-viewport issue is fixed and deployed in v0.8.0-rc.10. These focused checks do not complete the broader checklist below; native per-browser orientation, transfers, extended settings and physical disconnection remain open. See PROGRESS.md for exact coverage and test isolation.
 
 1. Retest the current production release (v0.7.56 as of 2026-10-11) with an authenticated account on the Pixel 6a in Brave, Epic, Firefox, and Chrome: long-press and drag selection handles to copy part of a displayed note or title; confirm native selection controls appear. Use the bottom Dictionary/Save word and Always ignore buttons on displayed text, titles, and rich edits, including with the keyboard open; check editor Copy/Done remain accessible. Check personal Names and ignored-word search, Show more, file import, and export downloads. Create and save notes, reopen them in the focused editor, use Copy, the header Archive control, archive removal for one note, a date, and all notes, then recover a removed note from the recycle bin. Check the built-in names switch and personal names, Asia/Tokyo persistence, title context menus, bulk Archive/Recycle icons, outside-click dismissal, spellcheck on/off, active date/Pinned/all removal and recovery, Unhide, tags, ordinary line breaks, swipe actions, note colors, Aa formatting, quick actions, and the code language picker.
 2. Check the welcome dialog on a newly created test account without touching existing notes, including Help links and the dismissal choice.
