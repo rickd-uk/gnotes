@@ -99,6 +99,11 @@ func TestDictionaryBrowser(t *testing.T) {
 			click("#dictionary-ignore")
 			browser.wait(`ignoredSpellingWords.includes('serendipity') && document.getElementById('dictionary-save').textContent==='Save word'`)
 			browser.script(`const r=document.getElementById('dictionary-dialog').getBoundingClientRect(); if(r.left<0 || r.right>innerWidth || r.top<0 || r.bottom>innerHeight || document.documentElement.scrollWidth>innerWidth) throw new Error('Dictionary modal overflows'); if(document.querySelector('#dictionary-result script')) throw new Error('Definition must be text');`)
+			if width == 320 {
+				// Android keyboards shrink and pan the visual viewport while
+				// the layout viewport (and dvh) can retain its original height.
+				browser.script(`window.realDictionaryViewport=visualViewport;Object.defineProperty(window,'visualViewport',{configurable:true,value:{offsetTop:180,offsetLeft:0,width:innerWidth,height:350}});syncFocusedEditViewport();const dialog=document.getElementById('dictionary-dialog'),r=dialog.getBoundingClientRect();if(r.top<180||r.bottom>530)throw new Error('Dictionary dialog is behind the keyboard');document.getElementById('dictionary-save').scrollIntoView({block:'nearest'});const save=document.getElementById('dictionary-save').getBoundingClientRect();if(save.top<180||save.bottom>530)throw new Error('Save word cannot be reached above the keyboard');Object.defineProperty(window,'visualViewport',{configurable:true,value:realDictionaryViewport});syncFocusedEditViewport();dialog.scrollTop=0;`)
+			}
 			click("#dictionary-save")
 			browser.wait(`document.getElementById('dictionary-save').textContent==='Remove saved word' && !document.getElementById('dictionary-save').disabled`)
 			click("#dictionary-saved-tab")
