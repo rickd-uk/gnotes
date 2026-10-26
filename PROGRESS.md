@@ -1,5 +1,7 @@
 # gnotes status
 
+Session saved — 2026-10-26: user requested “save progress & bye.” Displayed-note spacing is deployed as **v0.8.0-rc.11**, with 10 px padding on both sides. Validation, backup and deployment evidence are recorded below. No implementation or deployment remains pending. Local browser verification remains unavailable until the ChromeDriver library mismatch is resolved; fixing the workstation is not part of this completed request. Resume from this release and wait for the user's next request.
+
 Deployed — 2026-10-26: **v0.8.0-rc.11**, source `1be78aa`, adds 10 px horizontal padding to displayed note bodies. Public HTTPS serves the changed page byte for byte; running binary and index checksums match the release. Local `make check` and release CI [40327391723](https://github.com/rickd-uk/gnotes/actions/runs/40327391723) passed, including backup/restore checks. The local optional browser layout check could not run because ChromeDriver requires missing `libsimdutf.so.36`; no new visual-browser verification is claimed.
 
 The updater created verified encrypted backup `gnotes-pre-v0.8.0-rc.11-20261026T131701Z.db` and retained `localhost/gnotes:rollback-v0.8.0-rc.11`. Public/local health, running app/control services, local backup timer and live encrypted database integrity/schema verification passed. Release metadata confirms Go 1.26.10, CGO, FTS5 and clean source. No further implementation or deployment is pending for the spacing change.
