@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-10-31
 
-Deployment checkpoint: priorities 1 and 2 from the 2026-10-31 project review are live in **v0.8.0-rc.13**: server-controlled note/draft revisions and conflict-copy recovery, serialized lifecycle saves, bounded keepalive requests, reconnect recovery, and quiet failed-close feedback with retained text and Retry. Page shutdown delivery remains best effort; unconfirmed text stays only in the current tab's memory. Browser/CI reliability and off-server backup automation/alerts follow. See [PROGRESS.md](PROGRESS.md) for validation and verified deployment/backup evidence.
+Deployment checkpoint: priorities 1 and 2 from the 2026-10-31 project review are live in **v0.8.0-rc.13**: server-controlled note/draft revisions and conflict-copy recovery, serialized lifecycle saves, bounded keepalive requests, reconnect recovery, and quiet failed-close feedback with retained text and Retry. Page shutdown delivery remains best effort; unconfirmed text stays only in the current tab's memory. Browser/CI reliability and off-server backup automation/alerts follow. See [PROGRESS.md](PROGRESS.md) for validation and verified deployment/backup evidence. The v0.8.0-rc.14 UI follow-up is deployed: enabled note actions show directly in editors on screens at least 1024 px wide, smaller screens retain More, and Latest/tag pills have 2 px outer margins.
 
 ## Next development sequence
 
@@ -21,7 +21,7 @@ The operational Wasabi egress fix is installed on Kagoya and included in v0.7.55
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.8.0-rc.13`. It uses SQLCipher-encrypted SQLite in WAL mode, encrypted retained local backups, an owner-supplied RAM-only key, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. Rollback images must support encryption and MFA. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.8.0-rc.14`. It uses SQLCipher-encrypted SQLite in WAL mode, encrypted retained local backups, an owner-supplied RAM-only key, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. Rollback images must support encryption and MFA. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
