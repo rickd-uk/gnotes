@@ -41,7 +41,7 @@ func TestNoteLockProtectionAndPersistence(t *testing.T) {
 		handler        http.HandlerFunc
 		endpoint, body string
 	}{
-		{updateNoteHandler, "/api/notes/update?id=1", `{"title":"Changed","content":"- [x] original","locked":false}`},
+		{updateNoteHandler, "/api/notes/update?id=1", `{"title":"Changed","content":"- [x] original","locked":false,"revision":0}`},
 		{updateNoteTagsHandler, "/api/notes/tags?id=1", `{"tags":["changed"]}`},
 		{updateNoteColorHandler, "/api/notes/color?id=1", `{"color":"sage"}`},
 	} {
@@ -124,7 +124,7 @@ func TestNoteLockProtectionAndPersistence(t *testing.T) {
 		t.Fatal("archive cannot unlock")
 	}
 	mustRecoveryExec(t, "UPDATE notes SET archived_at=NULL WHERE id=1")
-	got = authenticatedRequest(t, protect(updateNoteHandler, true), "PUT", "/api/notes/update?id=1", `{"title":"Unlocked","content":"Editable again"}`, login, true)
+	got = authenticatedRequest(t, protect(updateNoteHandler, true), "PUT", "/api/notes/update?id=1", `{"title":"Unlocked","content":"Editable again","revision":0}`, login, true)
 	if got.Code != 204 {
 		t.Fatalf("unlock did not restore editing: %d", got.Code)
 	}

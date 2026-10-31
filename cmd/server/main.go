@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -279,6 +281,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	n.CreatedAt = time.Now()
+	n.Revision = 0
 	n.Tags, err = normalizeTags(n.Tags)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
@@ -314,7 +317,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// quey db
-	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color, tags, favorited, locked FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
+	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color, tags, favorited, locked, revision FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Query error", 500)
 		return
@@ -326,7 +329,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var n models.Note
 		// scan cols. into struct fields
-		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited, &n.Locked)
+		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited, &n.Locked, &n.Revision)
 		if err != nil {
 			log.Println("Scan error:", err)
 			http.Error(w, "Could not load notes", http.StatusInternalServerError)
@@ -416,7 +419,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	query := "SELECT id, title, content, created_at, pinned, background_color, tags, favorited, locked FROM notes WHERE " +
+	query := "SELECT id, title, content, created_at, pinned, background_color, tags, favorited, locked, revision FROM notes WHERE " +
 		strings.Join(conditions, " AND ") +
 		" ORDER BY pinned DESC, created_at DESC"
 	rows, err := db.DB.Query(query, args...)
@@ -429,7 +432,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	matches := make([]models.Note, 0)
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited, &n.Locked); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited, &n.Locked, &n.Revision); err != nil {
 			log.Println("Search scan error:", err)
 			http.Error(w, "Search failed", http.StatusInternalServerError)
 			return
@@ -543,7 +546,10 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var n models.Note
+	var n struct {
+		models.Note
+		Revision *int64 `json:"revision"`
+	}
 	if err := decodeJSONBody(w, r, &n); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
@@ -552,8 +558,12 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if !validRevision(w, n.Revision) {
+		return
+	}
 
 	var tags any
+	normalizedTags := n.Tags
 	if n.Tags != nil {
 		normalized, err := normalizeTags(n.Tags)
 		if err != nil {
@@ -561,31 +571,46 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tags = normalized
+		normalizedTags = normalized
 	}
-	result, err := db.DB.Exec(
-		"UPDATE notes SET title = ?, content = ?, rendered_content = ?, tags = COALESCE(?, tags) WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND locked = 0",
+	var revision int64
+	err := db.DB.QueryRowContext(r.Context(),
+		"UPDATE notes SET title = ?, content = ?, rendered_content = ?, tags = COALESCE(?, tags), revision = revision + 1 WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND locked = 0 AND revision = ? RETURNING revision",
 		n.Title,
 		n.Content,
 		mdToHTML(n.Content),
 		tags,
 		id,
 		userIDFromRequest(r),
-	)
+		*n.Revision,
+	).Scan(&revision)
+	if errors.Is(err, sql.ErrNoRows) {
+		var title, content string
+		var locked bool
+		var currentTags models.Tags
+		err = db.DB.QueryRowContext(r.Context(), "SELECT title,content,tags,locked,revision FROM notes WHERE id=? AND user_id=? AND deleted_at IS NULL AND archived_at IS NULL", id, userIDFromRequest(r)).Scan(&title, &content, &currentTags, &locked, &revision)
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Note not found", http.StatusNotFound)
+			return
+		}
+		if err == nil && locked {
+			http.Error(w, "Note is locked. Unlock it before editing.", http.StatusLocked)
+			return
+		}
+		if err == nil {
+			// A response may have been lost. Retrying an identical write is safe.
+			sameTags := n.Tags == nil || slices.Equal(currentTags, normalizedTags)
+			if title != n.Title || content != n.Content || !sameTags {
+				http.Error(w, "This note changed in another window. Your edits have not replaced it.", http.StatusConflict)
+				return
+			}
+		}
+	}
 	if err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		http.Error(w, "Update failed", http.StatusInternalServerError)
-		return
-	}
-	if rowsAffected == 0 {
-		noteEditRejected(w, r, id)
-		return
-	}
-
+	writeRevision(w, revision)
 	w.WriteHeader(http.StatusNoContent)
 }
 

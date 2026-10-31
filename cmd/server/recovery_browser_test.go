@@ -267,7 +267,11 @@ type recoveryBrowser struct {
 
 func newRecoveryBrowser(t *testing.T) *recoveryBrowser {
 	b := &recoveryBrowser{t: t, client: &http.Client{Timeout: 30 * time.Second}}
-	result := b.call("POST", "", map[string]any{"capabilities": map[string]any{"alwaysMatch": map[string]any{"browserName": "chrome", "goog:chromeOptions": map[string]any{"args": []string{"--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"}}}}})
+	chromeOptions := map[string]any{"args": []string{"--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"}}
+	if binary := os.Getenv("GNOTES_CHROME_BINARY"); binary != "" {
+		chromeOptions["binary"] = binary
+	}
+	result := b.call("POST", "", map[string]any{"capabilities": map[string]any{"alwaysMatch": map[string]any{"browserName": "chrome", "goog:chromeOptions": chromeOptions}}})
 	b.session = result.(map[string]any)["sessionId"].(string)
 	t.Cleanup(func() { b.call("DELETE", "", nil) })
 	return b

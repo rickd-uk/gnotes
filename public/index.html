@@ -457,6 +457,19 @@
       .form-actions .rich-format-toggle { flex: 0 0 auto; }
       .form-actions .note-save:not([hidden]) { margin-left: 4px; }
 
+      #draft-conflict-copy {
+        width: 100%;
+        min-height: 42px;
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        cursor: pointer;
+      }
+
       .note-save:not([hidden]) {
         display: inline-flex;
         min-height: 38px;
@@ -4823,6 +4836,7 @@
           <button class="rich-format-toggle" id="draft-rich-format-toggle" type="button" aria-controls="new-rich-editor-toolbar" aria-expanded="false" aria-label="Show formatting toolbar" title="Show formatting" hidden>Aa</button>
           <button class="note-save" id="note-save" type="submit" aria-label="Save note" title="Save note" hidden>✓</button>
         </div>
+        <button id="draft-conflict-copy" type="button" hidden>Save my text as a new note</button>
       </form>
 
       <section id="notes-section" aria-labelledby="notes-heading">
@@ -4950,6 +4964,7 @@
     <dialog class="note-action-dialog" id="note-action-dialog" aria-labelledby="note-action-dialog-title" aria-describedby="note-action-dialog-message">
       <h2 id="note-action-dialog-title"></h2>
       <p id="note-action-dialog-message"></p>
+      <button type="button" id="note-conflict-copy" hidden>Save my text as a new note</button>
       <button type="button" id="note-action-dialog-close">Got it</button>
     </dialog>
     <dialog class="note-action-dialog archive-remove-dialog" id="archive-remove-dialog" aria-labelledby="archive-remove-title" aria-describedby="archive-remove-message">
@@ -5328,6 +5343,8 @@
       let activeRemovalBusy = false;
       let trashedNoteCount = 0;
       let draftVersion = 0;
+      let draftRevision = 0;
+      let draftConflict = false;
       let draftSaveTimer;
       let draftRetryTimer;
       let draftRetryAttempt = 0;
@@ -5405,6 +5422,7 @@
       let editStatusVersion = 0;
       let editSaveChain = Promise.resolve();
       const pendingNoteEdits = new Map();
+      const noteSaveStates = new Map();
       const pendingNoteActions = new Set();
       let noteViewRevision = 0;
       let collapsedDateSections = new Set();
@@ -6582,6 +6600,11 @@
         clearTimeout(draftSaveTimer);
         clearTimeout(draftRetryTimer);
         draftRetryPending = false;
+        draftFinalizing = false;
+        draftVersion = draftSavedVersion = 0;
+        document.getElementById('title').disabled = false;
+        document.getElementById('content').disabled = false;
+        document.getElementById('note-save').disabled = false;
         spellingReady = false; spellingBusy = false; spellingListsMigrated = false;
         document.getElementById('spelling-sync-status').textContent = '';
         document.getElementById('spelling-retry').hidden = true;
@@ -6631,6 +6654,10 @@
         clearTimeout(backupPollTimer);
         document.getElementById('site-backup-admin').hidden = true;
         pendingNoteEdits.clear();
+        noteSaveStates.clear();
+        draftRevision = 0;
+        draftConflict = false;
+        document.getElementById('draft-conflict-copy').hidden = true;
         pendingNoteActions.clear();
         noteViewRevision++;
         notesLoading = false;
@@ -7900,6 +7927,7 @@
           title: document.getElementById("title").value,
           content: content.value,
           version: draftVersion,
+          revision: draftRevision,
         };
       }
 
@@ -7917,12 +7945,15 @@
       }
 
       async function loadDraft() {
+        const owner = currentUser, version = draftVersion;
         const response = await apiFetch("/api/draft");
+        if (currentUser !== owner || draftVersion !== version) return false;
         if (!response.ok) {
           setDraftStatus("Draft unavailable", true);
           return;
         }
         const draft = await response.json();
+        if (currentUser !== owner || draftVersion !== version) return false;
         document.getElementById("title").value = draft.title || "";
         destroyVimEditor('draft', false);
         if (richDraft) {
@@ -7934,15 +7965,24 @@
         if (vimModeEnabled) mountVimDraftEditor();
         else if (!markdownSource) mountDraftRichEditor();
         draftVersion = Number(draft.version) || 0;
+        draftRevision = Number(draft.revision) || 0;
+        draftConflict = false;
+        document.getElementById('draft-conflict-copy').hidden = true;
         draftSavedVersion = draftVersion;
         draftRetryPending = false;
         draftRetryAttempt = 0;
         clearTimeout(draftRetryTimer);
         resizeNewNoteEditor();
         setDraftStatus(draftHasText() ? "Draft restored" : "");
+        return true;
       }
 
       function scheduleDraftSave() {
+        if (draftConflict) {
+          draftVersion++;
+          setDraftStatus('Draft changed in another window. Save your text as a new note.', true);
+          return;
+        }
         draftRetryPending = false;
         clearTimeout(draftRetryTimer);
         draftRetryAttempt = 0;
@@ -7971,14 +8011,23 @@
         const token = csrfToken;
         draftSaveChain = draftSaveChain.catch(() => false).then(async () => {
           // A queued write must not restore a finished draft or cross accounts.
-          if (!token || token !== csrfToken || draft.version < 1 || draft.version !== draftVersion) return false;
+          if (!token || token !== csrfToken || draft.version < 1 || draft.version !== draftVersion || draftConflict) return false;
           try {
             const response = await apiFetch("/api/draft/update", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(draft),
+              body: JSON.stringify({ ...draft, revision: draftRevision }),
             });
-            if (token !== csrfToken || draft.version !== draftVersion) return false;
+            if (token !== csrfToken) return false;
+            // Advance even if typing continued during the request. The next
+            // serialized save must use the revision this response acknowledged.
+            if (response.ok) draftRevision = responseRevision(response);
+            if (response.status === 409) {
+              draftConflict = true;
+              document.getElementById('draft-conflict-copy').hidden = false;
+              setDraftStatus('Newer draft open in another tab', true);
+            }
+            if (draft.version !== draftVersion) return false;
             if (!response.ok) {
               if (response.status === 408 || response.status === 429 || response.status >= 500) {
                 retryDraftSave(draft, token);
@@ -8013,6 +8062,8 @@
 
       async function finalizeDraft() {
         if (draftFinalizing) return;
+        const owner = currentUser, token = csrfToken;
+        const current = () => currentUser === owner && csrfToken === token;
         const titleInput = document.getElementById("title");
         const contentInput = document.getElementById("content");
         draftFinalizing = true;
@@ -8026,24 +8077,31 @@
           setDraftStatus("Saving note…");
           if (draftVersion < 1) draftVersion = Date.now();
           const saved = await queueDraftSave();
-          if (!saved) return;
+          if (!saved || !current()) return;
           const response = await apiFetch("/api/draft/finalize", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ version: draftVersion }),
+            body: JSON.stringify({ version: draftVersion, revision: draftRevision }),
           });
+          if (!current()) return;
           if (!response.ok) {
+            if (response.status === 409) {
+              draftConflict = true;
+              document.getElementById('draft-conflict-copy').hidden = false;
+            }
             setDraftStatus(response.status === 409
               ? "Newer draft open in another tab"
               : "Could not finish note", true);
             return;
           }
           saveConfirmed = true;
+          draftRevision = responseRevision(response);
           const createdNote = response.status === 201;
           let created = null;
           if (createdNote) {
             try { created = await response.json(); } catch {}
           }
+          if (!current()) return;
           titleInput.value = "";
           contentInput.value = "";
           richDraft?.setMarkdown("");
@@ -8070,15 +8128,18 @@
             if (card) setTimeout(() => card.classList.remove("is-just-saved"), 1600);
           }
         } catch {
+          if (!current()) return;
           setDraftStatus(saveConfirmed
             ? "Note saved; list could not refresh."
             : "Could not confirm note save. Reload before retrying.", true);
         } finally {
-          titleInput.disabled = false;
-          contentInput.disabled = false;
-          vimDraft?.setReadOnly(false);
-          draftFinalizing = false;
-          saveButton.disabled = false;
+          if (current()) {
+            titleInput.disabled = false;
+            contentInput.disabled = false;
+            vimDraft?.setReadOnly(false);
+            draftFinalizing = false;
+            saveButton.disabled = false;
+          }
         }
       }
 
@@ -8109,6 +8170,7 @@
         const dialog = document.getElementById("note-action-dialog");
         document.getElementById("note-action-dialog-title").textContent = title;
         document.getElementById("note-action-dialog-message").textContent = message;
+        document.getElementById('note-conflict-copy').hidden = true;
         if (!dialog.open) dialog.showModal();
         document.getElementById("note-action-dialog-close").focus();
       }
@@ -9349,6 +9411,9 @@
         const card = document.getElementById(`note-${id}`);
         if (!note || note.archived_at || !view || !card || pendingNoteActions.has(id)) return false;
         if (note.locked) { showNoteActionToast('This note is locked. Use the padlock to unlock it.'); return false; }
+        if (!noteSaveStates.has(id) || (!pendingNoteEdits.has(id) && editingNoteId !== id && !noteSaveStates.get(id).conflict)) {
+          noteSaveStates.set(id, { revision: note.revision, conflict: false });
+        }
         let editor = document.getElementById(`note-editor-${id}`);
         if (!editor) {
           card.insertAdjacentHTML("beforeend", noteEditorHTML(id));
@@ -9684,9 +9749,10 @@
           const response = await apiFetch(`/api/notes/update?id=${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title: note.title, content: segments.join("") }),
+            body: JSON.stringify({ title: note.title, content: segments.join(""), revision: note.revision }),
           });
           if (!response.ok) { if (response.status === 423) note.locked = true; throw new Error("Checklist update failed"); }
+          note.revision = responseRevision(response);
           note.content = segments.join("");
         } catch {
           checkbox.checked = task.checked;
@@ -9843,11 +9909,99 @@
         return { title: titleInput.value, content: contentInput.value };
       }
 
+      function responseRevision(response) {
+        const raw = response.headers.get('X-Gnotes-Revision');
+        const revision = Number(raw);
+        if (raw === null || !Number.isSafeInteger(revision) || revision < 0) throw new Error('Save acknowledgement is missing. Reload before retrying.');
+        return revision;
+      }
+
+      async function sendNoteEdit(id, edit, state, options = {}) {
+        if (!state || !Number.isSafeInteger(state.revision)) throw new Error('Reload this note before saving.');
+        if (state.conflict) return new Response('', { status: 409 });
+        const owner = currentUser;
+        const response = await apiFetch(`/api/notes/update?id=${id}`, {
+          ...options, method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: edit.title, content: edit.content, revision: state.revision }),
+        });
+        if (currentUser !== owner) return response;
+        if (response.status === 409) state.conflict = true;
+        if (response.ok) {
+          state.revision = responseRevision(response);
+          if (loadedNotes.has(id)) loadedNotes.get(id).revision = state.revision;
+        }
+        return response;
+      }
+
+      function showNoteConflict(id) {
+        setEditSaveStatus(id, 'error', 'This note changed in another window. Your text is still here.');
+        showNoteActionDialog('Another version was saved', 'Your text is still here. Save it as a new note to keep both versions. The other window’s version will stay unchanged.');
+        const button = document.getElementById('note-conflict-copy');
+        button.hidden = false;
+        button.onclick = () => saveConflictCopy(id);
+      }
+
+      async function saveConflictCopy(id = null) {
+        const draft = id === null;
+        const owner = currentUser;
+        const text = draft ? currentDraft() : editingNoteId === id ? currentEdit(id) : pendingNoteEdits.get(id)?.edit;
+        if (!text || !owner) return;
+        const button = document.getElementById(draft ? 'draft-conflict-copy' : 'note-conflict-copy');
+        if (button.disabled) return;
+        button.disabled = true;
+        try {
+          const response = await apiFetch('/api/notes/create', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: text.title, content: text.content }),
+          });
+          if (currentUser !== owner) return;
+          if (!response.ok) throw new Error('Copy not saved');
+          if (!draft && editingNoteId !== id) {
+            showNoteActionToast('Your text was saved as a new note.');
+            return;
+          }
+          const now = draft ? currentDraft() : currentEdit(id) || pendingNoteEdits.get(id)?.edit;
+          if (now?.title !== text.title || now?.content !== text.content) {
+            if (draft) setDraftStatus('Copy saved. Newer typing is still here; save another copy when ready.', true);
+            else showNoteConflict(id);
+            return;
+          }
+          if (draft) {
+            // Loading the other window's draft happens only after this text is
+            // safely saved as a separate note. No server draft is overwritten.
+            await loadDraft();
+          } else {
+            clearTimeout(editSaveTimer);
+            destroyVimEditor('edit');
+            destroyEditRichEditor();
+            closeFocusedNote();
+            editingNoteId = null;
+            forgetEditingNote();
+            pendingNoteEdits.delete(id);
+            noteSaveStates.delete(id);
+            document.getElementById('note-action-dialog').close();
+          }
+          await loadNotes();
+          showNoteActionToast('Your text was saved as a new note.');
+        } catch {
+          if (currentUser === owner) {
+            if (draft) setDraftStatus('Could not confirm the copy was saved. Your text is still here.', true);
+            else showNoteActionDialog('Copy not confirmed', 'Your text is still here. Check your connection before trying again.');
+          }
+        } finally { button.disabled = false; }
+      }
+
+      document.getElementById('draft-conflict-copy').addEventListener('click', () => saveConflictCopy());
+
       function scheduleEditAutosave(id) {
         if (editingNoteId !== id) return;
         updateNoteTabTitle(id);
         rememberEditingNote(id);
         editStatusVersion++;
+        if (noteSaveStates.get(id)?.conflict) {
+          setEditSaveStatus(id, 'error', 'Save your text as a new note to keep both versions.');
+          return;
+        }
         setEditSaveStatus(id, 'saving');
         clearTimeout(editSaveTimer);
         editSaveTimer = setTimeout(() => queueEditAutosave(id), 400);
@@ -9872,14 +10026,15 @@
           return Promise.resolve(false);
         }
         const owner = currentUser, editor = document.getElementById(`note-editor-${id}`), version = editStatusVersion;
+        const state = noteSaveStates.get(id);
         const current = () => currentUser === owner && editingNoteId === id && editor === document.getElementById(`note-editor-${id}`) && version === editStatusVersion;
         setEditSaveStatus(id, 'saving');
         editSaveChain = editSaveChain.catch(() => false).then(async () => {
           if (currentUser !== owner) return false;
           try {
-            const response = await apiFetch(`/api/notes/update?id=${id}`, {
-              method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(edit),
-            });
+            const response = await sendNoteEdit(id, edit, state);
+            if (currentUser !== owner) return false;
+            if (response.status === 409) { showNoteConflict(id); return false; }
             if (current()) setEditSaveStatus(id, response.ok ? 'saved' : 'error');
             if (currentUser === owner && response.ok && loadedNotes.has(id) && !pendingNoteEdits.has(id)) Object.assign(loadedNotes.get(id), edit);
             return response.ok && currentUser === owner;
@@ -9921,6 +10076,7 @@
 
       async function updateNote(id) {
         if (editingNoteId !== id) return true;
+        if (noteSaveStates.get(id)?.conflict) { showNoteConflict(id); return false; }
         const titleInput = document.getElementById(`edit-title-${id}`);
         const contentInput = document.getElementById(`edit-content-${id}`);
         currentEdit(id); // Flush the latest rich text before validating/closing.
@@ -9940,6 +10096,7 @@
         }
         clearTimeout(editSaveTimer);
         const owner = currentUser;
+        const state = noteSaveStates.get(id);
         const html_content = richEdit && sameMarkdown(richEdit.getMarkdown(), content) ? richEdit.editor.getHTML()
           : `<p>${escapeHTML(content).replace(/\r?\n/g, '<br>')}</p>`;
         const pending = { edit: { title, content, html_content } };
@@ -9959,12 +10116,13 @@
         editSaveChain = editSaveChain.catch(() => false).then(async () => {
           if (currentUser !== owner) return false;
           try {
-            const res = await apiFetch(`/api/notes/update?id=${id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ title, content }),
-            });
+            const res = await sendNoteEdit(id, { title, content }, state);
             if (currentUser !== owner) return false;
+            if (res.status === 409) {
+              if (editingNoteId === null) openNoteEditor(id, false);
+              showNoteConflict(id);
+              return false;
+            }
             if (!res.ok) {
               if (res.status === 423 && loadedNotes.has(id)) { loadedNotes.get(id).locked = true; renderLoadedNotes(); }
               throw new Error('Save failed');
@@ -10628,19 +10786,32 @@
         }
       });
 
+      window.addEventListener('beforeunload', event => {
+        if (!csrfToken) return;
+        const edit = editingNoteId === null ? null : currentEdit(editingNoteId);
+        const saved = loadedNotes.get(editingNoteId);
+        if (pendingNoteEdits.size || draftVersion > draftSavedVersion || (edit && (edit.title !== saved?.title || edit.content !== saved?.content))) {
+          event.preventDefault();
+          event.returnValue = '';
+        }
+      });
+
       window.addEventListener("pagehide", () => {
         if (!csrfToken) return;
         saveUIState();
         for (const [id, pending] of pendingNoteEdits) {
           if (id === editingNoteId) continue;
+          const state = noteSaveStates.get(id);
+          if (!state || state.conflict) continue;
           fetch(`/api/notes/update?id=${id}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-            body: JSON.stringify({ title: pending.edit.title, content: pending.edit.content }), keepalive: true,
+            body: JSON.stringify({ title: pending.edit.title, content: pending.edit.content, revision: state.revision }), keepalive: true,
           });
         }
         if (editingNoteId !== null) {
           const edit = currentEdit(editingNoteId);
-          if (edit && (edit.title.trim() || edit.content.trim())) {
+          const state = noteSaveStates.get(editingNoteId);
+          if (state && !state.conflict && edit && (edit.title.trim() || edit.content.trim())) {
             clearTimeout(editSaveTimer);
             fetch(`/api/notes/update?id=${editingNoteId}`, {
               method: "PUT",
@@ -10648,12 +10819,12 @@
                 "Content-Type": "application/json",
                 "X-CSRF-Token": csrfToken,
               },
-              body: JSON.stringify(edit),
+              body: JSON.stringify({ ...edit, revision: state.revision }),
               keepalive: true,
             });
           }
         }
-        if (draftVersion >= 1) {
+        if (draftVersion >= 1 && !draftConflict && !draftFinalizing) {
           clearTimeout(draftSaveTimer);
           fetch("/api/draft/update", {
             method: "PUT",

@@ -60,7 +60,7 @@ func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	notes, _, err := queryActiveNotePage(r.Context(), `SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at
+	notes, _, err := queryActiveNotePage(r.Context(), `SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at, revision
 	    FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL LIMIT ?`,
 		[]any{id, userIDFromRequest(r)}, 1)
 	if err != nil {
@@ -121,7 +121,7 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	columns := "id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at"
+	columns := "id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at, revision"
 	order := "pinned DESC, unixepoch(created_at) DESC, id DESC"
 	if archived {
 		order = "unixepoch(archived_at) DESC, id DESC"
@@ -203,7 +203,7 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fromClause := " FROM notes n " + join + " WHERE " + strings.Join(conditions, " AND ")
-	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color, n.tags, n.favorited, n.locked, n.archived_at"
+	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color, n.tags, n.favorited, n.locked, n.archived_at, n.revision"
 	order := "n.pinned DESC, unixepoch(n.created_at) DESC, n.id DESC"
 	if archived {
 		order = "unixepoch(n.archived_at) DESC, n.id DESC"
@@ -490,7 +490,7 @@ func queryNotePage(ctx context.Context, query string, args []any, limit int, arc
 		var rendered sql.NullString
 		fields := []any{&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited, &note.Locked}
 		var archivedAt sql.NullTime
-		fields = append(fields, &archivedAt)
+		fields = append(fields, &archivedAt, &note.Revision)
 		if err := rows.Scan(fields...); err != nil {
 			rows.Close()
 			return nil, "", err

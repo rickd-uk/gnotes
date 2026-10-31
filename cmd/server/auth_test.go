@@ -212,14 +212,14 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 
 	response = authenticatedRequest(
 		t, protect(updateDraftHandler, true), http.MethodPut,
-		"/api/draft/update", `{"title":"Newest draft","content":"survives refresh","version":2}`, rick, true,
+		"/api/draft/update", `{"title":"Newest draft","content":"survives refresh","version":2,"revision":0}`, rick, true,
 	)
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("save draft status = %d, want 204: %s", response.Code, response.Body.String())
 	}
 	response = authenticatedRequest(
 		t, protect(updateDraftHandler, true), http.MethodPut,
-		"/api/draft/update", `{"title":"Stale draft","content":"must not win","version":1}`, rick, true,
+		"/api/draft/update", `{"title":"Stale draft","content":"must not win","version":1,"revision":0}`, rick, true,
 	)
 	if response.Code != http.StatusConflict {
 		t.Fatalf("stale draft status = %d, want 409", response.Code)
@@ -232,7 +232,7 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 	}
 	response = authenticatedRequest(
 		t, protect(finalizeDraftHandler, true), http.MethodPost,
-		"/api/draft/finalize", `{"version":2}`, rick, true,
+		"/api/draft/finalize", `{"version":2,"revision":1}`, rick, true,
 	)
 	if response.Code != http.StatusCreated {
 		t.Fatalf("finalize draft status = %d, want 201: %s", response.Code, response.Body.String())
@@ -267,7 +267,7 @@ func TestAuthenticationOwnershipCSRFAndAdministration(t *testing.T) {
 		t.Fatalf("delete all affected another user: %s", notes)
 	}
 
-	updateBody := `{"title":"stolen","content":"no"}`
+	updateBody := `{"title":"stolen","content":"no","revision":0}`
 	response = authenticatedRequest(
 		t, protect(updateNoteHandler, true), http.MethodPut,
 		"/api/notes/update?id="+jsonNumber(legacyID), updateBody, alice, true,

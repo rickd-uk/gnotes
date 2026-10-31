@@ -52,7 +52,7 @@ func TestTagsOwnershipValidationAndAutosave(t *testing.T) {
 		t.Fatalf("save tags: %d %s", got.Code, got.Body.String())
 	}
 	updated := httptest.NewRecorder()
-	updateNoteHandler(updated, tagsTestRequest("PUT", "/api/notes/update?id="+strconv.Itoa(note.ID), []byte(`{"title":"Autosaved","content":"alpha beta"}`), 1))
+	updateNoteHandler(updated, tagsTestRequest("PUT", "/api/notes/update?id="+strconv.Itoa(note.ID), []byte(`{"title":"Autosaved","content":"alpha beta","revision":0}`), 1))
 	if updated.Code != 204 {
 		t.Fatalf("autosave: %d", updated.Code)
 	}

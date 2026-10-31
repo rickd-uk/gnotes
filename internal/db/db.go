@@ -203,6 +203,15 @@ func initSchema(filepath string) {
 	ensureColumn("tags", "TEXT NOT NULL DEFAULT '[]'")
 	ensureColumn("user_id", "INTEGER")
 	ensureColumn("rendered_content", "TEXT")
+	ensureColumn("revision", "INTEGER NOT NULL DEFAULT 0")
+	ensureTableColumn("drafts", "revision", "INTEGER NOT NULL DEFAULT 0")
+	// Also invalidate text revisions for maintenance writes outside the API.
+	if _, err := DB.Exec(`CREATE TRIGGER IF NOT EXISTS notes_text_revision
+		AFTER UPDATE OF title, content ON notes
+		WHEN new.revision = old.revision AND (new.title IS NOT old.title OR new.content IS NOT old.content)
+		BEGIN UPDATE notes SET revision = old.revision + 1 WHERE id = new.id; END;`); err != nil {
+		log.Fatal(err)
+	}
 	ensureTableColumn("users", "role", "TEXT NOT NULL DEFAULT 'user'")
 	ensureTableColumn("users", "active", "INTEGER NOT NULL DEFAULT 1")
 	ensureTableColumn("users", "last_login_at", "DATETIME")

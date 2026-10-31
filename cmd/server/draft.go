@@ -11,9 +11,10 @@ import (
 )
 
 type noteDraft struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
-	Version int64  `json:"version"`
+	Title    string `json:"title"`
+	Content  string `json:"content"`
+	Version  int64  `json:"version"`
+	Revision int64  `json:"revision"`
 }
 
 func getDraftHandler(w http.ResponseWriter, r *http.Request) {
@@ -23,9 +24,9 @@ func getDraftHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	draft := noteDraft{}
 	err := db.DB.QueryRow(
-		"SELECT title, content, version FROM drafts WHERE user_id = ?",
+		"SELECT title, content, version, revision FROM drafts WHERE user_id = ?",
 		userIDFromRequest(r),
-	).Scan(&draft.Title, &draft.Content, &draft.Version)
+	).Scan(&draft.Title, &draft.Content, &draft.Version, &draft.Revision)
 	if err != nil && err != sql.ErrNoRows {
 		http.Error(w, "Could not load draft", http.StatusInternalServerError)
 		return
@@ -39,7 +40,12 @@ func updateDraftHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Use PUT", http.StatusMethodNotAllowed)
 		return
 	}
-	var draft noteDraft
+	var draft struct {
+		Title    string `json:"title"`
+		Content  string `json:"content"`
+		Version  int64  `json:"version"`
+		Revision *int64 `json:"revision"`
+	}
 	if err := decodeJSONBody(w, r, &draft); err != nil || draft.Version < 1 {
 		http.Error(w, "Invalid draft", http.StatusBadRequest)
 		return
@@ -48,25 +54,38 @@ func updateDraftHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	result, err := db.DB.Exec(`
-		INSERT INTO drafts (user_id, title, content, version, updated_at)
-		VALUES (?, ?, ?, ?, ?)
+	if !validRevision(w, draft.Revision) {
+		return
+	}
+	var revision int64
+	err := db.DB.QueryRowContext(r.Context(), `
+		INSERT INTO drafts (user_id, title, content, version, updated_at, revision)
+		SELECT ?, ?, ?, ?, ?, 1 WHERE ? = 0 OR EXISTS (SELECT 1 FROM drafts WHERE user_id = ?)
 		ON CONFLICT(user_id) DO UPDATE SET
 			title = excluded.title,
 			content = excluded.content,
 			version = excluded.version,
-			updated_at = excluded.updated_at
-		WHERE excluded.version >= drafts.version`,
-		userIDFromRequest(r), draft.Title, draft.Content, draft.Version, time.Now(),
-	)
+			updated_at = excluded.updated_at,
+			revision = drafts.revision + 1
+		WHERE drafts.revision = ?
+		RETURNING revision`,
+		userIDFromRequest(r), draft.Title, draft.Content, draft.Version, time.Now(), *draft.Revision, userIDFromRequest(r), *draft.Revision,
+	).Scan(&revision)
+	if err == sql.ErrNoRows {
+		var current noteDraft
+		err = db.DB.QueryRowContext(r.Context(), "SELECT title,content,version,revision FROM drafts WHERE user_id=?", userIDFromRequest(r)).Scan(&current.Title, &current.Content, &current.Version, &current.Revision)
+		if err == nil && current.Version == draft.Version && current.Title == draft.Title && current.Content == draft.Content {
+			revision = current.Revision // Idempotent retry after a lost response.
+		} else if err == nil || err == sql.ErrNoRows {
+			http.Error(w, "A newer draft exists", http.StatusConflict)
+			return
+		}
+	}
 	if err != nil {
 		http.Error(w, "Could not save draft", http.StatusInternalServerError)
 		return
 	}
-	if affected, _ := result.RowsAffected(); affected == 0 {
-		http.Error(w, "A newer draft exists", http.StatusConflict)
-		return
-	}
+	writeRevision(w, revision)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -76,10 +95,14 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Version int64 `json:"version"`
+		Version  int64  `json:"version"`
+		Revision *int64 `json:"revision"`
 	}
 	if err := decodeJSONBody(w, r, &input); err != nil || input.Version < 1 {
 		http.Error(w, "Invalid draft version", http.StatusBadRequest)
+		return
+	}
+	if !validRevision(w, input.Revision) {
 		return
 	}
 	userID := userIDFromRequest(r)
@@ -92,17 +115,17 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 
 	var draft noteDraft
 	err = tx.QueryRow(
-		"SELECT title, content, version FROM drafts WHERE user_id = ?", userID,
-	).Scan(&draft.Title, &draft.Content, &draft.Version)
+		"SELECT title, content, version, revision FROM drafts WHERE user_id = ?", userID,
+	).Scan(&draft.Title, &draft.Content, &draft.Version, &draft.Revision)
 	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNoContent)
+		http.Error(w, "A newer draft exists", http.StatusConflict)
 		return
 	}
 	if err != nil {
 		http.Error(w, "Could not finalize draft", http.StatusInternalServerError)
 		return
 	}
-	if draft.Version != input.Version {
+	if draft.Version != input.Version || draft.Revision != *input.Revision {
 		http.Error(w, "A newer draft exists", http.StatusConflict)
 		return
 	}
@@ -111,7 +134,7 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(draft.Title) == "" && strings.TrimSpace(draft.Content) == "" {
-		if _, err := tx.Exec("DELETE FROM drafts WHERE user_id = ?", userID); err != nil {
+		if _, err := tx.Exec("UPDATE drafts SET title='',content='',version=0,revision=revision+1 WHERE user_id = ?", userID); err != nil {
 			http.Error(w, "Could not clear draft", http.StatusInternalServerError)
 			return
 		}
@@ -119,6 +142,7 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not clear draft", http.StatusInternalServerError)
 			return
 		}
+		writeRevision(w, draft.Revision+1)
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -137,7 +161,7 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not create note", http.StatusInternalServerError)
 		return
 	}
-	if _, err := tx.Exec("DELETE FROM drafts WHERE user_id = ?", userID); err != nil {
+	if _, err := tx.Exec("UPDATE drafts SET title='',content='',version=0,revision=revision+1 WHERE user_id = ?", userID); err != nil {
 		http.Error(w, "Could not clear draft", http.StatusInternalServerError)
 		return
 	}
@@ -147,9 +171,11 @@ func finalizeDraftHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	writeRevision(w, draft.Revision+1)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]any{
 		"id":         id,
+		"revision":   0,
 		"title":      draft.Title,
 		"content":    draft.Content,
 		"created_at": createdAt,

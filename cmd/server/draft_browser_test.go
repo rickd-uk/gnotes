@@ -44,7 +44,10 @@ func TestDraftRetryAndKeyboardBrowser(t *testing.T) {
 	// Do not retry conflicts, and surface validation errors without discarding text.
 	browser.script(`window.draftCalls=0;window.fetch=(url,options={})=>url==='/api/draft/update'?(draftCalls++,Promise.resolve(new Response('A newer draft exists',{status:409}))):realFetch(url,options);document.getElementById('title').value='Keep my text';scheduleDraftSave();`)
 	browser.wait(`document.getElementById('draft-status').textContent==='Newer draft open in another tab'`)
-	browser.script(`if(draftCalls!==1||draftRetryAttempt!==0||document.getElementById('title').value!=='Keep my text')throw new Error('Conflict retried or lost text');window.fetch=(url,options={})=>url==='/api/draft/update'?Promise.resolve(new Response('Title is too long',{status:400})):realFetch(url,options);scheduleDraftSave();`)
+	browser.script(`if(draftCalls!==1||draftRetryAttempt!==0||document.getElementById('title').value!=='Keep my text'||document.getElementById('draft-conflict-copy').hidden)throw new Error('Conflict retried or lost text');scheduleDraftSave();queueDraftSave();`)
+	browser.script(`if(draftCalls!==1)throw new Error('Conflicted text was automatically retried');window.savedConflictText=currentDraft();window.fetch=realFetch;loadDraft();`)
+	browser.wait(`!draftConflict && document.getElementById('title').value==='Recover this draft'`)
+	browser.script(`window.fetch=(url,options={})=>url==='/api/draft/update'?Promise.resolve(new Response('Title is too long',{status:400})):realFetch(url,options);document.getElementById('title').value=savedConflictText.title;scheduleDraftSave();`)
 	browser.wait(`document.getElementById('draft-status').textContent==='Title is too long'`)
 	// Reconnection retries the latest text, then finishing clears the pending retry.
 	browser.script(`window.fetch=(url,options={})=>url==='/api/draft/update'?Promise.resolve(new Response('',{status:503})):realFetch(url,options);scheduleDraftSave();`)

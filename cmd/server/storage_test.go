@@ -54,9 +54,13 @@ func TestEncryptedAccountNoteFlows(t *testing.T) {
 	if search.Code != http.StatusOK || !bytes.Contains(search.Body.Bytes(), []byte("Secret body")) {
 		t.Fatalf("search: %d %s", search.Code, search.Body.String())
 	}
-	update := authenticatedRequest(t, protect(updateNoteHandler, true), "PUT", "/api/notes/update?id=1", `{"title":"Changed","content":"Edited body"}`, login, true)
+	update := authenticatedRequest(t, protect(updateNoteHandler, true), "PUT", "/api/notes/update?id=1", `{"title":"Changed","content":"Edited body","revision":0}`, login, true)
 	if update.Code != http.StatusNoContent {
 		t.Fatalf("update: %d %s", update.Code, update.Body.String())
+	}
+	stale := authenticatedRequest(t, protect(updateNoteHandler, true), "PUT", "/api/notes/update?id=1", `{"title":"Old tab","content":"Must not overwrite","revision":0}`, login, true)
+	if stale.Code != http.StatusConflict {
+		t.Fatalf("encrypted stale save: %d %s", stale.Code, stale.Body.String())
 	}
 	lock := authenticatedRequest(t, protect(lockNoteHandler, true), "PUT", "/api/notes/lock?id=1", `{"locked":true}`, login, true)
 	if lock.Code != http.StatusOK {

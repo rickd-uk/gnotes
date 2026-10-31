@@ -9,6 +9,7 @@ import (
 type Note struct {
 	Locked          bool          `json:"locked"`
 	ID              int           `json:"id"`
+	Revision        int64         `json:"revision"`
 	Title           string        `json:"title"`
 	Content         string        `json:"content"` // Markdown here
 	HTMLContent     template.HTML `json:"html_content"`

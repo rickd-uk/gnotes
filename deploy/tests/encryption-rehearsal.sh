@@ -89,7 +89,7 @@ csrf = auth['csrf_token']
 if action == 'create':
     request('/api/notes/create', {'title': 'PrivateOrchidSignal', 'content': 'Encrypted snapshot rehearsal'})
 elif action == 'change':
-    request('/api/notes/update?id=1', {'title': 'ChangedAfterBackup', 'content': 'later change'}, 'PUT')
+    request('/api/notes/update?id=1', {'title': 'ChangedAfterBackup', 'content': 'later change', 'revision': request('/api/notes/get?id=1')['revision']}, 'PUT')
 else:
     data = request('/api/notes/search-page?q=PrivateOrchidSignal')
     assert 'Encrypted snapshot rehearsal' in json.dumps(data), data
