@@ -126,8 +126,11 @@ func TestDeferredEditorReadsBrowser(t *testing.T) {
       clearTimeout(draftSaveTimer);
       if(draftSerializationCount||!draftHasText()||document.getElementById('note-save').hidden)throw new Error('Draft typing serialized or failed to enable Save');
       window.pagehideWrites=[];window.deferredFetch=fetch.bind(window);
-      window.fetch=(url,options={})=>{if(options.keepalive){pagehideWrites.push({url,body:JSON.parse(options.body)});return Promise.resolve(new Response(null,{status:204}));}return deferredFetch(url,options);};
+      window.fetch=(url,options={})=>{if(options.keepalive)pagehideWrites.push({url,body:JSON.parse(options.body)});return deferredFetch(url,options);};
       window.dispatchEvent(new Event('pagehide'));
+    `)
+	browser.wait(`pagehideWrites.length===2 && draftSavedVersion===draftVersion && document.querySelector('.edit-hint').dataset.state==='saved'`)
+	browser.script(`
       if(pagehideWrites.find(write=>write.url==='/api/notes/update?id='+deferredID)?.body.content!=='Capture note on page exit')throw new Error('Page exit did not flush latest note');
       if(pagehideWrites.find(write=>write.url==='/api/draft/update')?.body.content!=='Recover **this** draft'||draftSerializationCount!==1)throw new Error('Page exit did not flush latest draft');
       window.fetch=deferredFetch;

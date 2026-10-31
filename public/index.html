@@ -2313,6 +2313,31 @@
         box-shadow: 0 24px 65px rgba(36, 35, 31, 0.24);
       }
 
+      .pending-save-notice {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 12px 0;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 0.85rem;
+      }
+
+      .pending-save-notice button {
+        min-height: 44px;
+        flex-shrink: 0;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        cursor: pointer;
+      }
+      .pending-save-notice[hidden] { display: none; }
+
       .note-action-dialog::backdrop { background: rgba(36, 35, 31, 0.42); }
       .note-action-dialog h2 { margin: 0 0 10px; font: 500 1.45rem Georgia, "Times New Roman", serif; }
       .note-action-dialog p { margin: 0 0 22px; line-height: 1.5; font-size: 0.9rem; }
@@ -4456,6 +4481,7 @@
           max-height: calc(var(--visible-screen-height, 100dvh) - 96px - env(safe-area-inset-bottom)); overflow-y: auto;
           border-radius: 12px;
         }
+
         .info-panel, .archive-panel { max-height: calc(var(--visible-screen-height, 100dvh) - 142px - env(safe-area-inset-bottom)); }
         .view-menu { top: var(--visible-screen-top, 0px); bottom: calc(var(--keyboard-inset, 0px) + 72px + env(safe-area-inset-bottom)); }
         .note-card.is-editing { max-height: calc(var(--edit-viewport-height, 100dvh) - 80px - env(safe-area-inset-bottom)); }
@@ -4873,6 +4899,10 @@
           </div>
         </div>
         <p class="search-status" id="notes-load-status" role="status" hidden></p>
+        <div class="pending-save-notice" id="pending-save-notice" hidden>
+          <span id="pending-save-message" role="status" aria-live="polite"></span>
+          <button type="button" onclick="retryPendingNoteEdits()">Retry</button>
+        </div>
         <div id="notes-list"></div>
         <button class="load-more" id="load-more-notes" type="button" hidden>Load older</button>
         <div class="active-notes-bulk-actions" id="active-notes-bulk-actions" role="group" aria-label="All active notes" hidden>
@@ -5423,6 +5453,7 @@
       let editSaveChain = Promise.resolve();
       const pendingNoteEdits = new Map();
       const noteSaveStates = new Map();
+      let saveKeepaliveBytes = 0;
       const pendingNoteActions = new Set();
       let noteViewRevision = 0;
       let collapsedDateSections = new Set();
@@ -6655,6 +6686,9 @@
         document.getElementById('site-backup-admin').hidden = true;
         pendingNoteEdits.clear();
         noteSaveStates.clear();
+        editSaveChain = Promise.resolve();
+        draftSaveChain = Promise.resolve();
+        updatePendingSaveNotice();
         draftRevision = 0;
         draftConflict = false;
         document.getElementById('draft-conflict-copy').hidden = true;
@@ -8012,8 +8046,9 @@
         draftSaveChain = draftSaveChain.catch(() => false).then(async () => {
           // A queued write must not restore a finished draft or cross accounts.
           if (!token || token !== csrfToken || draft.version < 1 || draft.version !== draftVersion || draftConflict) return false;
+          if (draft.version === draftSavedVersion) return true;
           try {
-            const response = await apiFetch("/api/draft/update", {
+            const response = await saveFetch("/api/draft/update", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ ...draft, revision: draftRevision }),
@@ -8054,6 +8089,8 @@
       }
 
       window.addEventListener("online", () => {
+        retryPendingNoteEdits();
+        if (csrfToken && editingNoteId !== null && !pendingNoteEdits.has(editingNoteId) && !noteSaveStates.get(editingNoteId)?.conflict) queueEditAutosave(editingNoteId);
         if (csrfToken && draftRetryPending && draftVersion > draftSavedVersion && !draftFinalizing) {
           draftRetryAttempt = 0;
           queueDraftSave();
@@ -9412,7 +9449,7 @@
         if (!note || note.archived_at || !view || !card || pendingNoteActions.has(id)) return false;
         if (note.locked) { showNoteActionToast('This note is locked. Use the padlock to unlock it.'); return false; }
         if (!noteSaveStates.has(id) || (!pendingNoteEdits.has(id) && editingNoteId !== id && !noteSaveStates.get(id).conflict)) {
-          noteSaveStates.set(id, { revision: note.revision, conflict: false });
+          noteSaveStates.set(id, { revision: note.revision, conflict: false, saved: { title: note.title, content: note.content } });
         }
         let editor = document.getElementById(`note-editor-${id}`);
         if (!editor) {
@@ -9916,11 +9953,38 @@
         return revision;
       }
 
+      function sameNoteText(left, right) {
+        return left && right && left.title === right.title && left.content === right.content;
+      }
+
+      async function saveFetch(url, options) {
+        // Fetch's keepalive budget is shared by outstanding requests. Larger
+        // saves still use an ordinary request; send them before page exit.
+        const bytes = new TextEncoder().encode(options.body).byteLength;
+        const keepalive = saveKeepaliveBytes + bytes <= 60 * 1024;
+        if (keepalive) saveKeepaliveBytes += bytes;
+        try { return await apiFetch(url, { ...options, keepalive }); }
+        finally { if (keepalive) saveKeepaliveBytes -= bytes; }
+      }
+
+      function queueNoteSave(id, edit, state) {
+        const owner = currentUser, token = csrfToken;
+        const queued = { edit };
+        queued.promise = editSaveChain.catch(() => false).then(() => {
+          if (!token || token !== csrfToken || owner !== currentUser) return null;
+          return sendNoteEdit(id, edit, state);
+        }).finally(() => { if (state?.queued === queued) state.queued = null; });
+        if (state) state.queued = queued;
+        editSaveChain = queued.promise;
+        return queued.promise;
+      }
+
       async function sendNoteEdit(id, edit, state, options = {}) {
         if (!state || !Number.isSafeInteger(state.revision)) throw new Error('Reload this note before saving.');
         if (state.conflict) return new Response('', { status: 409 });
+        if (sameNoteText(state.saved, edit)) return new Response(null, { status: 204 });
         const owner = currentUser;
-        const response = await apiFetch(`/api/notes/update?id=${id}`, {
+        const response = await saveFetch(`/api/notes/update?id=${id}`, {
           ...options, method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: edit.title, content: edit.content, revision: state.revision }),
         });
@@ -9928,6 +9992,7 @@
         if (response.status === 409) state.conflict = true;
         if (response.ok) {
           state.revision = responseRevision(response);
+          state.saved = { title: edit.title, content: edit.content };
           if (loadedNotes.has(id)) loadedNotes.get(id).revision = state.revision;
         }
         return response;
@@ -9979,6 +10044,7 @@
             forgetEditingNote();
             pendingNoteEdits.delete(id);
             noteSaveStates.delete(id);
+            updatePendingSaveNotice();
             document.getElementById('note-action-dialog').close();
           }
           await loadNotes();
@@ -10027,21 +10093,34 @@
         }
         const owner = currentUser, editor = document.getElementById(`note-editor-${id}`), version = editStatusVersion;
         const state = noteSaveStates.get(id);
+        if (pendingNoteEdits.has(id) && !sameNoteText(pendingNoteEdits.get(id).edit, edit)) {
+          // Reopening a failed save can produce newer text. Retain that text,
+          // so a later reconnect cannot replay the earlier closed snapshot.
+          const html_content = richEdit && sameMarkdown(richEdit.getMarkdown(), edit.content) ? richEdit.editor.getHTML()
+            : `<p>${escapeHTML(edit.content).replace(/\r?\n/g, '<br>')}</p>`;
+          pendingNoteEdits.set(id, { edit: { ...edit, html_content }, failed: true });
+        }
+        const retained = pendingNoteEdits.get(id);
         const current = () => currentUser === owner && editingNoteId === id && editor === document.getElementById(`note-editor-${id}`) && version === editStatusVersion;
         setEditSaveStatus(id, 'saving');
-        editSaveChain = editSaveChain.catch(() => false).then(async () => {
-          if (currentUser !== owner) return false;
-          try {
-            const response = await sendNoteEdit(id, edit, state);
-            if (currentUser !== owner) return false;
-            if (response.status === 409) { showNoteConflict(id); return false; }
-            if (current()) setEditSaveStatus(id, response.ok ? 'saved' : 'error');
-            if (currentUser === owner && response.ok && loadedNotes.has(id) && !pendingNoteEdits.has(id)) Object.assign(loadedNotes.get(id), edit);
-            return response.ok && currentUser === owner;
-          } catch {
-            if (current()) setEditSaveStatus(id, 'error');
-            return false;
+        editSaveChain = queueNoteSave(id, edit, state).then(response => {
+          if (currentUser !== owner || !response) return false;
+          if (response.status === 409) { if (current()) showNoteConflict(id); return false; }
+          if (current()) setEditSaveStatus(id, response.ok ? 'saved' : 'error');
+          if (!response.ok && sameNoteText(pendingNoteEdits.get(id)?.edit, edit)) pendingNoteEdits.get(id).failed = true;
+          if (response.ok) {
+            if (retained && pendingNoteEdits.get(id) === retained && sameNoteText(retained.edit, edit)) pendingNoteEdits.delete(id);
+            if (loadedNotes.has(id) && !pendingNoteEdits.has(id)) Object.assign(loadedNotes.get(id), edit);
           }
+          updatePendingSaveNotice();
+          return response.ok;
+        }).catch(() => {
+          if (current()) setEditSaveStatus(id, 'error');
+          if (currentUser === owner && sameNoteText(pendingNoteEdits.get(id)?.edit, edit)) {
+            pendingNoteEdits.get(id).failed = true;
+            updatePendingSaveNotice();
+          }
+          return false;
         });
         return editSaveChain;
       }
@@ -10095,12 +10174,11 @@
           return false;
         }
         clearTimeout(editSaveTimer);
-        const owner = currentUser;
-        const state = noteSaveStates.get(id);
         const html_content = richEdit && sameMarkdown(richEdit.getMarkdown(), content) ? richEdit.editor.getHTML()
           : `<p>${escapeHTML(content).replace(/\r?\n/g, '<br>')}</p>`;
         const pending = { edit: { title, content, html_content } };
         pendingNoteEdits.set(id, pending);
+        updatePendingSaveNotice();
         noteViewRevision++;
         Object.assign(loadedNotes.get(id), pending.edit);
         const returnScroll = editReturnScrollY;
@@ -10113,32 +10191,64 @@
         window.scrollTo(0, returnScroll);
         // Serialize writes so a previous autosave cannot overwrite Done's text.
         // The editor closes above, before any network request is awaited.
-        editSaveChain = editSaveChain.catch(() => false).then(async () => {
-          if (currentUser !== owner) return false;
-          try {
-            const res = await sendNoteEdit(id, { title, content }, state);
-            if (currentUser !== owner) return false;
-            if (res.status === 409) {
-              if (editingNoteId === null) openNoteEditor(id, false);
-              showNoteConflict(id);
-              return false;
-            }
-            if (!res.ok) {
-              if (res.status === 423 && loadedNotes.has(id)) { loadedNotes.get(id).locked = true; renderLoadedNotes(); }
-              throw new Error('Save failed');
-            }
-            if (pendingNoteEdits.get(id) === pending) pendingNoteEdits.delete(id);
-            if (editingNoteId === null && !pendingNoteEdits.size) loadNotes();
-            return true;
-          } catch {
-            if (currentUser === owner && pendingNoteEdits.get(id) === pending) {
-              if (editingNoteId === null && !loadedNotes.get(id)?.locked) openNoteEditor(id, false);
-              showNoteActionDialog('Note not saved', loadedNotes.get(id)?.locked ? 'This note was locked in another window. Your edits are retained here. Unlock the note to retry saving.' : 'Your edits are still available here. Check your connection, then close the editor to retry saving.');
-            }
+        queuePendingNoteSave(id, pending);
+        return true;
+      }
+
+      function updatePendingSaveNotice() {
+        const notice = document.getElementById('pending-save-notice');
+        const failed = [...pendingNoteEdits.values()].filter(pending => pending.failed);
+        notice.hidden = !failed.length;
+        document.getElementById('pending-save-message').textContent = failed.length
+          ? failed[0].message || 'Not saved yet. Your edits are here in this tab. Reconnecting will retry.' : '';
+        notice.querySelector('button').disabled = failed.length > 0 && failed.every(pending => pending.saving);
+      }
+
+      function retryPendingNoteEdits() {
+        if (!csrfToken) return;
+        for (const [id, pending] of pendingNoteEdits) {
+          if (noteSaveStates.get(id)?.conflict) continue;
+          if (editingNoteId === id) queueEditAutosave(id);
+          else if (!loadedNotes.get(id)?.locked) queuePendingNoteSave(id, pending);
+        }
+      }
+
+      function queuePendingNoteSave(id, pending) {
+        if (pending.saving) return pending.promise;
+        const owner = currentUser, state = noteSaveStates.get(id);
+        pending.saving = true;
+        updatePendingSaveNotice();
+        pending.promise = queueNoteSave(id, pending.edit, state).then(res => {
+          if (currentUser !== owner || !res) return false;
+          if (res.status === 409) {
+            pending.failed = true;
+            pending.message = 'Another version was saved. Open your note to keep both versions.';
+            if (editingNoteId === null) openNoteEditor(id, false);
+            showNoteConflict(id);
             return false;
           }
+          if (!res.ok) {
+            if (res.status === 423 && loadedNotes.has(id)) { loadedNotes.get(id).locked = true; renderLoadedNotes(); }
+            pending.message = res.status === 423 ? 'This note is locked. Unlock it to save your retained edits.'
+              : res.status === 428 ? 'This tab needs an update. Copy your unsaved edits before reloading.'
+              : res.status === 403 ? 'Saving was refused. Keep a copy of your edits before signing in again.' : '';
+            throw new Error('Save failed');
+          }
+          if (pendingNoteEdits.get(id) === pending) pendingNoteEdits.delete(id);
+          if (editingNoteId === null && !pendingNoteEdits.size) loadNotes();
+          return true;
+        }).catch(() => {
+          if (currentUser === owner && pendingNoteEdits.get(id) === pending) {
+            pending.failed = true;
+            if (editingNoteId === id) setEditSaveStatus(id, 'error');
+          }
+          return false;
+        }).finally(() => {
+          pending.saving = false;
+          if (currentUser === owner) updatePendingSaveNotice();
         });
-        return true;
+        editSaveChain = pending.promise;
+        return pending.promise;
       }
 
       function handleEditKeydown(event, id) {
@@ -10789,53 +10899,30 @@
       window.addEventListener('beforeunload', event => {
         if (!csrfToken) return;
         const edit = editingNoteId === null ? null : currentEdit(editingNoteId);
-        const saved = loadedNotes.get(editingNoteId);
-        if (pendingNoteEdits.size || draftVersion > draftSavedVersion || (edit && (edit.title !== saved?.title || edit.content !== saved?.content))) {
+        const saved = noteSaveStates.get(editingNoteId)?.saved;
+        const queued = [...noteSaveStates.values()].some(state => state.queued);
+        if (pendingNoteEdits.size || draftVersion > draftSavedVersion || queued || (edit && !sameNoteText(edit, saved))) {
           event.preventDefault();
           event.returnValue = '';
         }
+        flushPendingSaves();
       });
 
+      function flushPendingSaves() {
+        if (!csrfToken) return;
+        retryPendingNoteEdits();
+        if (editingNoteId !== null && !pendingNoteEdits.has(editingNoteId) && !noteSaveStates.get(editingNoteId)?.conflict) queueEditAutosave(editingNoteId);
+        if (draftVersion > draftSavedVersion && !draftConflict && !draftFinalizing) queueDraftSave();
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushPendingSaves();
+      });
+      window.addEventListener('pageshow', flushPendingSaves);
       window.addEventListener("pagehide", () => {
         if (!csrfToken) return;
         saveUIState();
-        for (const [id, pending] of pendingNoteEdits) {
-          if (id === editingNoteId) continue;
-          const state = noteSaveStates.get(id);
-          if (!state || state.conflict) continue;
-          fetch(`/api/notes/update?id=${id}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-            body: JSON.stringify({ title: pending.edit.title, content: pending.edit.content, revision: state.revision }), keepalive: true,
-          });
-        }
-        if (editingNoteId !== null) {
-          const edit = currentEdit(editingNoteId);
-          const state = noteSaveStates.get(editingNoteId);
-          if (state && !state.conflict && edit && (edit.title.trim() || edit.content.trim())) {
-            clearTimeout(editSaveTimer);
-            fetch(`/api/notes/update?id=${editingNoteId}`, {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": csrfToken,
-              },
-              body: JSON.stringify({ ...edit, revision: state.revision }),
-              keepalive: true,
-            });
-          }
-        }
-        if (draftVersion >= 1 && !draftConflict && !draftFinalizing) {
-          clearTimeout(draftSaveTimer);
-          fetch("/api/draft/update", {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRF-Token": csrfToken,
-            },
-            body: JSON.stringify(currentDraft()),
-            keepalive: true,
-          });
-        }
+        flushPendingSaves();
       });
 
       document.addEventListener("keydown", (event) => {

@@ -146,14 +146,17 @@ func TestVimEditorBrowser(t *testing.T) {
               vimEdit.view.dispatch({changes:{from:0,to:vimEdit.view.state.doc.length,insert:noteText}});
               vimDraft.view.dispatch({changes:{from:0,to:vimDraft.view.state.doc.length,insert:draftText}});
               clearTimeout(editSaveTimer);clearTimeout(draftSaveTimer);
-              const original=window.fetch,requests=[];
+              window.exitFetch=window.fetch;window.exitRequests=[];
               window.fetch=(url,options)=>{
-                if(options?.keepalive){requests.push({url:String(url),body:JSON.parse(options.body)});return Promise.resolve(new Response('{}',{status:200}));}
-                return original(url,options);
+                if(options?.keepalive)exitRequests.push({url:String(url),body:JSON.parse(options.body)});
+                return exitFetch(url,options);
               };
               window.dispatchEvent(new PageTransitionEvent('pagehide'));
-              window.fetch=original;
-              if(!requests.some(r=>r.url==='/api/notes/update?id='+vimNoteID&&r.body.content===noteText)||!requests.some(r=>r.url==='/api/draft/update'&&r.body.content===draftText))throw new Error('Page exit missed latest Vim text');
+            `)
+			browser.wait(`exitRequests.length===2 && draftSavedVersion===draftVersion && document.querySelector('.edit-hint').dataset.state==='saved'`)
+			browser.script(`
+              window.fetch=exitFetch;
+              if(!exitRequests.some(r=>r.url==='/api/notes/update?id='+vimNoteID&&r.body.content==='Immediate Vim page exit')||!exitRequests.some(r=>r.url==='/api/draft/update'&&r.body.content==='Immediate Vim draft exit'))throw new Error('Page exit missed latest Vim text');
               vimDraft.setMarkdown('');document.getElementById('content').value='';draftVersion=draftSavedVersion=0;setDraftStatus('');
             `)
 
@@ -170,11 +173,11 @@ func TestVimEditorBrowser(t *testing.T) {
 			browser.navigate(server.URL)
 			browser.wait(`vimModeEnabled && Boolean(vimDraft) && !notesLoading`)
 			browser.script(`window.vimNoteID=[...loadedNotes.values()].find(n=>n.title==='Vim note').id;window.vimErrors=[];window.addEventListener('error',event=>{if(event.message)vimErrors.push(event.message);});openNoteEditor(vimNoteID,false,true);if(!vimEdit||vimEdit.getMarkdown()!==loadedNotes.get(vimNoteID).content)throw new Error('Reload lost Vim preference or note text');`)
-			// The existing failed-save recovery must recreate a Vim editor too.
+			// Failed saves stay closed; reopening must restore the Vim text.
 			browser.script(`window.vimFetch=fetch.bind(window);window.failVimSave=true;window.fetch=(url,options)=>failVimSave&&String(url).startsWith('/api/notes/update')?Promise.resolve(new Response('Unavailable',{status:503})):vimFetch(url,options);vimEdit.view.dispatch({changes:{from:0,to:vimEdit.view.state.doc.length,insert:'Retain failed Vim save'}});clearTimeout(editSaveTimer);`)
 			vimBrowserKeys(browser, ".note-editor .cm-content", ":wq\ue007")
-			browser.wait(`editingNoteId===vimNoteID && Boolean(vimEdit) && document.getElementById('note-action-dialog').open`)
-			browser.script(`if(vimEdit.getMarkdown()!=='Retain failed Vim save')throw new Error('Failed save lost Vim source');document.getElementById('note-action-dialog').close();failVimSave=false;window.fetch=vimFetch;`)
+			browser.wait(`editingNoteId===null && !document.getElementById('pending-save-notice').hidden`)
+			browser.script(`if(document.getElementById('note-action-dialog').open)throw new Error('Failed Vim close opened a dialog');openNoteEditor(vimNoteID,false);if(vimEdit.getMarkdown()!=='Retain failed Vim save')throw new Error('Failed save lost Vim source');failVimSave=false;window.fetch=vimFetch;`)
 			vimBrowserKeys(browser, ".note-editor .cm-content", ":q\ue007")
 			browser.wait(`editingNoteId===null && pendingNoteEdits.size===0 && !notesLoading`)
 			browser.script(`vimDraft.setMarkdown('Private register text');vimDraft.focus();`)

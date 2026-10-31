@@ -114,8 +114,8 @@ func TestEditorFooterAndWidthBrowser(t *testing.T) {
 			browser.wait(`Boolean(richEdit)`)
 			// A failed save must prevent an archive action and retain the editor text.
 			browser.script(`window.realFetch=fetch.bind(window);window.archiveWrites=0;window.fetch=(url,options={})=>{if(String(url).startsWith('/api/notes/update'))return Promise.resolve(new Response('',{status:503}));if(String(url).startsWith('/api/notes/archive'))archiveWrites++;return realFetch(url,options);};richEdit.editor.commands.setContent('<p>Keep text after failed save</p>');document.querySelector('.is-editing .archive-btn').click();`)
-			browser.wait(`document.getElementById('note-action-dialog').open && editingNoteId===testID`)
-			browser.script(`if(archiveWrites||!richEdit.getMarkdown().includes('Keep text after failed save'))throw new Error('Action discarded failed edits');document.getElementById('note-action-dialog').close();window.fetch=realFetch;document.querySelector('.is-editing .archive-btn').click();`)
+			browser.wait(`!document.getElementById('pending-save-notice').hidden && editingNoteId===null`)
+			browser.script(`openNoteEditor(testID,false);if(archiveWrites||!richEdit.getMarkdown().includes('Keep text after failed save'))throw new Error('Action discarded failed edits');window.fetch=realFetch;document.querySelector('.is-editing .archive-btn').click();`)
 			browser.wait(`!pendingNoteActions.size && !pendingNoteEdits.size && !notesLoading && loadedNotes.size===0 && editingNoteId===null`)
 			var content string
 			if err := db.DB.QueryRow("SELECT content FROM notes WHERE archived_at IS NOT NULL").Scan(&content); err != nil || content != "Keep text after failed save" {

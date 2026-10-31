@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-10-31
 
-Deployment checkpoint: priority 1 from the 2026-10-31 project review is live in **v0.8.0-rc.12**: server-controlled note/draft revisions and conflict-copy recovery. The next reliability task is further page-exit save protection, followed by browser/CI reliability and off-server backup automation/alerts. See [PROGRESS.md](PROGRESS.md) for verified deployment and backup evidence. These later tasks are not included in this release.
+Deployment checkpoint: priority 1 from the 2026-10-31 project review is live in **v0.8.0-rc.12**: server-controlled note/draft revisions and conflict-copy recovery. Priority 2 is implemented locally: serialized lifecycle saves, bounded keepalive requests, reconnect recovery, and quiet failed-close feedback with retained text and Retry. It is not deployed; page shutdown delivery remains best effort. Browser/CI reliability and off-server backup automation/alerts follow. See [PROGRESS.md](PROGRESS.md) for validation and verified deployment/backup evidence.
 
 ## Next development sequence
 
