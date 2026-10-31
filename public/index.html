@@ -905,7 +905,7 @@
       .note-view > h2, .note-content { -webkit-user-select: text; user-select: text; }
       .note-content button { -webkit-user-select: none; user-select: none; }
       .note-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-      .note-tag, .note-tags-toggle { padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--accent); font-size: 0.72rem; cursor: pointer; overflow-wrap: anywhere; max-width: 100%; }
+      .note-tag, .note-tags-toggle { margin: 2px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--accent); font-size: 0.72rem; cursor: pointer; overflow-wrap: anywhere; max-width: calc(100% - 4px); }
       .note-tag:hover, .note-tags-toggle:hover { background: #e9e5dc; }
       .note-tag[hidden] { display: none; }
       #tags-dialog { width: min(400px, calc(100% - 32px)); }
@@ -2489,6 +2489,30 @@
       .editor-footer .note-tools,
       .editor-footer .note-color-menu { top: auto; bottom: calc(100% + 8px); }
 
+      @media (min-width: 1024px) {
+        .note-card.is-editing .editor-footer .note-actions {
+          flex: 1 1 100%;
+          min-width: 0;
+          flex-wrap: wrap;
+        }
+        .note-card.is-editing .editor-footer .note-actions-toggle { display: none; }
+        .note-card.is-editing .editor-footer .note-tools {
+          position: static;
+          display: flex;
+          width: auto;
+          max-width: 100%;
+          flex: 1 1 auto;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+        }
+        .note-card.is-editing .editor-footer .customize-note-buttons {
+          flex: 0 1 auto;
+          border-top: 0;
+        }
+      }
+
       .edit-hint {
         min-width: 0;
         flex: 1;
@@ -2670,6 +2694,7 @@
       .pinned-note .date-row { padding-left: 10px; }
 
       .latest-marker {
+        margin: 2px;
         padding: 1px 7px;
         border-radius: 999px;
         background: #d8e4dd;
