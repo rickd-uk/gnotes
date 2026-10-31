@@ -1,6 +1,8 @@
 # gnotes roadmap
 
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-31
+
+Deployment checkpoint: priority 1 from the 2026-10-31 project review is live in **v0.8.0-rc.12**: server-controlled note/draft revisions and conflict-copy recovery. The next reliability task is further page-exit save protection, followed by browser/CI reliability and off-server backup automation/alerts. See [PROGRESS.md](PROGRESS.md) for verified deployment and backup evidence. These later tasks are not included in this release.
 
 ## Next development sequence
 
@@ -19,7 +21,7 @@ The operational Wasabi egress fix is installed on Kagoya and included in v0.7.55
 
 ## Current production milestone
 
-Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.8.0-rc.10`. It uses SQLCipher-encrypted SQLite in WAL mode, encrypted retained local backups, an owner-supplied RAM-only key, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. Rollback images must support encryption and MFA. The older `hz-sin` systemd deployment is separate from the public site.
+Production runs at `https://gnotes.rickd.dev` on the Kagoya VPS as a rootless Podman container behind Nginx and TLS, currently on `v0.8.0-rc.12`. It uses SQLCipher-encrypted SQLite in WAL mode, encrypted retained local backups, an owner-supplied RAM-only key, checksum-verified releases, health checks, pre-update validated backups, and automatic application rollback during failed updates. Rollback images must support encryption and MFA. The older `hz-sin` systemd deployment is separate from the public site.
 
 The current release includes:
 
