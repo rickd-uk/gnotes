@@ -10853,7 +10853,9 @@
         const formatControl = event.target.closest(".format-control");
         closeFormattingToolbars(formatControl);
 
-        if (!document.getElementById("view-control").contains(event.target)) closeViewMenu();
+        // Customize opens Controls from a note; keep its opening click from closing it.
+        if (!document.getElementById("view-control").contains(event.target) &&
+            !event.target.closest(".customize-note-buttons")) closeViewMenu();
 
         const control = document.querySelector(".trash-control");
         if (!control.contains(event.target)) closeTrashPanel();
