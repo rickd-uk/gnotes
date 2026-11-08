@@ -4062,7 +4062,14 @@
       @media (min-width: 561px) {
         .site-header { padding: 12px 20px 13px; }
         .site-header h1, .startup-brand { font-size: clamp(2rem, 4.8vw, 2.5rem); }
-        .view-menu { width: min(280px, calc(100vw - 32px)); }
+        .view-menu {
+          position: fixed;
+          top: var(--controls-menu-top, 88px);
+          left: var(--controls-menu-left, 16px);
+          right: auto;
+          width: min(280px, calc(100vw - 32px));
+          max-height: calc(100dvh - var(--controls-menu-top, 88px) - 16px);
+        }
         .tool-visibility {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5220,6 +5227,10 @@
         <h3>Two-step verification</h3>
         <p id="mfa-account-status">Use an authenticator app to protect sign-in.</p>
         <button class="backup-button" id="mfa-open" type="button" onclick="GnotesMFA.open()">Manage two-step verification</button>
+      </section>
+      <section id="password-account-section" class="profile-backups">
+        <h3>Password</h3>
+        <button class="backup-button" id="password-open" type="button" onclick="GnotesPassword.open()">Change password</button>
       </section>
       <form class="auth-form recovery-email-form" id="recovery-email-form" hidden>
         <p class="auth-intro">Set or verify your password recovery email. A replacement takes effect only after you confirm the link.</p>
@@ -6651,6 +6662,7 @@
       function showAuth(message = "") {
         authRequestVersion++;
         window.GnotesMFA?.reset();
+        window.GnotesPassword?.reset();
         cancelNotesLoad();
         notesPageURL = "";
         clearTimeout(draftSaveTimer);
@@ -10410,8 +10422,11 @@
       });
       document.getElementById("favorites-main-toggle").addEventListener("click", toggleFavoritesInMain);
       document.getElementById("note-max-height").addEventListener("input", event => { applyMaxNoteHeight(event.target.value); saveUIState(); });
-      document.getElementById('note-area-width').addEventListener('input', event => { applyNoteAreaWidth(event.target.value); saveUIState(); });
-      document.getElementById('note-editor-width').addEventListener('input', event => { applyNoteEditorWidth(event.target.value); saveUIState(); });
+      document.getElementById('note-area-width').addEventListener('input', event => applyNoteAreaWidth(event.target.value));
+      document.getElementById('note-editor-width').addEventListener('input', event => applyNoteEditorWidth(event.target.value));
+      for (const id of ['note-area-width', 'note-editor-width']) {
+        document.getElementById(id).addEventListener('change', saveUIState);
+      }
       document.querySelectorAll('[data-width-preset]').forEach(button => button.addEventListener('click', () => {
         const editing = button.dataset.widthTarget === 'editing', preset = button.dataset.widthPreset;
         const width = preset === 'compact' ? 640 : editing ? 1040 : 880;
@@ -10773,6 +10788,19 @@
         if (row) openArchiveRange(row);
       });
 
+      function positionViewMenu() {
+        const control = document.getElementById('view-control');
+        if (!control.classList.contains('is-open') || smallScreenNavigation.matches) return;
+        const menu = document.getElementById('view-menu');
+        const anchor = document.getElementById('view-toggle').getBoundingClientRect();
+        // Anchor once on opening (and real viewport resizing), not to the
+        // reading area that the slider itself is resizing under the pointer.
+        menu.style.setProperty('--controls-menu-left', `${Math.max(16, Math.min(anchor.right - menu.offsetWidth, document.documentElement.clientWidth - menu.offsetWidth - 16))}px`);
+        menu.style.setProperty('--controls-menu-top', `${Math.max(8, anchor.bottom + 7)}px`);
+      }
+
+      window.addEventListener('resize', positionViewMenu);
+
       function closeViewMenu(returnFocus = false) {
         const control = document.getElementById("view-control");
         const wasOpen = control.classList.contains("is-open");
@@ -10813,6 +10841,7 @@
         closeTrashPanel();
         document.getElementById("markdown-help").open = false;
         document.getElementById("account-control").open = false;
+        positionViewMenu();
         if (matchMedia("(max-width: 560px)").matches) {
           document.body.classList.add("controls-drawer-open");
           const menu = document.getElementById("view-menu");
@@ -11677,6 +11706,7 @@
       initializeAuth();
     </script>
     <script src="/mfa.js"></script>
+    <script src="/password.js"></script>
     <script src="/dictionary.js"></script>
     <script src="/shortcuts.js"></script>
     <script src="/offline-store.js"></script>

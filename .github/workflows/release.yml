@@ -51,6 +51,7 @@ jobs:
           go test -race ./cmd/server
           go test -race ./internal/storage
           go vet ./...
+          python3 -m unittest discover -s deploy/tests -p "workstation_control_test.py"
           python3 -m unittest discover -s deploy/tests -p "backup_control_test.py"
           python3 -m unittest discover -s deploy/tests -p "volatile_key_test.py"
           shellcheck -s sh deploy/scripts/backup-gnotes deploy/scripts/backup-gnotes-podman deploy/scripts/replicate-gnotes-wasabi deploy/scripts/check-gnotes deploy/scripts/restore-gnotes deploy/scripts/restore-gnotes-podman deploy/scripts/update-gnotes deploy/scripts/update-gnotes-podman deploy/tests/*.sh

@@ -2,6 +2,9 @@
 
 A compact, multi-user Markdown notes application written in Go with SQLite and a vanilla browser interface.
 
+Site offline or host rebooted? See [RECOVERY.md](RECOVERY.md) for simple check,
+recovery and database-key backup commands you can use without AI.
+
 See [SECURITY.md](SECURITY.md) for the production checklist, threat boundaries, incident response, and restore procedure.
 See [OPERATIONS.md](OPERATIONS.md) for the production inventory, one-command updates, health checks, and rollback procedure.
 See [PROGRESS.md](PROGRESS.md) for the current deployed release, completed work, and future plans.
@@ -10,6 +13,14 @@ See [ROADMAP.md](ROADMAP.md) for the current production milestone and prioritize
 See [ENCRYPTION.md](ENCRYPTION.md) for deployment-wide database encryption, key ownership, migration and recovery. Kagoya production uses SQLCipher for the live database and retained local database backups as of v0.8.0-rc.3, with an owner-supplied RAM-only server key. Other installations require explicit activation.
 
 ## Current features
+
+**Profile → Change password** lets signed-in users choose a new account password
+with current-password confirmation and a fresh authenticator or unused recovery
+code when MFA is enabled. Other sessions are revoked; this device receives a
+fresh session and stays signed in. Pending email reset/verification links and
+unfinished MFA setup are invalidated. Notes, enabled MFA and recovery keys remain
+unchanged. See [BACKUP-GUIDE.md](BACKUP-GUIDE.md) for simple backup and recovery
+instructions, including the distinction between personal and whole-database keys.
 
 **Profile → Two-step verification** adds optional authenticator-app MFA to password sign-in. Confirm your current password, scan the QR code (or enter its setup key), then verify a 6-digit code. Save the ten one-time recovery codes; each works with your password if your authenticator is unavailable. Setup expires after ten minutes and is not active until confirmed. Enabling, replacing recovery codes or disabling MFA rotates the current session and signs out other devices. Changing MFA requires your current password and a fresh authenticator or unused recovery code. Email password resets leave MFA enabled. Existing accounts remain password-only until their owners opt in.
 

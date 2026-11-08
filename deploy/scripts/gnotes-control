@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+"""Workstation commands for checking, recovering and backing up GNotes."""
+import argparse
+import os
+from pathlib import Path
+import resource
+import stat
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+
+SITE = 'https://gnotes.rickd.dev'
+KEY = Path.home() / '.config/gnotes/recovery/database-v1.key'
+SSH = ['ssh', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', 'KAG']
+UNLOCK = '/home/rick/apps/gnotes/bin/unlock-gnotes-podman'
+INSPECT = '''
+printf 'BOOT='; uptime -s
+printf 'SERVICE='; systemctl --user is-active gnotes.service || :
+if test -s /run/gnotes/keys/database.key; then echo KEY=present; else echo KEY=missing; fi
+if curl -fsS --max-time 5 http://127.0.0.1:8081/api/health >/dev/null; then echo LOCAL=healthy; else echo LOCAL=unavailable; fi
+'''
+
+
+def read_key(path):
+    """Read a private regular file without following a final symlink."""
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'rb') as source:
+        info = os.fstat(source.fileno())
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) not in (0o400, 0o600)):
+            raise ValueError('Key file must belong to you and have permissions 600 or 400.')
+        data = source.read(131)
+    text = data.strip()
+    if len(data) > 130 or len(text) != 64 or any(c not in b'0123456789abcdefABCDEF' for c in text):
+        raise ValueError('Key file is not a valid database key. Do not generate a replacement.')
+    return data
+
+
+def public_health():
+    try:
+        request = urllib.request.Request(SITE + '/api/health', headers={'Cache-Control': 'no-cache'})
+        with urllib.request.urlopen(request, timeout=15) as response:
+            if response.status == 200 and response.read(1024).strip() == b'Backend is healthy and SQLite is connected.':
+                return True, 'healthy'
+            return False, 'unexpected health response'
+    except urllib.error.HTTPError as error:
+        return False, f'HTTP {error.code}'
+    except (OSError, urllib.error.URLError):
+        return False, 'network, DNS or TLS connection failed'
+
+
+def ssh_run(command, **kwargs):
+    try:
+        return subprocess.run(SSH + [command], capture_output=True, timeout=kwargs.pop('timeout', 40), **kwargs)
+    except subprocess.TimeoutExpired:
+        raise ValueError('Server command timed out. Run gnotes-check to see its current state.') from None
+
+
+def check():
+    healthy, detail = public_health()
+    print(f'Public website: {detail}.')
+    result = ssh_run(INSPECT)
+    if result.returncode:
+        print('SSH access: failed. Run ssh-add, then ssh KAG. Resolve that connection before recovery.')
+        return 0 if healthy else 1
+    fields = dict(line.split('=', 1) for line in result.stdout.decode(errors='replace').splitlines() if '=' in line)
+    print(f"Host last started: {fields.get('BOOT', 'unknown')} (server local time).")
+    print(f"GNotes service: {fields.get('SERVICE', 'unknown')}.")
+    print(f"Database key in server memory: {fields.get('KEY', 'unknown')}.")
+    print(f"Server's own health check: {fields.get('LOCAL', 'unknown')}.")
+    if healthy:
+        print(f'GNotes is online. Open {SITE}/; reload the main URL if the offline reader remains visible.')
+    elif fields.get('LOCAL') == 'healthy':
+        print('GNotes works inside the host. Check the reverse proxy, DNS and network; unlocking will not fix these.')
+    elif fields.get('KEY') == 'missing':
+        print('The server needs its existing database key, usually after a reboot. Run gnotes-recover.')
+    else:
+        print('The key is present but the app is unavailable. Inspect the service logs:')
+        print("  ssh KAG 'systemctl --user status gnotes.service --no-pager'")
+        print("  ssh KAG 'journalctl --user -u gnotes.service -n 40 --no-pager'")
+        print('Do not delete the database, replace the key, or restore an old backup to fix a startup problem.')
+    return 0 if healthy else 1
+
+
+def recover(key_path):
+    healthy, _ = public_health()
+    if healthy:
+        print(f'GNotes is already online: {SITE}/. No unlock was needed.')
+        return 0
+    print('Checking SSH access and server state...')
+    result = ssh_run(INSPECT)
+    if result.returncode:
+        raise ValueError('SSH access failed. Run ssh-add, then ssh KAG; retry gnotes-recover once SSH works.')
+    fields = dict(line.split('=', 1) for line in result.stdout.decode(errors='replace').splitlines() if '=' in line)
+    if fields.get('LOCAL') == 'healthy':
+        raise ValueError('GNotes is healthy inside the host. Run gnotes-check; the public connection needs investigation.')
+    if fields.get('KEY') != 'missing':
+        raise ValueError('The key is already present or server state is unknown. Run gnotes-check and inspect the service logs.')
+    key = read_key(key_path)
+    print('Supplying the existing key through SSH; the server verifies the database before starting GNotes...')
+    result = ssh_run(UNLOCK, input=key, timeout=660)
+    if result.returncode:
+        # Never expose subprocess output from a command handling the key.
+        raise ValueError('The server could not unlock/start GNotes. Run gnotes-check. The original workstation key is unchanged.')
+    print('Server unlock completed.')
+    healthy, detail = public_health()
+    if not healthy:
+        raise ValueError(f'Public check still reports {detail}. Run gnotes-check; do not repeatedly unlock.')
+    print(f'GNotes is online and its database is connected: {SITE}/')
+    print('Reload the main URL to leave Offline reading.')
+    return 0
+
+
+def backup_key(key_path, destination):
+    destination = destination.expanduser().resolve(strict=True)
+    if not destination.is_dir():
+        raise ValueError('Backup destination must be an existing folder on your chosen storage.')
+    if any((parent / '.git').exists() for parent in (destination, *destination.parents)):
+        raise ValueError('Choose storage outside Git repositories for the database key.')
+    folder = destination / 'gnotes-recovery'
+    folder.mkdir(mode=0o700, exist_ok=True)
+    info = folder.lstat()
+    if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+            or stat.S_IMODE(info.st_mode) != 0o700):
+        raise ValueError('Backup folder must belong to you with permissions 700. Use storage that supports private permissions.')
+    key = read_key(key_path)
+    target = folder / 'database-v1.key'
+    try:
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    except FileExistsError:
+        if read_key(target).strip().lower() != key.strip().lower():
+            raise ValueError('A different key already exists at the destination. Nothing was overwritten.') from None
+        print(f'Existing backup verified against your workstation key: {target}')
+        return 0
+    with os.fdopen(fd, 'wb') as output:
+        output.write(key)
+        output.flush()
+        os.fsync(output.fileno())
+    if read_key(target) != key:
+        raise ValueError('Backup verification failed. Keep the original key and check the destination storage.')
+    print(f'Key backup written and read back successfully: {target}')
+    print('This verifies the copy matches; it is not a full database restore test.')
+    print('Safely eject/disconnect this storage and keep it secure, separate from the workstation and database backups.')
+    return 0
+
+
+def main():
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    aliases = {'gnotes-check': 'status', 'gnotes-recover': 'recover', 'gnotes-backup-key': 'backup-key'}
+    args = sys.argv[1:]
+    alias = aliases.get(Path(sys.argv[0]).name)
+    if alias:
+        args = [alias, *args]
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest='command', required=True)
+    status = sub.add_parser('status', help='Check public health, SSH and server state; changes nothing')
+    recovery = sub.add_parser('recover', help='Supply the existing key after a host reboot')
+    recovery.add_argument('--key-file', type=Path, default=KEY)
+    backup = sub.add_parser('backup-key', help='Copy and verify the key on separate secure storage')
+    backup.add_argument('destination', type=Path, help='Existing folder on USB/external secure storage')
+    backup.add_argument('--key-file', type=Path, default=KEY)
+    if alias:
+        {'status': status, 'recover': recovery, 'backup-key': backup}[alias].prog = Path(sys.argv[0]).name
+    options = parser.parse_args(args)
+    try:
+        if options.command == 'status':
+            return check()
+        if options.command == 'recover':
+            return recover(options.key_file.expanduser())
+        return backup_key(options.key_file.expanduser(), options.destination)
+    except ValueError as error:
+        print(f'GNotes: {error}', file=sys.stderr)
+    except FileNotFoundError:
+        print('GNotes: a required file, folder or program is missing. Check the key/destination path and that SSH is installed.', file=sys.stderr)
+    except OSError:
+        print('GNotes: a file, storage or command operation failed. Check permissions, available space and destination storage. Keep the original key.', file=sys.stderr)
+    return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -137,6 +137,7 @@ func run() error {
 	registerMFARoutes(mux)
 	mux.HandleFunc("/api/auth/config", authConfigHandler)
 	mux.HandleFunc("/api/auth/me", protect(meHandler, false))
+	mux.HandleFunc("/api/auth/password", protect(changePasswordHandler, true))
 	mux.HandleFunc("/api/features", protect(featurePreferencesHandler, false))
 	mux.HandleFunc("/api/auth/recovery/request", recovery.requestReset)
 	mux.HandleFunc("/api/auth/recovery/reset", recovery.resetPassword)
