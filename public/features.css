@@ -30,10 +30,12 @@ body[data-feature-appearance="off"] .date-section-toggle:disabled { color: inher
 :root[data-theme="dark"] :is(.note-save,.format-toggle,.note-action-dialog button) { background: #354a3c; color: var(--ink); }
 :root[data-theme="dark"] :is(.display-options button[aria-pressed="true"],.font-choices button[aria-pressed="true"]) { background: #354a3c; color: var(--ink); border-color: #6b9478; }
 :root[data-theme="dark"] .tool-choice:hover { background: #354a3c; }
-:root[data-theme="dark"] .note-actions { opacity: 1; }
+:root[data-theme="dark"] .note-actions { opacity: 1; transition: none; }
 :root[data-theme="dark"] .note-actions-toggle { background: #354a3c; color: var(--ink); border-color: #6b9478; }
 :root[data-theme="dark"] .note-actions-toggle[aria-expanded="true"] { background: #425d4a; color: var(--ink); border-color: var(--accent); }
 :root[data-theme="dark"] .latest-marker { background: #354a3c; color: var(--accent); }
+:root[data-theme="dark"] .archive-btn { background: #2c3a30; color: var(--accent); border-color: var(--line); }
+:root[data-theme="dark"] .archive-btn:hover { background: #354a3c; }
 body[data-feature-organization="off"][data-feature-writing_tools="off"] #account-notes-section,
 body[data-feature-advanced_editing="off"] .account-menu-section:has(> #account-advanced),
 body[data-feature-writing_tools="off"] .account-menu-section:has(> #shortcuts-open) { display: none; }

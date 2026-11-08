@@ -14,6 +14,54 @@ import (
 	"gnotes/internal/db"
 )
 
+func TestArchivedNoteEditsPreserveArchiveAndRevisionProtection(t *testing.T) {
+	_, _, login, _ := recoveryFixture(t)
+	stamp := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
+	mustRecoveryExec(t, `INSERT INTO notes(user_id,title,content,created_at,archived_at,background_color,tags,favorited) VALUES(1,'Archived search','Searchable original',?,?,'sage','["work"]',1)`, stamp.Add(-time.Hour), stamp)
+	var originalArchive, originalCreated string
+	if err := db.DB.QueryRow("SELECT archived_at,created_at FROM notes WHERE id=1").Scan(&originalArchive, &originalCreated); err != nil {
+		t.Fatal(err)
+	}
+	handler := protect(updateNoteHandler, true)
+	save := func(body string, csrf bool) *httptest.ResponseRecorder {
+		return authenticatedRequest(t, handler, "PUT", "/api/notes/update?id=1", body, login, csrf)
+	}
+	first := `{"title":"Archived search edited","content":"Searchable revised text","revision":0}`
+	if got := save(first, false); got.Code != 403 {
+		t.Fatal("archived edit accepted without CSRF")
+	}
+	if got := save(first, true); got.Code != 204 || got.Header().Get("X-Gnotes-Revision") != "1" {
+		t.Fatalf("archived edit = %d: %s", got.Code, got.Body.String())
+	}
+	if got := save(first, true); got.Code != 204 || got.Header().Get("X-Gnotes-Revision") != "1" {
+		t.Fatal("identical archived retry failed")
+	}
+	if got := save(`{"title":"Stale","content":"Do not overwrite","revision":0}`, true); got.Code != 409 {
+		t.Fatal("archived stale edit accepted")
+	}
+	var archived, created, content, color, tags string
+	var favorite bool
+	if err := db.DB.QueryRow("SELECT archived_at,created_at,content,background_color,tags,favorited FROM notes WHERE id=1").Scan(&archived, &created, &content, &color, &tags, &favorite); err != nil {
+		t.Fatal(err)
+	}
+	if archived != originalArchive || created != originalCreated || content != "Searchable revised text" || color != "sage" || tags != `["work"]` || !favorite {
+		t.Fatal("archived text save changed collection, date or other note metadata")
+	}
+	other := httptest.NewRecorder()
+	updateNoteHandler(other, tagsTestRequest("PUT", "/api/notes/update?id=1", []byte(`{"title":"Other","content":"No","revision":1}`), 2))
+	if other.Code != 404 {
+		t.Fatal("cross-account archived edit accepted")
+	}
+	mustRecoveryExec(t, "UPDATE notes SET locked=1 WHERE id=1")
+	if got := save(`{"title":"Locked","content":"No","revision":1}`, true); got.Code != 423 {
+		t.Fatal("locked archived edit accepted")
+	}
+	mustRecoveryExec(t, "UPDATE notes SET locked=0,deleted_at=? WHERE id=1", time.Now())
+	if got := save(`{"title":"Deleted","content":"No","revision":1}`, true); got.Code != 404 {
+		t.Fatal("recycled archived edit accepted")
+	}
+}
+
 func TestNoteArchiveUsesUserAndBrowserTimezone(t *testing.T) {
 	db.InitDB(filepath.Join(t.TempDir(), "archive.db"))
 	t.Cleanup(func() { db.DB.Close() })

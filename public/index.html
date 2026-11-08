@@ -3,6 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>gnotes</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -4125,13 +4126,25 @@
           padding-left: 12px;
         }
 
-        #notes-list.quick-three .newest-note .date-row {
+        #notes-list:is(.quick-three,.quick-four) .newest-note .date-row {
           flex-direction: column;
           align-items: flex-start;
           gap: 2px;
         }
 
-        #notes-list.quick-three .newest-note .date { white-space: nowrap; }
+        #notes-list:is(.quick-three,.quick-four) .newest-note .date { white-space: nowrap; }
+        #notes-list.quick-four.density-titles .note-card:not(.is-editing) {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          padding: 12px;
+        }
+        #notes-list.quick-four.density-titles .note-card:not(.is-editing) .note-top-row {
+          position: static;
+          transform: none;
+          order: 1;
+          justify-content: flex-end;
+        }
 
         #notes-list:not(.density-titles) .note-card:not(.is-editing) .note-view {
           display: block;
@@ -4623,7 +4636,7 @@
           <section class="controls-group" aria-label="Note actions">
             <h2 class="controls-group-title">Note actions</h2>
             <div class="tool-visibility" id="tool-visibility" role="group" aria-label="Quick note actions">
-              <span title="Choosing a fourth quick action replaces the first">Quick actions · up to 3</span>
+              <span title="Choosing a fifth quick action replaces the first">Quick actions · up to 4</span>
               <button class="tool-choice" type="button" data-tool="archive"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-1 13H5L4 7Zm1-3h14l1 3H4l1-3ZM9 11h6"/></svg><span>Archive</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="favorite"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5 6 7-6 7-6-7ZM12 1v2M12 21v2M1 12h2M21 12h2"/></svg><span>Favorites</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="lock"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1 12-12a2.1 2.1 0 0 0-3-3L5 16l-1 4ZM3 3l18 18"/></svg><span>Read only</span><span class="tool-state" aria-hidden="true"></span></button>
@@ -4633,7 +4646,7 @@
               <button class="tool-choice" type="button" data-tool="copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2"/><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1"/></svg><span>Copy</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="delete"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/></svg><span>Delete</span><span class="tool-state" aria-hidden="true"></span></button>
             </div>
-            <p class="quick-actions-help" id="quick-actions-help">Pick up to 3. More in ⋯.</p>
+            <p class="quick-actions-help" id="quick-actions-help">Pick up to 4. More in ⋯.</p>
           </section>
           <label class="feature-theme-control">Appearance<select id="feature-theme" aria-label="Light or dark appearance" onchange="GnotesFeatures.save({theme:this.value})"><option value="light">Light</option><option value="dark">Dark</option></select></label>
           <section class="controls-group" aria-label="Appearance">
@@ -6099,11 +6112,12 @@
 
       function applyQuickActions(actions) {
         quickActions = Array.isArray(actions)
-          ? [...new Set(actions.filter((tool) => noteTools.includes(tool)))].slice(0, 3)
+          ? [...new Set(actions.filter((tool) => noteTools.includes(tool)))].slice(0, 4)
           : ["archive", "delete"];
         const notesList = document.getElementById("notes-list");
         notesList.style.setProperty("--quick-action-count", String(quickActions.length));
         notesList.classList.toggle("quick-three", quickActions.length === 3);
+        notesList.classList.toggle("quick-four", quickActions.length === 4);
         document.querySelectorAll("#tool-visibility .tool-choice").forEach((button) => {
           const selected = quickActions.includes(button.dataset.tool);
           button.setAttribute("aria-pressed", String(selected));
@@ -9481,11 +9495,15 @@
           </div>`;
       }
 
+      function archivedNoteIsReadOnly(note) {
+        return Boolean(note?.archived_at) && !searchActive;
+      }
+
       function openNoteEditor(id, selectTitle = true, focusBody = false, textOffset = null) {
         const note = loadedNotes.get(id);
         const view = document.getElementById(`note-view-${id}`);
         const card = document.getElementById(`note-${id}`);
-        if (!note || note.archived_at || !view || !card || pendingNoteActions.has(id)) return false;
+        if (!note || archivedNoteIsReadOnly(note) || !view || !card || pendingNoteActions.has(id)) return false;
         if (note.locked) { showNoteActionToast('This note is locked. Use the padlock to unlock it.'); return false; }
         if (!noteSaveStates.has(id) || (!pendingNoteEdits.has(id) && editingNoteId !== id && !noteSaveStates.get(id).conflict)) {
           noteSaveStates.set(id, { revision: note.revision, conflict: false, saved: { title: note.title, content: note.content } });
@@ -9761,7 +9779,7 @@
         cards.forEach((card) => {
           const note = loadedNotes.get(Number(card.id.slice(5)));
           const checkboxes = [...card.querySelectorAll(".note-view .note-content input[type='checkbox']")];
-          if (!note || note.locked || note.archived_at || archiveMode) {
+          if (!note || note.locked || archivedNoteIsReadOnly(note) || (archiveMode && !searchActive)) {
             checkboxes.forEach((checkbox) => { checkbox.disabled = true; });
             return;
           }
@@ -9786,7 +9804,8 @@
           button.textContent = pre.dataset.codeLanguage || 'Plain text';
           button.title = 'Edit code block and language';
           button.setAttribute('aria-label', `Edit ${button.textContent} code block`);
-          button.disabled = archiveMode || pre.closest(".note-card").classList.contains("is-archived") || Boolean(loadedNotes.get(Number(pre.closest(".note-card").id.slice(5)))?.locked);
+          const note = loadedNotes.get(Number(pre.closest(".note-card").id.slice(5)));
+          button.disabled = (archiveMode && !searchActive) || archivedNoteIsReadOnly(note) || Boolean(note?.locked);
           button.addEventListener('click', async () => {
             const body = wrapper.closest('.note-content');
             const blockIndex = [...body.children].findIndex((block) => block.contains(wrapper));
@@ -9815,7 +9834,7 @@
         const note = loadedNotes.get(id);
         const { segments, tasks } = taskLinesInMarkdown(note?.content || "");
         const task = tasks[Number(checkbox.dataset.taskIndex)];
-        if (!note || note.locked || !task || archiveMode || task.checked === checkbox.checked) {
+        if (!note || note.locked || !task || archivedNoteIsReadOnly(note) || (archiveMode && !searchActive) || task.checked === checkbox.checked) {
           checkbox.checked = Boolean(task?.checked);
           return;
         }
@@ -9835,7 +9854,7 @@
           if (currentUser) showNoteActionDialog("Could not update checklist", "The checkbox could not be saved. Please try again.");
         } finally {
           if (note.locked && editingNoteId === null) renderLoadedNotes();
-          else if (card.isConnected && !archiveMode) card.querySelectorAll(".note-view .note-content input[data-task-index]").forEach((input) => { input.disabled = false; });
+          else if (card.isConnected && !archivedNoteIsReadOnly(note) && (!archiveMode || searchActive)) card.querySelectorAll(".note-view .note-content input[data-task-index]").forEach((input) => { input.disabled = false; });
         }
       });
 
@@ -9872,16 +9891,16 @@
 
       notesList.addEventListener("click", (event) => {
         const target = event.target;
-        if (!(target instanceof Element) || suppressNoteClick || archiveMode) return;
+        if (!(target instanceof Element) || suppressNoteClick || (archiveMode && !searchActive)) return;
         const card = target.closest(".note-card");
-        if (card && !card.classList.contains("is-editing") && !card.classList.contains("is-archived") &&
+        if (card && !card.classList.contains("is-editing") && (!card.classList.contains("is-archived") || searchActive) &&
             event.shiftKey && target.closest(".note-content a[href]")) {
           event.preventDefault();
           const body = target.closest(".note-content");
           editNote(Number(card.id.slice(5)), true, textOffsetAtPoint(body, event.clientX, event.clientY));
           return;
         }
-        if (!card || card.classList.contains("is-editing") || card.classList.contains("is-archived") ||
+        if (!card || card.classList.contains("is-editing") || (card.classList.contains("is-archived") && !searchActive) ||
             target.closest("a, button, input, textarea, select, label, summary, [contenteditable], .note-actions")) return;
         if (window.getSelection()?.toString().trim()) return;
         const body = target.closest(".note-content");
@@ -10387,7 +10406,7 @@
         if (!button) return;
         const next = quickActions.filter((key) => key !== button.dataset.tool);
         if (next.length === quickActions.length) {
-          if (next.length === 3) next.shift();
+          if (next.length >= 4) next.shift();
           next.push(button.dataset.tool);
         }
         applyQuickActions(next);
@@ -10822,8 +10841,11 @@
         if (editingNoteId !== null && !await saveBeforeNoteAction(editingNoteId, true)) return;
         document.querySelectorAll('.note-card.actions-expanded').forEach(card => setNoteActionsOpen(card, false));
         if (!document.getElementById('view-control').classList.contains('is-open')) document.getElementById('view-toggle').click();
-        // Let the phone drawer become visible before moving keyboard focus.
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        // Focus after the phone drawer's transition completes. Two frames can
+        // still leave its contents hidden when opening follows an editor save.
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const menu = document.getElementById('view-menu');
+        await Promise.allSettled(menu.getAnimations().map(animation => animation.finished));
         if (!document.getElementById('view-control').classList.contains('is-open')) return;
         const choice = document.querySelector('#tool-visibility .tool-choice');
         choice.scrollIntoView({ block: 'nearest' });

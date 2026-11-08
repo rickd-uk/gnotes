@@ -576,7 +576,7 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var revision int64
 	err := db.DB.QueryRowContext(r.Context(),
-		"UPDATE notes SET title = ?, content = ?, rendered_content = ?, tags = COALESCE(?, tags), revision = revision + 1 WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND locked = 0 AND revision = ? RETURNING revision",
+		"UPDATE notes SET title = ?, content = ?, rendered_content = ?, tags = COALESCE(?, tags), revision = revision + 1 WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND locked = 0 AND revision = ? RETURNING revision",
 		n.Title,
 		n.Content,
 		mdToHTML(n.Content),
@@ -589,7 +589,7 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		var title, content string
 		var locked bool
 		var currentTags models.Tags
-		err = db.DB.QueryRowContext(r.Context(), "SELECT title,content,tags,locked,revision FROM notes WHERE id=? AND user_id=? AND deleted_at IS NULL AND archived_at IS NULL", id, userIDFromRequest(r)).Scan(&title, &content, &currentTags, &locked, &revision)
+		err = db.DB.QueryRowContext(r.Context(), "SELECT title,content,tags,locked,revision FROM notes WHERE id=? AND user_id=? AND deleted_at IS NULL", id, userIDFromRequest(r)).Scan(&title, &content, &currentTags, &locked, &revision)
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Note not found", http.StatusNotFound)
 			return
