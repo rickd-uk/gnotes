@@ -295,6 +295,8 @@
       .note-width-controls .note-size-control + .note-size-control { margin-top: 12px; }
       .width-presets { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
       .width-presets button, .width-reset { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: .7rem; cursor: pointer; }
+      .width-presets button { display: grid; width: 36px; min-height: 36px; padding: 5px; place-items: center; }
+      .width-presets .icon { width: 22px; height: 22px; }
       .width-presets button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); border-color: var(--accent); color: var(--accent); }
       .width-reset { margin-top: 8px; }
       .quick-actions-help { margin: 6px 10px; color: var(--muted); font-size: .72rem; line-height: 1.45; }
@@ -4631,7 +4633,7 @@
               <button class="tool-choice" type="button" data-tool="copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="13" height="15" rx="2"/><path d="M16 6V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1"/></svg><span>Copy</span><span class="tool-state" aria-hidden="true"></span></button>
               <button class="tool-choice" type="button" data-tool="delete"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/></svg><span>Delete</span><span class="tool-state" aria-hidden="true"></span></button>
             </div>
-            <p class="quick-actions-help" id="quick-actions-help">Choose up to 3 buttons to keep beside each note and in the editor. Other actions stay in the ⋯ menu. A fourth choice replaces the first.</p>
+            <p class="quick-actions-help" id="quick-actions-help">Pick up to 3. More in ⋯.</p>
           </section>
           <label class="feature-theme-control">Appearance<select id="feature-theme" aria-label="Light or dark appearance" onchange="GnotesFeatures.save({theme:this.value})"><option value="light">Light</option><option value="dark">Dark</option></select></label>
           <section class="controls-group" aria-label="Appearance">
@@ -4657,18 +4659,18 @@
                 <label for="note-area-width">Reading width <output id="note-area-width-value" for="note-area-width">880 px</output></label>
                 <input type="range" id="note-area-width" min="480" max="880" step="1" value="880" />
                 <div class="width-presets" role="group" aria-label="Reading width presets">
-                  <button type="button" data-width-target="reading" data-width-preset="compact" aria-pressed="false">Compact</button>
-                  <button type="button" data-width-target="reading" data-width-preset="comfortable" aria-pressed="true">Comfortable</button>
-                  <button type="button" data-width-target="reading" data-width-preset="full" aria-pressed="false">Full width</button>
+                  <button type="button" data-width-target="reading" data-width-preset="compact" aria-pressed="false" aria-label="Compact reading width" title="Compact reading width"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v16M21 4v16"/><rect x="9" y="5" width="6" height="14" rx="1"/></svg></button>
+                  <button type="button" data-width-target="reading" data-width-preset="comfortable" aria-pressed="true" aria-label="Comfortable reading width" title="Comfortable reading width"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v16M21 4v16"/><rect x="6" y="5" width="12" height="14" rx="1"/></svg></button>
+                  <button type="button" data-width-target="reading" data-width-preset="full" aria-pressed="false" aria-label="Full reading width" title="Full reading width"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v16M21 4v16M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg></button>
                 </div>
               </div>
               <div class="note-size-control">
                 <label for="note-editor-width">Editing width <output id="note-editor-width-value" for="note-editor-width">1040 px</output></label>
                 <input type="range" id="note-editor-width" min="480" max="1040" step="1" value="1040" />
                 <div class="width-presets" role="group" aria-label="Editing width presets">
-                  <button type="button" data-width-target="editing" data-width-preset="compact" aria-pressed="false">Compact</button>
-                  <button type="button" data-width-target="editing" data-width-preset="comfortable" aria-pressed="true">Comfortable</button>
-                  <button type="button" data-width-target="editing" data-width-preset="full" aria-pressed="false">Full width</button>
+                  <button type="button" data-width-target="editing" data-width-preset="compact" aria-pressed="false" aria-label="Compact editing width" title="Compact editing width"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v16M21 4v16"/><rect x="9" y="5" width="6" height="14" rx="1"/></svg></button>
+                  <button type="button" data-width-target="editing" data-width-preset="comfortable" aria-pressed="true" aria-label="Comfortable editing width" title="Comfortable editing width"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v16M21 4v16"/><rect x="6" y="5" width="12" height="14" rx="1"/></svg></button>
+                  <button type="button" data-width-target="editing" data-width-preset="full" aria-pressed="false" aria-label="Full editing width" title="Full editing width"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v16M21 4v16M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg></button>
                 </div>
               </div>
               <button class="width-reset" type="button" id="reset-note-widths">Reset widths</button>

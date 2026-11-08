@@ -71,3 +71,35 @@ func TestSimpleModeBrowser(t *testing.T) {
 		})
 	}
 }
+
+func TestAppearanceContrastBrowser(t *testing.T) {
+	if os.Getenv("GNOTES_BROWSER_CHECK") != "1" {
+		t.Skip("optional local Chromium check")
+	}
+	for _, width := range []int{320, 1024} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			recoveryFixture(t)
+			mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at) VALUES(1,'Dark contrast','Visible note controls',?)", time.Now().UTC())
+			mux := http.NewServeMux()
+			registerDictionaryRoutes(mux)
+			mux.HandleFunc("/api/auth/config", authConfigHandler)
+			mux.HandleFunc("/api/auth/login", loginHandler)
+			mux.HandleFunc("/api/auth/me", protect(meHandler, false))
+			mux.HandleFunc("/api/draft", protect(getDraftHandler, false))
+			mux.HandleFunc("/api/notes/page", protect(pagedListNotesHandler, false))
+			mux.HandleFunc("/api/notes/trash-page", protect(pagedTrashNotesHandler, false))
+			mux.HandleFunc("/api/tags", protect(tagsHandler, false))
+			mux.Handle("/", http.FileServer(http.Dir("../../public")))
+			server := httptest.NewServer(securityHeaders(mux))
+			defer server.Close()
+			browser := newRecoveryBrowser(t)
+			browser.call("POST", "/goog/cdp/execute", map[string]any{"cmd": "Emulation.setDeviceMetricsOverride", "params": map[string]any{"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": false}})
+			browser.navigate(server.URL)
+			browser.wait(`!document.getElementById('auth-screen').hidden`)
+			browser.script(`document.getElementById('auth-username').value='rick';document.getElementById('auth-password').value='original password';document.getElementById('auth-form').requestSubmit();`)
+			browser.wait(`!notesLoading && loadedNotes.size===1 && !document.getElementById('app-shell').hidden`)
+			browser.script(`document.documentElement.dataset.theme='dark';document.getElementById('view-toggle').click();document.getElementById('font-settings').open=true;window.assertDarkContrast=()=>{const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');const luminance=color=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);const data=ctx.getImageData(0,0,1,1).data;return [...data].slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);};for(const button of document.querySelectorAll('.display-options button,.font-choices button[aria-pressed="true"],.width-presets button[aria-pressed="true"],.note-actions-toggle,.latest-marker')){const bg=getComputedStyle(button).backgroundColor;const background=luminance(bg==='rgba(0, 0, 0, 0)'?getComputedStyle(document.getElementById('view-menu')).backgroundColor:bg);for(const label of [button,...button.querySelectorAll('span')]){const text=luminance(getComputedStyle(label).color),ratio=(Math.max(text,background)+.05)/(Math.min(text,background)+.05);if(ratio<4.5)throw new Error('Unreadable dark Appearance control: '+button.textContent.trim()+' contrast='+ratio.toFixed(2));}}};applyNewNoteArea(true);applyFavoritesInMain(true);applyLinkStyle(true);assertDarkContrast();if(getComputedStyle(document.querySelector('.note-actions')).opacity!=='1')throw new Error('Dark note actions faded');toggleNoteActions([...loadedNotes.keys()][0]);assertDarkContrast();toggleNoteActions([...loadedNotes.keys()][0]);for(const button of document.querySelectorAll('.width-presets button')){if(button.textContent.trim()||!button.querySelector('svg')||!button.getAttribute('aria-label')||!button.title)throw new Error('Width preset missing icon or accessible label');}`)
+			browser.script(`applyNewNoteArea(false);applyFavoritesInMain(false);applyLinkStyle(false);assertDarkContrast();applyFontMode('writer');assertDarkContrast();document.documentElement.dataset.theme='light';applyNewNoteArea(true);applyFavoritesInMain(true);applyLinkStyle(true);if(getComputedStyle(document.getElementById('new-note-area-toggle')).backgroundColor!=='rgb(230, 238, 233)'||getComputedStyle(document.querySelector('.font-choices [aria-pressed="true"]')).backgroundColor!=='rgb(220, 232, 226)')throw new Error('Light selected colors changed');`)
+		})
+	}
+}

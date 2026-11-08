@@ -28,6 +28,12 @@ body[data-feature-appearance="off"] .date-section-toggle:disabled { color: inher
 :root[data-theme="dark"] .note-card[class*="note-color-"] { background: color-mix(in srgb, var(--note-surface) 15%, #202522); --note-surface-ink: #e5e8e3; }
 :root[data-theme="dark"] :is(.rich-format-toolbar,.rich-context-menu,.welcome-card,.info-panel,.archive-panel,.note-tools,.account-control > summary) { background: #262e28; color: var(--ink); border-color: var(--line); }
 :root[data-theme="dark"] :is(.note-save,.format-toggle,.note-action-dialog button) { background: #354a3c; color: var(--ink); }
+:root[data-theme="dark"] :is(.display-options button[aria-pressed="true"],.font-choices button[aria-pressed="true"]) { background: #354a3c; color: var(--ink); border-color: #6b9478; }
+:root[data-theme="dark"] .tool-choice:hover { background: #354a3c; }
+:root[data-theme="dark"] .note-actions { opacity: 1; }
+:root[data-theme="dark"] .note-actions-toggle { background: #354a3c; color: var(--ink); border-color: #6b9478; }
+:root[data-theme="dark"] .note-actions-toggle[aria-expanded="true"] { background: #425d4a; color: var(--ink); border-color: var(--accent); }
+:root[data-theme="dark"] .latest-marker { background: #354a3c; color: var(--accent); }
 body[data-feature-organization="off"][data-feature-writing_tools="off"] #account-notes-section,
 body[data-feature-advanced_editing="off"] .account-menu-section:has(> #account-advanced),
 body[data-feature-writing_tools="off"] .account-menu-section:has(> #shortcuts-open) { display: none; }
