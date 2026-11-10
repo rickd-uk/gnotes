@@ -5,7 +5,7 @@
 .backup-protection-card p { margin-bottom: 0; }
 .backup-protection-card[data-tone="success"] { border-color: #5b9677; }
 .backup-protection-card[data-tone="attention"] { border-color: #b18b48; }
-.backups-view > .profile-details,.backups-view > #profile-role,.backups-view > #recovery-email-form,.backups-view > #mfa-account-section,.backups-view > #password-account-section { display: none; }
+.backups-view > .profile-details,.backups-view > #profile-role,.backups-view > #profile-security-grid { display: none; }
 #backup-local-history,#site-backup-history { padding-left: 20px; overflow-wrap: anywhere; }
 .backup-recovery-guide { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
 .backup-recovery-guide pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }
@@ -32,3 +32,33 @@
 #profile-panel .backup-export-button { width: auto; min-height: 40px; padding: 8px 12px; font-size: 0.82rem; }
 #profile-panel .backup-export-button .icon { width: 18px; height: 18px; flex-basis: 18px; }
 @media(max-width:560px) { .backup-tabs button { font-size: 0.72rem; padding: 8px 3px; } }
+
+#profile-panel:not(.backups-view) { inset-inline:max(12px,calc((100vw - 680px)/2));padding:16px; }
+#profile-panel:not(.backups-view) .profile-role { margin-bottom:10px; }
+#profile-panel:not(.backups-view) > .profile-details { gap:8px 16px; }
+#profile-panel .profile-details > div { min-width:0; }
+#profile-panel .profile-details dd { overflow-wrap:anywhere; }
+#profile-security-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0; }
+#profile-security-grid > .profile-backups { min-width:0;margin:0;padding:12px;border:1px solid var(--line);border-radius:8px; }
+#profile-security-grid h3 { margin:0;font-size:.86rem;line-height:1.35; }
+#profile-security-grid p { margin:6px 0 10px;font-size:.8rem; }
+#profile-security-grid .backup-button { width:100%;padding:8px;gap:7px;background:color-mix(in srgb,var(--accent) 9%,var(--paper));color:var(--accent);border-color:var(--line); }
+#profile-security-grid .backup-button .icon { width:18px;height:18px;flex-basis:18px; }
+#password-account-section .backup-button { margin-top:10px; }
+#profile-email-settings > summary { display:flex;align-items:center;gap:8px;padding:0;list-style:none;font-size:.86rem; }
+#profile-email-settings > summary::after { content:'+';margin-left:auto; }
+#profile-email-settings[open] > summary::after { content:'−'; }
+#profile-email-settings > summary::-webkit-details-marker { display:none; }
+#profile-email-settings > summary .icon { width:18px;height:18px;flex:0 0 18px; }
+#profile-email-settings:has(#recovery-email-form[hidden]) { display:none; }
+#profile-email-settings[open] { grid-column:1/-1; }
+#profile-email-settings .recovery-email-form { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px;padding-top:8px; }
+#profile-email-settings .recovery-email-form[hidden] { display:none; }
+#profile-email-settings .auth-intro,#profile-recovery-status { grid-column:1/-1;margin:0; }
+#profile-email-settings input { min-width:0; }
+#profile-email-settings button { display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px; }
+#profile-email-settings button .icon { width:18px;height:18px; }
+#profile-backup-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px; }
+#profile-backup-grid > .profile-backups { min-width:0;margin-top:0; }
+#profile-backup-grid > .profile-backups[open] { grid-column:1/-1; }
+.backups-view #profile-backup-grid { display:block;margin-top:0; }

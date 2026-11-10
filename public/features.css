@@ -5,6 +5,12 @@
 .feature-choices small { color: var(--muted); }
 .features-dialog footer { display: flex; gap: 8px; flex-wrap: wrap; }
 .features-dialog footer button { padding: 8px 12px; }
+.features-dialog > .account-advanced { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.features-dialog > .account-advanced > summary { display:flex;align-items:center;gap:8px;min-height:44px;font-weight:600; }
+.features-dialog .menu-item-icon { width:20px;height:20px;flex:0 0 20px;fill:none;stroke:currentColor;stroke-width:1.8; }
+.features-dialog .markdown-help > summary { display:flex;align-items:center;gap:8px;min-height:44px; }
+.features-dialog .markdown-help { margin: 0 10px 8px; }
+.features-dialog .markdown-guide { position:static;width:100%;max-height:none;transform:none;padding:12px;gap:8px;box-shadow:none; }
 #features-open { width: 100%; text-align: left; }
 .feature-theme-control { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; }
 .feature-theme-control select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); padding: 6px; border-radius: 6px; }

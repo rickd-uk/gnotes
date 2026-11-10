@@ -14,7 +14,7 @@ See [ENCRYPTION.md](ENCRYPTION.md) for deployment-wide database encryption, key 
 
 ## Current features
 
-**Profile → Change password** lets signed-in users choose a new account password
+**Profile → Password → Change** lets signed-in users choose a new account password
 with current-password confirmation and a fresh authenticator or unused recovery
 code when MFA is enabled. Other sessions are revoked; this device receives a
 fresh session and stays signed in. Pending email reset/verification links and
@@ -24,9 +24,11 @@ instructions, including the distinction between personal and whole-database keys
 
 **Profile → Two-step verification** adds optional authenticator-app MFA to password sign-in. Confirm your current password, scan the QR code (or enter its setup key), then verify a 6-digit code. Save the ten one-time recovery codes; each works with your password if your authenticator is unavailable. Setup expires after ten minutes and is not active until confirmed. Enabling, replacing recovery codes or disabling MFA rotates the current session and signs out other devices. Changing MFA requires your current password and a fresh authenticator or unused recovery code. Email password resets leave MFA enabled. Existing accounts remain password-only until their owners opt in.
 
-**Profile → Note privacy** sets one **4–12 digit code** for the account. After setup, click the padlock beside any note to hide its text with one click; no code is needed to lock it again, including after signing in on another device. **Unlock note** asks for the shared code. **Unlock all notes** also covers Archive, Favorites and the recycle bin. Read-only protection remains a separate control and survives privacy unlocking. Titles remain visible by default; choose **Hide titles too** when setting or changing the code to conceal them as well.
+**Profile → Note privacy** sets one **4–12 digit code** for the account. After setup, click the padlock beside any note to hide its text with one click; no code is needed to lock it again, including after signing in on another device. The padlock button on a locked note asks for the shared code. **Unlock all notes** also covers Archive, Favorites and the recycle bin. Read-only protection remains a separate control and survives privacy unlocking. Titles remain visible by default; choose **Hide titles too** when setting or changing the code to conceal them as well.
 
 **Change code** uses the existing privacy code. **Forgot code?** uses the account password and, if enabled, a fresh authenticator or unused two-step recovery code to set a replacement. Existing notes stay locked, and the replacement code unlocks them. If the account password is also forgotten, complete ordinary account-password recovery first. The privacy code is hashed on the server and never saved in browser storage. Wrong-code attempts are rate limited. Privacy hides notes in the app; it does not introduce a separate note-encryption key. Locked text/tags are omitted from normal note responses and search; unlock private notes before plain export. New offline snapshots omit privacy-locked notes; older saved copies keep their separate offline passphrase. Password-verified encrypted personal backups continue to include all note text so recovery does not lose private notes.
+
+The Profile panel uses two columns for security controls and backup sections, short icon buttons, and a collapsed Recovery email form. Advanced options, including Markdown source editing and its guide, are inside **More features → Advanced**.
 
 **Controls → Display** has separate **Reading width** (note list/new-note box) and **Editing width** (note editor) sliders. Each offers Compact, Comfortable and Full width presets; Reset widths restores 880 px reading and 1040 px editing. Sliders stop at the available screen width, Full width follows window resizing, and smaller screens constrain saved wider preferences. Choices are remembered per account in this browser.
 
@@ -101,7 +103,7 @@ The rarely used **Delete all notes** action is under **Account → Manage notes*
 - Code blocks show a clickable language label in the top right; clicking opens the block for editing. Checklists display inline checkboxes without extra bullets
 - Space after a bold word or Enter ends bold formatting; spaces inside an existing bold phrase retain it
 - Up to three configurable quick actions per note, with the remaining actions in its menu
-- Rich text editing by default, with an **Aa** button beside the green check mark that opens formatting controls for text styles, headings, lists, checklists, quotes, links, code, and dividers. Select text to format it or choose a style before typing; type `/` at the start of a paragraph for block options. Markdown source editing is opt-in under **Account → Advanced**
+- Rich text editing by default, with an **Aa** button beside the green check mark that opens formatting controls for text styles, headings, lists, checklists, quotes, links, code, and dividers. Select text to format it or choose a style before typing; type `/` at the start of a paragraph for block options. Markdown source editing is opt-in under **More features → Advanced**
 - Compact two-column Display settings and a collapsed **Fonts & text** section for fonts, 65–175% title/text sizes, and note height; menu opacity ranges from 0–100%
 - User administration with signup policy, login/session details, account disabling, session revocation, and complete deletion
 - Account-menu export of all or selected notes and import of gnotes JSON, Markdown, plain text, or a gnotes export ZIP
@@ -134,7 +136,7 @@ The passphrase cannot be recovered. If forgotten, remove the copy and save a new
 
 ### Export and import
 
-Open **Account → Export & import**. Choose gnotes JSON for a complete copy of active, archived, and recycled notes, including dates, pinning, and colors. Plain text exports contain readable note bodies. Markdown export and import appear after enabling **Edit Markdown source** under **Account → Advanced**. When exporting multiple notes in a readable format, gnotes creates a ZIP with a JSON manifest that preserves note details for reimport. Keep the manifest with the files; the importer reads it as the source of record.
+Open **Account → Export & import**. Choose gnotes JSON for a complete copy of active, archived, and recycled notes, including dates, pinning, and colors. Plain text exports contain readable note bodies. Markdown export and import appear after enabling **Edit Markdown source** under **More features → Advanced**. When exporting multiple notes in a readable format, gnotes creates a ZIP with a JSON manifest that preserves note details for reimport. Keep the manifest with the files; the importer reads it as the source of record.
 
 Select notes in the panel to export one or more, or use **Export all**. Imports add notes to the signed-in account. **Skip exact matches** avoids adding a note already present with the same details; **Create another copy** imports it again. A standalone Markdown or text file becomes one active note named after the file. Imports are checked before any note is written and are limited to 64 MB and 10,000 notes per file.
 

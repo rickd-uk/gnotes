@@ -35,6 +35,10 @@ window.GnotesFeatures = (() => {
     <div class="feature-choices">${Object.entries(groups).map(([key, [name, description]]) => `<label><input type="checkbox" data-feature="${key}"><span><strong>${name}</strong><small>${description}</small></span></label>`).join('')}</div>
     <p id="features-status" role="status"></p><footer><button type="button" id="features-full">Full mode</button><button type="button" id="features-simple">Restore Simple defaults</button><button type="button" id="features-close">Done</button></footer>`;
   document.body.append(dialog);
+  const advanced = document.getElementById('account-advanced');
+  const advancedMenuSection = advanced.parentElement;
+  dialog.querySelector('.feature-choices').after(advanced);
+  advancedMenuSection.remove();
   function syncControls() {
     dialog.querySelectorAll('[data-feature]').forEach(input => { input.checked = enabled(input.dataset.feature); });
     document.getElementById('feature-theme').value = prefs.theme || 'light';

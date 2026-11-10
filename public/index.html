@@ -5104,37 +5104,62 @@
         <div><dt>Email</dt><dd id="profile-email"></dd></div>
         <div><dt>Joined</dt><dd id="profile-joined"></dd></div>
         <div><dt>Last sign-in</dt><dd id="profile-last-signin"></dd></div>
-        <div><dt>Active notes</dt><dd id="profile-active-notes"></dd></div>
-        <div><dt>Recycled notes</dt><dd id="profile-recycled-notes"></dd></div>
+        <div><dt>Notes</dt><dd><span id="profile-active-notes"></span> active · <span id="profile-recycled-notes"></span> recycled</dd></div>
       </dl>
+      <div id="profile-security-grid">
+      <section id="mfa-account-section" class="profile-backups">
+        <h3>Two-step verification</h3>
+        <p id="mfa-account-status">Use an authenticator app to protect sign-in.</p>
+        <button class="backup-button" id="mfa-open" type="button" onclick="GnotesMFA.open()" aria-label="Manage two-step verification" title="Two-step verification"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z"/><path d="m8 12 3 3 5-6"/></svg><span>Manage</span></button>
+      </section>
+      <section id="privacy-account-section" class="profile-backups">
+        <h3>Note privacy</h3>
+        <p>One code for private notes.</p>
+        <button class="backup-button" id="privacy-open" type="button" onclick="GnotesPrivacy.open()" aria-label="Manage note privacy" title="Note privacy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Manage</span></button>
+      </section>
+      <section id="password-account-section" class="profile-backups">
+        <h3>Password</h3>
+        <button class="backup-button" id="password-open" type="button" onclick="GnotesPassword.open()" aria-label="Change password" title="Change password"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="4"/><path d="m11 11 9 9m-3-3 3-3m-6 0 3-3"/></svg><span>Change</span></button>
+      </section>
+      <details id="profile-email-settings" class="profile-backups"><summary><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></svg><span>Recovery email</span></summary>
+      <form class="auth-form recovery-email-form" id="recovery-email-form" hidden>
+        <p class="auth-intro">Changes take effect after email confirmation.</p>
+        <label>Recovery email<input id="profile-recovery-email" type="email" autocomplete="email" maxlength="254" required /></label>
+        <label>Current password<input id="profile-recovery-password" type="password" autocomplete="current-password" maxlength="72" required /></label>
+        <button class="primary-action" type="submit" aria-label="Send verification link"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></svg><span>Send link</span></button>
+        <p class="auth-status" id="profile-recovery-status" role="status"></p>
+      </form>
+      </details>
+      </div>
+      <div id="profile-backup-grid">
       <details id="profile-backups" class="profile-backups">
-        <summary>My encrypted note backup</summary>
+        <summary>Note backups</summary>
         <p>Keep a copy you control, outside this server. This backup contains only your account’s notes; its recovery key is separate from the server’s database key.</p>
-        <button class="backup-button backup-export-button" id="transfer-open" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13H5V3ZM14 3v5h5M8 12h8M8 16h6"/></svg><span>Export &amp; import</span></button>
+        <button class="backup-button backup-export-button" id="transfer-open" type="button" aria-label="Export &amp; import" title="Export &amp; import"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13H5V3ZM14 3v5h5M8 12h8M8 16h6"/></svg><span>Export/import</span></button>
         <details class="personal-recovery-test"><summary>Test a personal backup</summary>
           <p>Choose a downloaded backup and its personal recovery key. The test runs in this browser and imports no notes. These files are not uploaded.</p>
           <form id="personal-recovery-test-form" class="auth-form">
             <label>Encrypted note backup<input type="file" id="personal-recovery-backup" accept=".gnotes-backup" required></label>
             <label>Personal recovery key<input type="file" id="personal-recovery-key" accept=".json" required></label>
-            <button class="backup-button backup-blue" type="submit">Test personal recovery</button>
+            <button class="backup-button backup-blue" type="submit" aria-label="Test personal recovery" title="Test personal recovery"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test recovery</span></button>
             <p id="personal-recovery-result" role="status"></p>
           </form>
         </details>
         <form class="auth-form" id="profile-backup-form">
           <p>Download an encrypted copy of your notes and its recovery key. Save the key separately; it unlocks your personal backups.</p>
           <label>Current password<input id="profile-backup-password" type="password" autocomplete="current-password" maxlength="72" required /></label>
-          <button class="backup-button backup-green" type="submit" value="personal-key"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14a6 6 0 1 0-4-4L3 17v4h4v-3h3l4-4Z"/></svg><span>Download my recovery key</span></button>
-          <button class="backup-button backup-blue" type="submit" value="personal-backup"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Download my encrypted backup</span></button>
+          <button class="backup-button backup-green" type="submit" value="personal-key" aria-label="Download my recovery key" title="Download my recovery key"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14a6 6 0 1 0-4-4L3 17v4h4v-3h3l4-4Z"/></svg><span>Recovery key</span></button>
+          <button class="backup-button backup-blue" type="submit" value="personal-backup" aria-label="Download my encrypted backup" title="Download my encrypted backup"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Backup</span></button>
           <div id="profile-site-backup" hidden>
             <p><strong>Whole-site recovery · Admin only</strong><br>This file unlocks the off-server storage repository. Restoring an encrypted database also requires your separate offline database key and storage access.</p>
-            <button class="backup-button backup-green" id="profile-site-key" type="submit" value="site-key"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14a6 6 0 1 0-4-4L3 17v4h4v-3h3l4-4Z"/></svg><span>Download off-server storage recovery file</span></button>
+            <button class="backup-button backup-green" id="profile-site-key" type="submit" value="site-key" aria-label="Download off-server storage recovery file" title="Download off-server storage recovery file"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14a6 6 0 1 0-4-4L3 17v4h4v-3h3l4-4Z"/></svg><span>Storage recovery</span></button>
             <p id="profile-site-key-unavailable" hidden>The whole-site recovery key has not been configured.</p>
           </div>
           <p class="auth-status" id="profile-backup-status" role="status" aria-live="polite"></p>
         </form>
       </details>
       <details id="site-backup-admin" class="profile-backups" hidden>
-        <summary>Server backups &amp; recovery · Admin</summary>
+        <summary>Server backups</summary>
         <div class="backup-shared-status">
         <p class="backup-feedback" id="site-backup-message" role="status" aria-live="off"></p>
         <button class="backup-button " type="button" id="site-backup-refresh"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 2M4 17l2 2a7 7 0 0 0 12-2"/></svg><span>Refresh status</span></button>
@@ -5150,7 +5175,7 @@
         </div>
         <details class="backup-recovery-guide"><summary>What I need to recover</summary>
           <ol><li>An encrypted database backup stored outside this server.</li><li>The matching database key, kept separately and offline. This key is not offered as a browser download.</li><li>For Wasabi: storage credentials and the off-server storage recovery file. That file does not replace the database key.</li></ol>
-          <p>“Test local recovery” restores the latest daily archive into temporary files, compares stored data, checks integrity, rejects wrong keys, and tests writes and reopening. “Test off-server recovery” first downloads the latest Wasabi snapshot. Both use the server’s current database key and leave the running service unchanged.</p>
+          <p>“Test recovery” in Local backups restores the latest daily archive into temporary files, compares stored data, checks integrity, rejects wrong keys, and tests writes and reopening. In Off-server, “Test recovery” first downloads the latest Wasabi snapshot. Both use the server’s current database key and leave the running service unchanged.</p>
           <p>To verify your offline key copy, run this on a separate computer with a downloaded database backup and an encryption-capable gnotes binary:</p>
           <pre><code id="backup-recovery-command">./gnotes db recovery-test --source backup.db.gz --key-file /path/to/offline-database.key</code></pre>
           <div class="recovery-command-actions">
@@ -5165,10 +5190,10 @@
           <h3>Local database backups</h3>
           <p>Actions below require your current password. Recovery tests never replace the running database.</p>
           <label>Current gnotes password<input id="backup-local-password" type="password" autocomplete="current-password" maxlength="72" /></label>
-          <button class="backup-button backup-blue" type="submit" value="local-run"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Create local backup now</span></button>
-          <button class="backup-button backup-green" type="submit" value="recovery-test"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test local recovery</span></button>
-          <button class="backup-button backup-green" type="submit" value="local-enable"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable local daily backups</span></button>
-          <button class="backup-button backup-amber" type="submit" value="local-pause"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause local schedule</span></button>
+          <button class="backup-button backup-blue" type="submit" value="local-run" aria-label="Create local backup now" title="Create local backup now"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Back up now</span></button>
+          <button class="backup-button backup-green" type="submit" value="recovery-test" aria-label="Test local recovery" title="Test local recovery"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test recovery</span></button>
+          <button class="backup-button backup-green" type="submit" value="local-enable" aria-label="Enable local daily backups" title="Enable local daily backups"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable daily</span></button>
+          <button class="backup-button backup-amber" type="submit" value="local-pause" aria-label="Pause local schedule" title="Pause local schedule"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause</span></button>
           <p class="backup-feedback" id="site-backup-local-feedback" role="status" aria-live="polite" hidden></p>
           <p>Pausing prevents future scheduled runs and keeps existing backups.</p>
         </form>
@@ -5209,7 +5234,7 @@
               <p>The test creates a fresh whole-site backup, uploads it, downloads it and verifies the restored database. The existing site encryption key is retained. Saving a successful destination pauses the schedule until you enable it below.</p>
               <label><input id="site-backup-create" type="checkbox" /> Allow creation of an encrypted repository if this folder has none</label>
               <label>Current gnotes password<input id="site-backup-setup-password" type="password" autocomplete="current-password" maxlength="72" /></label>
-              <button class="backup-button backup-blue" type="submit" id="site-backup-test"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test backup &amp; save settings</span></button>
+              <button class="backup-button backup-blue" type="submit" id="site-backup-test" aria-label="Test backup &amp; save settings" title="Test backup &amp; save settings"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test &amp; save</span></button>
 
             </fieldset>
             <p class="backup-feedback" id="site-backup-setup-feedback" role="status" aria-live="polite" hidden></p>
@@ -5224,12 +5249,12 @@
           <p>After setup, download the off-server storage recovery file above and keep it outside this server. Keep your database key separately too.</p>
           <label><input id="site-backup-recovery-saved" type="checkbox" /> I saved the current off-server storage recovery file separately</label>
           <label>Current gnotes password<input id="site-backup-action-password" type="password" autocomplete="current-password" maxlength="72" /></label>
-          <button class="backup-button backup-green" type="submit" value="enable"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable / resume off-server daily backups</span></button>
-          <button class="backup-button backup-blue" type="submit" value="run"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 4 14 8-14 8Z"/></svg><span>Run off-server backup now</span></button>
-          <button class="backup-button backup-amber" type="submit" value="pause"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause off-server schedule</span></button>
-          <button class="backup-button backup-red" type="submit" value="stop"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5Z"/></svg><span>Stop current backup</span></button>
-          <button class="backup-button " type="submit" value="history"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 2M4 17l2 2a7 7 0 0 0 12-2"/></svg><span>Refresh backup history</span></button>
-          <button class="backup-button backup-green" type="submit" value="offsite-test"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test off-server recovery</span></button>
+          <button class="backup-button backup-green" type="submit" value="enable" aria-label="Enable / resume off-server daily backups" title="Enable / resume off-server daily backups"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Enable daily</span></button>
+          <button class="backup-button backup-blue" type="submit" value="run" aria-label="Run off-server backup now" title="Run off-server backup now"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 4 14 8-14 8Z"/></svg><span>Run now</span></button>
+          <button class="backup-button backup-amber" type="submit" value="pause" aria-label="Pause off-server schedule" title="Pause off-server schedule"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Pause</span></button>
+          <button class="backup-button backup-red" type="submit" value="stop" aria-label="Stop current backup" title="Stop current backup"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5Z"/></svg><span>Stop</span></button>
+          <button class="backup-button " type="submit" value="history" aria-label="Refresh backup history" title="Refresh backup history"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 2M4 17l2 2a7 7 0 0 0 12-2"/></svg><span>History</span></button>
+          <button class="backup-button backup-green" type="submit" value="offsite-test" aria-label="Test off-server recovery" title="Test off-server recovery"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg><span>Test recovery</span></button>
           <p>Off-server recovery tests download the latest snapshot and may use storage-provider download allowance.</p>
           <p class="backup-feedback" id="site-backup-action-feedback" role="status" aria-live="polite" hidden></p>
           <p>Pause prevents future scheduled runs and lets a running backup finish. Stop cancels the current run and leaves the schedule unchanged. Neither deletes stored backups.</p>
@@ -5239,27 +5264,8 @@
         <ul id="site-backup-history"></ul>
         </section>
       </details>
-      <section id="mfa-account-section" class="profile-backups">
-        <h3>Two-step verification</h3>
-        <p id="mfa-account-status">Use an authenticator app to protect sign-in.</p>
-        <button class="backup-button" id="mfa-open" type="button" onclick="GnotesMFA.open()">Manage two-step verification</button>
-      </section>
-      <section id="privacy-account-section" class="profile-backups">
-        <h3>Note privacy</h3>
-        <p>Use one numeric code to hide private notes. Recover a forgotten code with your account password.</p>
-        <button class="backup-button" id="privacy-open" type="button" onclick="GnotesPrivacy.open()">Manage note privacy</button>
-      </section>
-      <section id="password-account-section" class="profile-backups">
-        <h3>Password</h3>
-        <button class="backup-button" id="password-open" type="button" onclick="GnotesPassword.open()">Change password</button>
-      </section>
-      <form class="auth-form recovery-email-form" id="recovery-email-form" hidden>
-        <p class="auth-intro">Set or verify your password recovery email. A replacement takes effect only after you confirm the link.</p>
-        <label>Recovery email<input id="profile-recovery-email" type="email" autocomplete="email" maxlength="254" required /></label>
-        <label>Current password<input id="profile-recovery-password" type="password" autocomplete="current-password" maxlength="72" required /></label>
-        <button class="primary-action" type="submit">Send verification link</button>
-        <p class="auth-status" id="profile-recovery-status" role="status"></p>
-      </form>
+      </div>
+
     </section>
 
     <section class="info-panel" id="transfer-panel" role="dialog" aria-labelledby="transfer-heading" hidden>
@@ -7401,7 +7407,7 @@
           <article class="note-card privacy-note" id="note-${n.id}">
             <div class="note-view" id="note-view-${n.id}">
               <h2>${escapeHTML(n.title || 'Private note')}</h2>
-              <div class="privacy-placeholder"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Privacy-locked</span><button type="button" onclick="GnotesPrivacy.open('unlock',${n.id})">Unlock note</button></div>
+              <div class="privacy-placeholder"><button class="privacy-unlock" type="button" onclick="GnotesPrivacy.open('unlock',${n.id})" aria-label="Unlock note" title="Unlock note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></button></div>
             </div>
           </article>`;
         const flavoredBody = applyObsidianFlavor(n.html_content);
@@ -11316,7 +11322,7 @@
         const format = { json: "gnotes", zip: "zip", md: "markdown", txt: "text", 'gnotes-backup': "gnotes" }[extension];
         if (!format) { setTransferStatus("Choose a .gnotes-backup, .json, .zip, .md, or .txt file.", true); return; }
         if (format === "markdown" && !markdownSource) {
-          setTransferStatus("Enable Markdown in Account → Advanced to import this file.", true);
+          setTransferStatus("Enable Markdown in More features → Advanced to import this file.", true);
           return;
         }
         const encrypted = extension === 'gnotes-backup';
@@ -11569,6 +11575,7 @@
         document.getElementById("profile-heading").textContent = backupsView ? "Backup & recovery" : currentUser.username;
         document.getElementById("profile-role").textContent = `${currentUser.role === "admin" ? "Admin" : "User"} · Signed in`;
         document.getElementById('profile-backups').open = backupsView;
+        document.getElementById('profile-email-settings').open = false;
         document.getElementById('profile-backup-password').value = '';
         document.getElementById('profile-backup-status').textContent = '';
         document.getElementById('profile-site-backup').hidden = true;
