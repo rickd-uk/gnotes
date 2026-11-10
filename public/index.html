@@ -1192,7 +1192,7 @@
       #app-shell.archive-mode #hidden-notes-control,
       #app-shell.archive-mode #active-notes-bulk-actions,
       #app-shell.archive-mode #archive-open { display: none; }
-      #app-shell.archive-mode #notes-list .note-card:not([class*="note-color-"]) {
+      #app-shell.archive-mode #notes-list .note-card:not(.is-editing):not([class*="note-color-"]) {
         background: rgba(77, 128, 104, 0.045);
       }
 
@@ -1948,7 +1948,7 @@
           transform 280ms ease;
       }
 
-      .note-card + .note-card { margin-top: 12px; }
+      .note-card + .note-card:not(.is-editing) { margin-top: 12px; }
 
       .note-card:not(.is-editing) { cursor: text; }
 

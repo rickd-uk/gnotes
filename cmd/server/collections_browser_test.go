@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ func TestCollectionNotesBrowser(t *testing.T) {
 			stamp := time.Now().UTC().Add(-24 * time.Hour).Truncate(24 * time.Hour).Add(12 * time.Hour)
 			for i := 1; i <= 4; i++ {
 				mustRecoveryExec(t, `INSERT INTO notes(user_id,title,content,created_at,archived_at,favorited,locked) VALUES(2,?,?,?, ?,?,?)`,
-					fmt.Sprintf("Archive %d", i), "Original text\n\n- [ ] Task", stamp, stamp, i >= 3, i == 4)
+					fmt.Sprintf("Archive %d", i), strings.Repeat("Original text long enough to wrap on phones.\n\n", 60)+"- [ ] Task", stamp, stamp, i >= 3, i == 4)
 			}
 			mustRecoveryExec(t, `INSERT INTO notes(user_id,title,content,created_at,favorited) VALUES(2,'Active favorite','Active text',?,1)`, stamp)
 			mux := http.NewServeMux()
@@ -40,6 +41,7 @@ func TestCollectionNotesBrowser(t *testing.T) {
 			mux.HandleFunc("/api/notes/search-page", protect(pagedSearchNotesHandler, false))
 			mux.HandleFunc("/api/notes/trash-page", protect(pagedTrashNotesHandler, false))
 			mux.HandleFunc("/api/notes/update", protect(updateNoteHandler, true))
+			mux.HandleFunc("/api/notes/preview", protect(previewNoteHandler, true))
 			mux.HandleFunc("/api/tags", protect(tagsHandler, false))
 			mux.Handle("/", http.FileServer(http.Dir("../../public")))
 			server := httptest.NewServer(securityHeaders(mux))
@@ -67,6 +69,7 @@ func TestCollectionNotesBrowser(t *testing.T) {
               checkCollection();`)
 			collectionClick(browser, "#note-1 .note-content")
 			browser.wait(`editingNoteId===1 && Boolean(richEdit)`)
+			collectionCheckEditor(browser, 1)
 			browser.script(`richEdit.editor.commands.setContent('<p>Edited in Archive</p>');updateNote(1);`)
 			browser.wait(`editingNoteId===null && !pendingNoteEdits.size && loadedNotes.get(1)?.content==='Edited in Archive'`)
 			collectionClick(browser, "#note-1 .note-view > h2")
@@ -78,6 +81,7 @@ func TestCollectionNotesBrowser(t *testing.T) {
 			browser.script(`checkCollection();document.querySelector('#note-4 .note-content').click();if(editingNoteId!==null)throw new Error('Locked archived favorite opened');`)
 			collectionClick(browser, "#note-3 .note-content")
 			browser.wait(`editingNoteId===3 && Boolean(richEdit)`)
+			collectionCheckEditor(browser, 3)
 			browser.script(`richEdit.editor.commands.setContent('<p>Edited archived favorite</p>');updateNote(3);`)
 			browser.wait(`editingNoteId===null && !pendingNoteEdits.size && loadedNotes.get(3)?.content==='Edited archived favorite'`)
 			collectionClick(browser, "#note-5 .note-content")
@@ -97,6 +101,54 @@ func TestCollectionNotesBrowser(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Collection backgrounds and optional appearance settings must not override
+// the editor's opaque surface or its viewport and scrolling constraints.
+func collectionCheckEditor(b *recoveryBrowser, id int) {
+	b.t.Helper()
+	b.script(fmt.Sprintf(`
+      window.checkEditorSurface=()=>{
+        const card=document.getElementById('note-%d'),style=getComputedStyle(card),rect=card.getBoundingClientRect();
+        const alpha=style.backgroundColor.startsWith('rgba')?Number(style.backgroundColor.split(',').pop().replace(')','')):1;
+        if(alpha!==1)throw new Error('Collection editor background is transparent: '+style.backgroundColor);
+        if(style.maxHeight==='none'||rect.top < -1||rect.bottom > innerHeight+1)throw new Error('Collection editor exceeds viewport: '+JSON.stringify({top:rect.top,bottom:rect.bottom,height:innerHeight,maxHeight:style.maxHeight}));
+        const footer=card.querySelector('.editor-footer').getBoundingClientRect();
+        if(footer.top<rect.top||footer.bottom>rect.bottom+1)throw new Error('Collection editor actions outside dialog');
+        const title=card.querySelector('.edit-title').getBoundingClientRect();
+        if(title.top<rect.top||title.bottom>rect.bottom)throw new Error('Collection editor title outside dialog');
+      };
+      for(const theme of ['light','dark']){
+        document.documentElement.dataset.theme=theme;
+        for(const color of ['','note-color-sage']){
+          const card=document.getElementById('note-%d');
+          if(color)card.classList.add(color);
+          checkEditorSurface();
+          if(color)card.classList.remove(color);
+        }
+      }
+      document.documentElement.dataset.theme='light';
+      const rich=richEdit.editor.view.dom;
+      if(rich.scrollHeight<=rich.clientHeight)throw new Error('Long rich editor is not scrollable');
+      rich.scrollTop=100;if(rich.scrollTop<=0)throw new Error('Long rich editor cannot scroll');
+      applyEditorMode(true);
+      checkEditorSurface();
+      const source=document.getElementById('edit-content-%d');
+      if(source.scrollHeight<=source.clientHeight)throw new Error('Long source editor is not scrollable');
+      source.scrollTop=100;if(source.scrollTop<=0)throw new Error('Long source editor cannot scroll');
+      applyEditorMode(false);
+      toggleNotePreview(%d);`, id, id, id, id))
+	b.wait(fmt.Sprintf(`!document.getElementById('edit-preview-%d').hidden && document.getElementById('edit-preview-%d').querySelector('p')`, id, id))
+	b.script(fmt.Sprintf(`
+      for(const theme of ['light','dark']){
+        document.documentElement.dataset.theme=theme;
+        checkEditorSurface();
+      }
+      document.documentElement.dataset.theme='light';
+      const preview=document.getElementById('edit-preview-%d');
+      if(preview.scrollHeight<=preview.clientHeight)throw new Error('Long preview is not scrollable');
+      preview.scrollTop=100;if(preview.scrollTop<=0)throw new Error('Long preview cannot scroll');
+      setNotePreview(%d,false);`, id, id))
 }
 
 // Run Firefox coverage with geckodriver on port 19516 and
@@ -120,6 +172,7 @@ func newCollectionBrowser(t *testing.T, width int) *recoveryBrowser {
 
 func collectionClick(b *recoveryBrowser, selector string) {
 	b.t.Helper()
+	b.script(fmt.Sprintf(`document.querySelector(%q).scrollIntoView({block:'center',behavior:'instant'});`, selector))
 	element := b.call("POST", "/element", map[string]string{"using": "css selector", "value": selector}).(map[string]any)
 	id := element["element-6066-11e4-a52e-4f735466cecf"].(string)
 	b.call("POST", "/element/"+id+"/click", nil)
