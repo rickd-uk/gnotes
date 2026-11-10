@@ -20,7 +20,7 @@ Vim.defineEx('xit', 'x', (cm, params) => save(cm, params, true));
 // Notes autosave. Quitting keeps those changes, like the app's Done button.
 Vim.defineEx('quit', 'q', (cm, params) => save(cm, params, true));
 
-function mount(host, text, onDirty, onSave) {
+function mount(host, text, onDirty, onSave, { closeOnNormalEscape = false } = {}) {
   let resetting = false, serializedDoc = null, serialized = '';
   let contentDoc = null, hasText = false;
   const editable = new Compartment();
@@ -44,8 +44,20 @@ function mount(host, text, onDirty, onSave) {
   });
   const cm = getCM(view);
   actions.set(cm, onSave);
-  // Normal-mode Escape may be unhandled by the Vim library. It must not reach
-  // the application's Escape-to-save/close handler or finalize the draft form.
+  // Read the mode before Vim handles Escape: Insert/Visual/Replace and pending
+  // commands consume the first press. Only a fresh Normal-mode press closes a note.
+  const closeFromNormal = event => {
+    if (!closeOnNormalEscape || event.key !== 'Escape' || event.isComposing || event.repeat ||
+        event.defaultPrevented || !view.contentDOM.contains(event.target)) return;
+    const state = cm.state.vim;
+    if (!state || state.insertMode || state.visualMode || state.exMode || state.insertModeReturn ||
+        cm.state.overwrite || state.status || state.inputState?.keyBuffer?.length || state.inputState?.operator) return;
+    event.preventDefault();
+    event.stopPropagation();
+    queueMicrotask(() => actions.get(cm)?.(true));
+  };
+  host.addEventListener('keydown', closeFromNormal, true);
+  // Unhandled Vim Escape must never reach the app and finalize the draft form.
   const stopEscape = event => { if (event.key === 'Escape') event.stopPropagation(); };
   host.addEventListener('keydown', stopEscape);
   return {
@@ -91,6 +103,7 @@ function mount(host, text, onDirty, onSave) {
     },
     destroy() {
       actions.delete(cm);
+      host.removeEventListener('keydown', closeFromNormal, true);
       host.removeEventListener('keydown', stopEscape);
       view.destroy();
     },

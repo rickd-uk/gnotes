@@ -5299,7 +5299,7 @@
       <div class="help-topics">
         <div><h3>Write a note</h3><p>Start typing in the writing area above your notes. Your writing is saved as you go.</p></div>
         <div><h3>Make a note read-only</h3><p>Choose the crossed-out pencil in its ⋯ tools menu. Read-only notes keep that icon visible; click it to enable editing. Title, text, checklists, tags and color cannot be edited across devices. You can add Read only to your quick actions or assign a shortcut.</p></div>
-        <div><h3>Vim editing</h3><p>Choose N beside the title to edit Markdown with Vim keys; choose N again to return to the normal editor. Your choice is remembered for this account in this browser. Press i to insert and Escape to return to Normal mode. Use :w to save, or :wq, :x or Ctrl/Command+Enter to save and close. New notes save as drafts with :w and become notes with :wq. Notes autosave, so :q also keeps changes and closes. The eye button previews an existing note.</p></div>
+        <div><h3>Vim editing</h3><p>Choose N beside the title to edit Markdown with Vim keys; choose N again to return to the normal editor. Your choice is remembered for this account in this browser. Press i to insert and Escape to return to Normal mode. In an existing note, press Escape again from Normal mode to save and close. Use :w to save, or :wq, :x or Ctrl/Command+Enter to save and close. New notes save as drafts with :w and become notes with :wq. Notes autosave, so :q also keeps changes and closes. The eye button previews an existing note.</p></div>
         <div><h3>Your keyboard shortcuts</h3><p>Open Profile → Keyboard shortcuts to search actions and assign keys. Shortcuts are saved for your account in this browser. Note actions use the focused or pointed-at note. Ctrl+Shift+P toggles preview; Escape saves and closes a note, retaining edits if saving fails. Short notes use a centered, content-sized editor.</p></div>
         <div><h3>Format and link</h3><p>Select text to format it or add a named link. Tab indents text; Shift+Tab moves it back. In lists, these keys change nesting. Type / at the start of a line for a checklist, heading, quote, code block, or divider. Tap a saved checklist box to mark it done. Saved links open normally; Shift-click a link to edit its note. While editing, click a link to place the cursor, then choose Link in the formatting toolbar to change its address or open it. Ctrl/Command-click opens a link directly from the editor.</p></div>
         <div><h3>Keep Favorites</h3><p>Choose the diamond in a note’s More menu to add it to Favorites. Favorites are hidden from the main view and Archive by default, but are always included when searching. General search includes archived notes too; use the search box in Archive to search only archived notes. To show them there too, enable Controls → Display → Favorites. Open Favorites from the header, then search or filter by category. Tags act as categories, and archived favorites stay in the collection.</p></div>
@@ -5870,9 +5870,9 @@
         });
       }
 
-      function mountVimInput(host, input, onDirty, onSave) {
+      function mountVimInput(host, input, onDirty, onSave, closeOnNormalEscape = false) {
         const editor = mountBoundEditor(input, onDirty, dirty =>
-          GnotesVimEditor.mount(host, input.value, dirty, onSave));
+          GnotesVimEditor.mount(host, input.value, dirty, onSave, { closeOnNormalEscape }));
         host.hidden = false;
         host.closest('form, .note-editor').classList.add('has-vim-editor');
         editor.view.requestMeasure();
@@ -5898,7 +5898,7 @@
             if (currentUser !== owner || editingNoteId !== id) return;
             if (close) updateNote(id);
             else queueEditAutosave(id);
-          });
+          }, true);
       }
 
       function destroyVimEditor(kind, flush = true) {

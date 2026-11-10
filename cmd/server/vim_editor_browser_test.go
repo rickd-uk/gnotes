@@ -90,6 +90,50 @@ func vimBrowserKeys(b *recoveryBrowser, selector, keys string) {
 	b.call("POST", "/element/"+id+"/value", map[string]string{"text": keys})
 }
 
+func TestVimEscapeBrowser(t *testing.T) {
+	if os.Getenv("GNOTES_BROWSER_CHECK") != "1" {
+		t.Skip("optional local browser check")
+	}
+	for _, width := range []int{560, 1024} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			recoveryFixture(t)
+			mustRecoveryExec(t, "INSERT INTO notes(user_id,title,content,created_at) VALUES(1,'Escape note','Original text',?)", time.Now().UTC())
+			server := httptest.NewServer(securityHeaders(vimBrowserMux()))
+			defer server.Close()
+			browser := newCollectionBrowser(t, width)
+			browser.navigate(server.URL)
+			browser.wait(`!document.getElementById('auth-screen').hidden`)
+			browser.script(`document.getElementById('auth-username').value='rick';document.getElementById('auth-password').value='original password';document.getElementById('auth-form').requestSubmit();`)
+			browser.wait(`!notesLoading && Boolean(richDraft) && loadedNotes.size===1`)
+			browser.script(`window.escapeID=[...loadedNotes.keys()][0];setVimMode(true);`)
+			browser.wait(`Boolean(vimDraft)`)
+			vimBrowserKeys(browser, "#new-vim-editor .cm-content", "iKeep draft\ue00c\ue00c")
+			browser.script(`if(draftFinalizing||loadedNotes.size!==1||vimDraft.getMarkdown()!=='Keep draft')throw new Error('Normal Escape finalized draft');openNoteEditor(escapeID,false,true);`)
+			browser.wait(`Boolean(vimEdit)`)
+			vimBrowserKeys(browser, ".note-editor .cm-content", "gg0iSaved with Escape \ue00c")
+			browser.script(`if(editingNoteId!==escapeID||vimEdit.view.cm.state.vim.insertMode)throw new Error('Insert Escape did not return to Normal without closing');`)
+			vimBrowserKeys(browser, ".note-editor .cm-content", "\ue00c")
+			browser.wait(`editingNoteId===null && !pendingNoteEdits.size`)
+			var content string
+			if err := db.DB.QueryRow("SELECT content FROM notes WHERE id=?", 1).Scan(&content); err != nil || content != "Saved with Escape Original text" {
+				t.Fatalf("Normal Escape did not save: %q (%v)", content, err)
+			}
+			for _, mode := range []string{"v", "R", "d"} {
+				browser.script(`openNoteEditor(escapeID,false,true);`)
+				browser.wait(`Boolean(vimEdit)`)
+				vimBrowserKeys(browser, ".note-editor .cm-content", mode+"\ue00c")
+				browser.script(`if(editingNoteId!==escapeID||vimEdit.view.cm.state.vim.insertMode||vimEdit.view.cm.state.vim.visualMode)throw new Error('Mode/pending-command Escape closed instead of returning to Normal');`)
+				vimBrowserKeys(browser, ".note-editor .cm-content", "\ue00c")
+				browser.wait(`editingNoteId===null && !pendingNoteEdits.size`)
+			}
+			browser.script(`openNoteEditor(escapeID,false,true);vimEdit.view.contentDOM.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',repeat:true,bubbles:true,cancelable:true}));if(editingNoteId!==escapeID)throw new Error('Held Escape closed modal');window.escapeFetch=fetch;window.fetch=(url,options)=>String(url).startsWith('/api/notes/update')?Promise.resolve(new Response('Unavailable',{status:503})):escapeFetch(url,options);`)
+			vimBrowserKeys(browser, ".note-editor .cm-content", "gg0iRetain failed edit \ue00c\ue00c")
+			browser.wait(`editingNoteId===null && !document.getElementById('pending-save-notice').hidden`)
+			browser.script(`window.fetch=escapeFetch;openNoteEditor(escapeID,false,true);if(!vimEdit.getMarkdown().startsWith('Retain failed edit '))throw new Error('Escape lost failed save');`)
+		})
+	}
+}
+
 func TestVimEditorBrowser(t *testing.T) {
 	if os.Getenv("GNOTES_BROWSER_CHECK") != "1" {
 		t.Skip("optional local Chromium check")
