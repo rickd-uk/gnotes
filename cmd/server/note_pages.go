@@ -60,7 +60,7 @@ func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	notes, _, err := queryActiveNotePage(r.Context(), `SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at, revision
+	notes, _, err := queryActiveNotePage(r.Context(), `SELECT id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, privacy_locked, privacy_hide_title, archived_at, revision
 	    FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL LIMIT ?`,
 		[]any{id, userIDFromRequest(r)}, 1)
 	if err != nil {
@@ -121,7 +121,7 @@ func pagedListNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	columns := "id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, archived_at, revision"
+	columns := "id, title, content, rendered_content, created_at, pinned, background_color, tags, favorited, locked, privacy_locked, privacy_hide_title, archived_at, revision"
 	order := "pinned DESC, unixepoch(created_at) DESC, id DESC"
 	if archived {
 		order = "unixepoch(archived_at) DESC, id DESC"
@@ -203,7 +203,7 @@ func pagedSearchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fromClause := " FROM notes n " + join + " WHERE " + strings.Join(conditions, " AND ")
-	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color, n.tags, n.favorited, n.locked, n.archived_at, n.revision"
+	columns := "n.id, n.title, n.content, n.rendered_content, n.created_at, n.pinned, n.background_color, n.tags, n.favorited, n.locked, n.privacy_locked, n.privacy_hide_title, n.archived_at, n.revision"
 	order := "n.pinned DESC, unixepoch(n.created_at) DESC, n.id DESC"
 	if archived {
 		order = "unixepoch(n.archived_at) DESC, n.id DESC"
@@ -288,7 +288,7 @@ func pagedTrashNotesHandler(w http.ResponseWriter, r *http.Request) {
 		conditions = append(conditions, "(unixepoch(deleted_at) < ? OR (unixepoch(deleted_at) = ? AND id < ?))")
 		args = append(args, cursor.DeletedAt.Unix(), cursor.DeletedAt.Unix(), cursor.ID)
 	}
-	query := `SELECT id, title, content, created_at, deleted_at, tags, locked
+	query := `SELECT id, title, content, created_at, deleted_at, tags, locked, privacy_locked, privacy_hide_title
     FROM notes WHERE ` + strings.Join(conditions, " AND ") + `
 	ORDER BY unixepoch(deleted_at) DESC, id DESC LIMIT ?`
 	queryArgs := append(append([]any{}, args...), limit+1)
@@ -300,7 +300,7 @@ func pagedTrashNotesHandler(w http.ResponseWriter, r *http.Request) {
 	trash := make([]models.Note, 0, limit+1)
 	for rows.Next() {
 		var note models.Note
-		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.DeletedAt, &note.Tags, &note.Locked); err != nil {
+		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.DeletedAt, &note.Tags, &note.Locked, &note.PrivacyLocked, &note.PrivacyHideTitle); err != nil {
 			rows.Close()
 			http.Error(w, "Could not load recycle bin", http.StatusInternalServerError)
 			return
@@ -391,6 +391,7 @@ func pagedSearchFilter(r *http.Request) (string, []string, []any, error) {
 
 	join := ""
 	if queryText != "" {
+		conditions = append(conditions, "n.privacy_locked = 0")
 		matchCase := r.URL.Query().Get("match_case") == "true"
 		column := ""
 		switch scope {
@@ -488,7 +489,7 @@ func queryNotePage(ctx context.Context, query string, args []any, limit int, arc
 	for rows.Next() {
 		var note models.Note
 		var rendered sql.NullString
-		fields := []any{&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited, &note.Locked}
+		fields := []any{&note.ID, &note.Title, &note.Content, &rendered, &note.CreatedAt, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited, &note.Locked, &note.PrivacyLocked, &note.PrivacyHideTitle}
 		var archivedAt sql.NullTime
 		fields = append(fields, &archivedAt, &note.Revision)
 		if err := rows.Scan(fields...); err != nil {

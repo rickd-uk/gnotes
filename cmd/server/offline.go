@@ -34,7 +34,7 @@ func offlineSnapshotHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	readable := make([]transferNote, 0, len(notes))
 	for _, note := range notes {
-		if note.DeletedAt == nil {
+		if note.DeletedAt == nil && !note.PrivacyLocked {
 			readable = append(readable, note)
 		}
 	}

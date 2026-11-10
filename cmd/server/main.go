@@ -162,6 +162,9 @@ func run() error {
 	mux.HandleFunc("/api/notes/favorite", protect(favoriteNoteHandler, true))
 	mux.HandleFunc("/api/notes/favorite-date", protect(favoriteDateNotesHandler, true))
 	mux.HandleFunc("/api/notes/lock", protect(lockNoteHandler, true))
+	mux.HandleFunc("/api/privacy", protect(privacyStatusHandler, false))
+	mux.HandleFunc("/api/privacy/code", protect(privacyCodeHandler, true))
+	mux.HandleFunc("/api/privacy/notes", protect(privacyNoteHandler, true))
 	mux.HandleFunc("/api/notes/pin", protect(pinNoteHandler, true))
 	mux.HandleFunc("/api/notes/unpin-all", protect(unpinAllNotesHandler, true))
 	mux.HandleFunc("/api/notes/delete", protect(deleteNoteHandler, true))
@@ -282,6 +285,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	n.CreatedAt = time.Now()
+	n.PrivacyLocked, n.PrivacyHideTitle = false, false
 	n.Revision = 0
 	n.Tags, err = normalizeTags(n.Tags)
 	if err != nil {
@@ -318,7 +322,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// quey db
-	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color, tags, favorited, locked, revision FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
+	rows, err := db.DB.Query("SELECT id, title, content, created_at, pinned, background_color, tags, favorited, locked, privacy_locked, privacy_hide_title, revision FROM notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL ORDER BY pinned DESC, created_at DESC", userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Query error", 500)
 		return
@@ -330,7 +334,7 @@ func listNotesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var n models.Note
 		// scan cols. into struct fields
-		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited, &n.Locked, &n.Revision)
+		err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited, &n.Locked, &n.PrivacyLocked, &n.PrivacyHideTitle, &n.Revision)
 		if err != nil {
 			log.Println("Scan error:", err)
 			http.Error(w, "Could not load notes", http.StatusInternalServerError)
@@ -367,7 +371,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conditions := []string{"user_id = ?", "deleted_at IS NULL", "archived_at IS NULL"}
+	conditions := []string{"user_id = ?", "deleted_at IS NULL", "archived_at IS NULL", "privacy_locked = 0"}
 	args := []any{userIDFromRequest(r)}
 	location, err := searchTimeZone(r)
 	if err != nil {
@@ -420,7 +424,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	query := "SELECT id, title, content, created_at, pinned, background_color, tags, favorited, locked, revision FROM notes WHERE " +
+	query := "SELECT id, title, content, created_at, pinned, background_color, tags, favorited, locked, privacy_locked, privacy_hide_title, revision FROM notes WHERE " +
 		strings.Join(conditions, " AND ") +
 		" ORDER BY pinned DESC, created_at DESC"
 	rows, err := db.DB.Query(query, args...)
@@ -433,7 +437,7 @@ func searchNotesHandler(w http.ResponseWriter, r *http.Request) {
 	matches := make([]models.Note, 0)
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited, &n.Locked, &n.Revision); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.Pinned, &n.BackgroundColor, &n.Tags, &n.Favorited, &n.Locked, &n.PrivacyLocked, &n.PrivacyHideTitle, &n.Revision); err != nil {
 			log.Println("Search scan error:", err)
 			http.Error(w, "Search failed", http.StatusInternalServerError)
 			return
@@ -576,7 +580,7 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var revision int64
 	err := db.DB.QueryRowContext(r.Context(),
-		"UPDATE notes SET title = ?, content = ?, rendered_content = ?, tags = COALESCE(?, tags), revision = revision + 1 WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND locked = 0 AND revision = ? RETURNING revision",
+		"UPDATE notes SET title = ?, content = ?, rendered_content = ?, tags = COALESCE(?, tags), revision = revision + 1 WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND locked = 0 AND privacy_locked = 0 AND revision = ? RETURNING revision",
 		n.Title,
 		n.Content,
 		mdToHTML(n.Content),
@@ -587,14 +591,14 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	).Scan(&revision)
 	if errors.Is(err, sql.ErrNoRows) {
 		var title, content string
-		var locked bool
+		var locked, private bool
 		var currentTags models.Tags
-		err = db.DB.QueryRowContext(r.Context(), "SELECT title,content,tags,locked,revision FROM notes WHERE id=? AND user_id=? AND deleted_at IS NULL", id, userIDFromRequest(r)).Scan(&title, &content, &currentTags, &locked, &revision)
+		err = db.DB.QueryRowContext(r.Context(), "SELECT title,content,tags,locked,privacy_locked,revision FROM notes WHERE id=? AND user_id=? AND deleted_at IS NULL", id, userIDFromRequest(r)).Scan(&title, &content, &currentTags, &locked, &private, &revision)
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Note not found", http.StatusNotFound)
 			return
 		}
-		if err == nil && locked {
+		if err == nil && (locked || private) {
 			http.Error(w, "Note is locked. Unlock it before editing.", http.StatusLocked)
 			return
 		}
@@ -646,7 +650,7 @@ func updateNoteColorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := db.DB.Exec(
-		"UPDATE notes SET background_color = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND locked = 0",
+		"UPDATE notes SET background_color = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND locked = 0 AND privacy_locked = 0",
 		input.Color,
 		id,
 		userIDFromRequest(r),
@@ -720,7 +724,7 @@ func trashNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.DB.Query(
-		"SELECT id, title, content, created_at, deleted_at, tags, locked FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+		"SELECT id, title, content, created_at, deleted_at, tags, locked, privacy_locked, privacy_hide_title FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
 		userIDFromRequest(r),
 	)
 	if err != nil {
@@ -732,7 +736,7 @@ func trashNotesHandler(w http.ResponseWriter, r *http.Request) {
 	trash := make([]models.Note, 0)
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.DeletedAt, &n.Tags, &n.Locked); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.DeletedAt, &n.Tags, &n.Locked, &n.PrivacyLocked, &n.PrivacyHideTitle); err != nil {
 			log.Println("Trash scan error:", err)
 			http.Error(w, "Could not load trash", http.StatusInternalServerError)
 			return

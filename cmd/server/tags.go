@@ -55,7 +55,7 @@ func tagsHandler(w http.ResponseWriter, r *http.Request) {
 		archiveCondition = "n.archived_at IS NOT NULL"
 	}
 	rows, err := db.DB.Query(`SELECT t.value, COUNT(*) FROM notes n, json_each(n.tags) t
-		WHERE n.user_id = ? AND n.deleted_at IS NULL AND `+archiveCondition+`
+		WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.privacy_locked=0 AND `+archiveCondition+`
 		GROUP BY t.value ORDER BY t.value`, userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Could not load tags", 500)
@@ -105,7 +105,7 @@ func updateNoteTagsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	result, err := db.DB.Exec("UPDATE notes SET tags=? WHERE id=? AND user_id=? AND deleted_at IS NULL AND locked=0", tags, id, userIDFromRequest(r))
+	result, err := db.DB.Exec("UPDATE notes SET tags=? WHERE id=? AND user_id=? AND deleted_at IS NULL AND locked=0 AND privacy_locked=0", tags, id, userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Could not save tags", 500)
 		return

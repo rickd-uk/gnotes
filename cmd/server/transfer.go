@@ -28,6 +28,7 @@ const maxTransferNotes = 10000
 var errTransferTooLarge = errors.New("transfer exceeds the size limit")
 
 type transferNote struct {
+	PrivacyLocked   bool        `json:"-"`
 	Locked          bool        `json:"locked"`
 	SourceID        int         `json:"source_id,omitempty"`
 	Title           string      `json:"title"`
@@ -79,6 +80,12 @@ func exportNotesHandler(w http.ResponseWriter, r *http.Request) {
 	if len(notes) > maxTransferNotes {
 		http.Error(w, "Too many notes for one export", http.StatusRequestEntityTooLarge)
 		return
+	}
+	for _, note := range notes {
+		if note.PrivacyLocked {
+			http.Error(w, "Unlock privacy-locked notes before exporting them.", http.StatusLocked)
+			return
+		}
 	}
 	file := transferFile{Format: "gnotes", Version: transferVersion, ExportedAt: time.Now().UTC(), Notes: notes}
 	if format == "gnotes" {
@@ -151,7 +158,7 @@ func transferListHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Use GET", http.StatusMethodNotAllowed)
 		return
 	}
-	rows, err := db.DB.Query(`SELECT id, title, created_at, deleted_at, archived_at FROM notes
+	rows, err := db.DB.Query(`SELECT id, CASE WHEN privacy_locked=1 AND privacy_hide_title=1 THEN '' ELSE title END, created_at, deleted_at, archived_at FROM notes
 		WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?`, userIDFromRequest(r), maxTransferNotes+1)
 	if err != nil {
 		http.Error(w, "Could not list notes", 500)
@@ -220,7 +227,7 @@ func loadTransferNotes(userID int, ids []int) ([]transferNote, error) {
 }
 
 func loadTransferNotesFiltered(userID int, ids []int, readableOnly bool) ([]transferNote, error) {
-	query := "SELECT id, title, content, created_at, deleted_at, archived_at, pinned, background_color, tags, favorited, locked FROM notes WHERE user_id = ?"
+	query := "SELECT id, title, content, created_at, deleted_at, archived_at, pinned, background_color, tags, favorited, locked, privacy_locked FROM notes WHERE user_id = ?"
 	args := []any{userID}
 	if readableOnly {
 		query += " AND deleted_at IS NULL"
@@ -242,7 +249,7 @@ func loadTransferNotesFiltered(userID int, ids []int, readableOnly bool) ([]tran
 	for rows.Next() {
 		var note transferNote
 		var deleted, archived sql.NullTime
-		if err := rows.Scan(&note.SourceID, &note.Title, &note.Content, &note.CreatedAt, &deleted, &archived, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited, &note.Locked); err != nil {
+		if err := rows.Scan(&note.SourceID, &note.Title, &note.Content, &note.CreatedAt, &deleted, &archived, &note.Pinned, &note.BackgroundColor, &note.Tags, &note.Favorited, &note.Locked, &note.PrivacyLocked); err != nil {
 			return nil, err
 		}
 		if deleted.Valid {

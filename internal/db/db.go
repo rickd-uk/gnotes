@@ -56,6 +56,13 @@ func initSchema(filepath string) {
     theme TEXT NOT NULL DEFAULT 'light'
   );
 
+  CREATE TABLE IF NOT EXISTS privacy_settings (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    code_hash BLOB NOT NULL,
+    hide_titles INTEGER NOT NULL DEFAULT 0,
+    revision INTEGER NOT NULL DEFAULT 1
+  );
+
   CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 	user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -198,6 +205,8 @@ func initSchema(filepath string) {
 	ensureColumn("archived_at", "DATETIME")
 	ensureColumn("pinned", "INTEGER NOT NULL DEFAULT 0")
 	ensureColumn("locked", "INTEGER NOT NULL DEFAULT 0")
+	ensureColumn("privacy_locked", "INTEGER NOT NULL DEFAULT 0")
+	ensureColumn("privacy_hide_title", "INTEGER NOT NULL DEFAULT 0")
 	ensureColumn("favorited", "INTEGER NOT NULL DEFAULT 0")
 	ensureColumn("background_color", "TEXT NOT NULL DEFAULT ''")
 	ensureColumn("tags", "TEXT NOT NULL DEFAULT '[]'")

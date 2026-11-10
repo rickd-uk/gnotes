@@ -4556,7 +4556,8 @@
         }
       }
     </style>
-  </head>
+  <link rel="stylesheet" href="/privacy.css" />
+    </head>
   <body>
     <div class="note-edit-backdrop" id="note-edit-backdrop" hidden></div>
     <section class="startup-screen" id="startup-screen" aria-label="Loading gnotes">
@@ -5242,6 +5243,11 @@
         <h3>Two-step verification</h3>
         <p id="mfa-account-status">Use an authenticator app to protect sign-in.</p>
         <button class="backup-button" id="mfa-open" type="button" onclick="GnotesMFA.open()">Manage two-step verification</button>
+      </section>
+      <section id="privacy-account-section" class="profile-backups">
+        <h3>Note privacy</h3>
+        <p>Use one numeric code to hide private notes. Recover a forgotten code with your account password.</p>
+        <button class="backup-button" id="privacy-open" type="button" onclick="GnotesPrivacy.open()">Manage note privacy</button>
       </section>
       <section id="password-account-section" class="profile-backups">
         <h3>Password</h3>
@@ -6679,6 +6685,7 @@
         authRequestVersion++;
         window.GnotesMFA?.reset();
         window.GnotesPassword?.reset();
+        window.GnotesPrivacy?.reset();
         cancelNotesLoad();
         notesPageURL = "";
         clearTimeout(draftSaveTimer);
@@ -7390,6 +7397,13 @@
       function noteCardHTML(n, isNewest, now, dateContext) {
         const isArchived = Boolean(n.archived_at);
         const noteDate = archiveMode ? n.archived_at : n.created_at;
+        if (n.privacy_locked) return `
+          <article class="note-card privacy-note" id="note-${n.id}">
+            <div class="note-view" id="note-view-${n.id}">
+              <h2>${escapeHTML(n.title || 'Private note')}</h2>
+              <div class="privacy-placeholder"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Privacy-locked</span><button type="button" onclick="GnotesPrivacy.open('unlock',${n.id})">Unlock note</button></div>
+            </div>
+          </article>`;
         const flavoredBody = applyObsidianFlavor(n.html_content);
         const hasTitle = Boolean(n.title.trim());
         const displayTitle = getDisplayTitle(n);
@@ -7466,6 +7480,7 @@
             </div>
           </div>
             <div class="note-view" id="note-view-${n.id}">
+              <button class="note-privacy-toggle" type="button" onclick="GnotesPrivacy.lock(${n.id})" aria-label="Privacy-lock note" title="Privacy-lock note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></button>
               <h2 class="${hasTitle ? "" : `fallback-title${canRoll ? " note-preview-title" : ""}`}">${escapeHTML(displayTitle)}</h2>
               ${(n.tags || []).length ? `<div class="note-tags" id="note-tags-${n.id}" aria-label="Note tags">${n.tags.map((tag, index) => `<button class="note-tag" type="button" data-tag="${escapeHTML(tag)}" data-short-label="#${escapeHTML(Array.from(tag).length > 10 ? Array.from(tag).slice(0, 10).join('') + '…' : tag)}" aria-label="#${escapeHTML(tag)}" title="#${escapeHTML(tag)}"${index >= 3 ? ' data-extra-tag hidden' : ''}><span class="note-tag-label">#${escapeHTML(tag)}</span></button>`).join("")}${n.tags.length > 3 ? `<button class="note-tags-toggle" type="button" aria-expanded="false" aria-controls="note-tags-${n.id}">+${n.tags.length - 3} more</button>` : ''}</div>` : ""}
               <div class="note-content" id="note-content-${n.id}">${flavoredBody}</div>
@@ -7552,7 +7567,7 @@
           const isNewest = n.id === newestNoteId;
           group.cards.push({ id: n.id,
             state: [currentUser?.username, n.title, n.content, n.html_content, n.created_at, n.archived_at,
-              n.pinned, n.favorited, n.locked, n.background_color, (n.tags || []).join('\n'), isNewest,
+              n.pinned, n.favorited, n.locked, n.privacy_locked, n.privacy_hide_title, n.background_color, (n.tags || []).join('\n'), isNewest,
               rolledNoteIds.has(n.id), GnotesFeatures.foldingEnabled(), archiveMode,
               dateContext.timeZone, dateContext.todayKey, searchActive, calendarActive,
               highlightQuery, highlightScope, highlightMatchCase],
@@ -9500,6 +9515,7 @@
         const view = document.getElementById(`note-view-${id}`);
         const card = document.getElementById(`note-${id}`);
         if (!note || !view || !card || pendingNoteActions.has(id)) return false;
+        if (note.privacy_locked) { GnotesPrivacy.open('unlock',id); return false; }
         if (note.locked) { showNoteActionToast('This note is locked. Use the padlock to unlock it.'); return false; }
         if (!noteSaveStates.has(id) || (!pendingNoteEdits.has(id) && editingNoteId !== id && !noteSaveStates.get(id).conflict)) {
           noteSaveStates.set(id, { revision: note.revision, conflict: false, saved: { title: note.title, content: note.content } });
@@ -9559,7 +9575,7 @@
       function restoreRememberedEditingNote() {
         if (editingNoteId !== null) return;
         const id = rememberedEditingNoteID();
-        if (id) openNoteEditor(id, false);
+        if (id && !loadedNotes.get(id)?.privacy_locked) openNoteEditor(id, false);
       }
 
       function setNoteActionsOpen(card, isOpen) {
@@ -9582,7 +9598,7 @@
 
       function toggleNoteActions(id) {
         const card = document.getElementById(`note-${id}`);
-        if (!card) return;
+        if (!card || !card.querySelector('.note-actions')) return;
         const shouldOpen = !card.querySelector(".note-actions").classList.contains("is-open");
         document.querySelectorAll(".note-card.actions-expanded").forEach((openCard) => setNoteActionsOpen(openCard, false));
         if (shouldOpen) setNoteActionsOpen(card, true);
@@ -11727,6 +11743,7 @@
     </script>
     <script src="/mfa.js"></script>
     <script src="/password.js"></script>
+    <script src="/privacy.js"></script>
     <script src="/dictionary.js"></script>
     <script src="/shortcuts.js"></script>
     <script src="/offline-store.js"></script>

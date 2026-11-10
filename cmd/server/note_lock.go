@@ -26,7 +26,7 @@ func lockNoteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Supply a locked boolean", http.StatusBadRequest)
 		return
 	}
-	result, err := db.DB.Exec("UPDATE notes SET locked=? WHERE id=? AND user_id=? AND deleted_at IS NULL", *input.Locked, id, userIDFromRequest(r))
+	result, err := db.DB.Exec("UPDATE notes SET locked=? WHERE id=? AND user_id=? AND deleted_at IS NULL AND privacy_locked=0", *input.Locked, id, userIDFromRequest(r))
 	if err != nil {
 		http.Error(w, "Could not change note lock", 500)
 		return
@@ -47,14 +47,14 @@ func lockNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 // Mutation queries include locked=0 so concurrent locks cannot be bypassed.
 func noteEditRejected(w http.ResponseWriter, r *http.Request, id int) {
-	var locked bool
-	err := db.DB.QueryRow("SELECT locked FROM notes WHERE id=? AND user_id=? AND deleted_at IS NULL", id, userIDFromRequest(r)).Scan(&locked)
+	var locked, private bool
+	err := db.DB.QueryRow("SELECT locked,privacy_locked FROM notes WHERE id=? AND user_id=? AND deleted_at IS NULL", id, userIDFromRequest(r)).Scan(&locked, &private)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		http.Error(w, "Note not found", 404)
 	case err != nil:
 		http.Error(w, "Could not check note lock", 500)
-	case locked:
+	case locked || private:
 		http.Error(w, "Note is locked. Unlock it before editing.", http.StatusLocked)
 	default:
 		http.Error(w, "Note not found", 404)
