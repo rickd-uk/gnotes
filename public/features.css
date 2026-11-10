@@ -10,7 +10,6 @@
 .feature-theme-control select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); padding: 6px; border-radius: 6px; }
 body[data-feature-appearance="off"] #font-settings > summary,
 body[data-feature-appearance="off"] .note-size-control:has(#note-max-height),
-body[data-feature-appearance="off"][data-feature-note_controls="off"] .date-section-toggle svg,
 body[data-feature-note_controls="off"][data-feature-organization="off"] .note-actions-toggle,
 body[data-feature-note_controls="off"] .note-action-divider,
 body[data-feature-organization="off"] #account-notes-section > .account-menu-label { display: none!important; }

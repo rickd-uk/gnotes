@@ -1133,7 +1133,6 @@
         .favorites-filters { flex-basis: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
       }
       #app-shell.favorites-mode #note-form, #app-shell.favorites-mode #active-notes-bulk-actions, #app-shell.favorites-mode #hidden-notes-control, #app-shell.favorites-mode .active-section-remove, #app-shell.favorites-mode #account-maintenance-section { display: none; }
-      .note-card.is-archived { cursor: default; }
       .note-action[hidden] { display: none; }
       .archived-note-label { font-size: 0.7rem; color: var(--muted); }
 
@@ -1193,7 +1192,6 @@
       #app-shell.archive-mode #hidden-notes-control,
       #app-shell.archive-mode #active-notes-bulk-actions,
       #app-shell.archive-mode #archive-open { display: none; }
-      #app-shell.archive-mode #notes-list .note-card { cursor: default; }
       #app-shell.archive-mode #notes-list .note-card:not([class*="note-color-"]) {
         background: rgba(77, 128, 104, 0.045);
       }
@@ -1949,6 +1947,8 @@
           opacity 280ms ease,
           transform 280ms ease;
       }
+
+      .note-card + .note-card { margin-top: 12px; }
 
       .note-card:not(.is-editing) { cursor: text; }
 
@@ -7395,7 +7395,7 @@
         const displayTitle = getDisplayTitle(n);
         const noteColor = noteColorKeys.has(n.background_color) ? n.background_color : "";
         const canRoll = Boolean(n.content.trim());
-        const isRolledUp = GnotesFeatures.enabled("appearance") && canRoll && rolledNoteIds.has(n.id);
+        const isRolledUp = GnotesFeatures.foldingEnabled() && canRoll && rolledNoteIds.has(n.id);
 
         return `
         <article class="note-card ${n.locked ? "is-locked" : ""} ${(n.tags || []).length ? "has-tags" : ""} ${isArchived ? "is-archived" : ""} ${isNewest ? "newest-note" : ""} ${!archiveMode && n.pinned ? "pinned-note" : ""} ${noteColor ? `note-color-${noteColor}` : ""} ${canRoll ? "has-roll-control" : ""} ${isRolledUp ? "is-rolled-up" : ""}" id="note-${n.id}">
@@ -7535,13 +7535,13 @@
           const sectionKey = pinned ? 'pinned' : `${archiveMode ? 'archive-date' : 'date'}:${dateKey}`;
           if (!group || group.key !== sectionKey) {
             const dateSection = pinned ? 'Pinned' : formatDateSection(noteDate, now, dateContext);
-            const sectionCollapsed = GnotesFeatures.enabled("appearance") && !searchActive && collapsedDateSections.has(sectionKey);
+            const sectionCollapsed = GnotesFeatures.foldingEnabled() && !searchActive && collapsedDateSections.has(sectionKey);
             const dateSectionKey = sectionKey;
             group = { key: sectionKey, pinned: Boolean(pinned), collapsed: sectionCollapsed, cards: [] };
             groups.push(group);
             group.headingHTML = `
                   <h3 class="date-section-heading archive-date-heading" id="date-section-${groups.length - 1}">
-                    <button class="date-section-toggle" type="button" ${GnotesFeatures.enabled("appearance") ? "" : "disabled"} data-section-key="${dateSectionKey}" aria-expanded="${String(!sectionCollapsed)}" onclick="toggleDateSection(this)">
+                    <button class="date-section-toggle" type="button" ${GnotesFeatures.foldingEnabled() ? "" : "disabled"} data-section-key="${dateSectionKey}" aria-expanded="${String(!sectionCollapsed)}" onclick="toggleDateSection(this)">
                       <span>${escapeHTML(dateSection)}</span>
                       <svg class="date-section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                     </button>
@@ -7553,7 +7553,7 @@
           group.cards.push({ id: n.id,
             state: [currentUser?.username, n.title, n.content, n.html_content, n.created_at, n.archived_at,
               n.pinned, n.favorited, n.locked, n.background_color, (n.tags || []).join('\n'), isNewest,
-              rolledNoteIds.has(n.id), GnotesFeatures.enabled("appearance"), archiveMode,
+              rolledNoteIds.has(n.id), GnotesFeatures.foldingEnabled(), archiveMode,
               dateContext.timeZone, dateContext.todayKey, searchActive, calendarActive,
               highlightQuery, highlightScope, highlightMatchCase],
             html: () => noteCardHTML(n, isNewest, now, dateContext),
@@ -9495,15 +9495,11 @@
           </div>`;
       }
 
-      function archivedNoteIsReadOnly(note) {
-        return Boolean(note?.archived_at) && !searchActive;
-      }
-
       function openNoteEditor(id, selectTitle = true, focusBody = false, textOffset = null) {
         const note = loadedNotes.get(id);
         const view = document.getElementById(`note-view-${id}`);
         const card = document.getElementById(`note-${id}`);
-        if (!note || archivedNoteIsReadOnly(note) || !view || !card || pendingNoteActions.has(id)) return false;
+        if (!note || !view || !card || pendingNoteActions.has(id)) return false;
         if (note.locked) { showNoteActionToast('This note is locked. Use the padlock to unlock it.'); return false; }
         if (!noteSaveStates.has(id) || (!pendingNoteEdits.has(id) && editingNoteId !== id && !noteSaveStates.get(id).conflict)) {
           noteSaveStates.set(id, { revision: note.revision, conflict: false, saved: { title: note.title, content: note.content } });
@@ -9779,7 +9775,7 @@
         cards.forEach((card) => {
           const note = loadedNotes.get(Number(card.id.slice(5)));
           const checkboxes = [...card.querySelectorAll(".note-view .note-content input[type='checkbox']")];
-          if (!note || note.locked || archivedNoteIsReadOnly(note) || (archiveMode && !searchActive)) {
+          if (!note || note.locked) {
             checkboxes.forEach((checkbox) => { checkbox.disabled = true; });
             return;
           }
@@ -9805,7 +9801,7 @@
           button.title = 'Edit code block and language';
           button.setAttribute('aria-label', `Edit ${button.textContent} code block`);
           const note = loadedNotes.get(Number(pre.closest(".note-card").id.slice(5)));
-          button.disabled = (archiveMode && !searchActive) || archivedNoteIsReadOnly(note) || Boolean(note?.locked);
+          button.disabled = Boolean(note?.locked);
           button.addEventListener('click', async () => {
             const body = wrapper.closest('.note-content');
             const blockIndex = [...body.children].findIndex((block) => block.contains(wrapper));
@@ -9834,7 +9830,7 @@
         const note = loadedNotes.get(id);
         const { segments, tasks } = taskLinesInMarkdown(note?.content || "");
         const task = tasks[Number(checkbox.dataset.taskIndex)];
-        if (!note || note.locked || !task || archivedNoteIsReadOnly(note) || (archiveMode && !searchActive) || task.checked === checkbox.checked) {
+        if (!note || note.locked || !task || task.checked === checkbox.checked) {
           checkbox.checked = Boolean(task?.checked);
           return;
         }
@@ -9854,7 +9850,7 @@
           if (currentUser) showNoteActionDialog("Could not update checklist", "The checkbox could not be saved. Please try again.");
         } finally {
           if (note.locked && editingNoteId === null) renderLoadedNotes();
-          else if (card.isConnected && !archivedNoteIsReadOnly(note) && (!archiveMode || searchActive)) card.querySelectorAll(".note-view .note-content input[data-task-index]").forEach((input) => { input.disabled = false; });
+          else if (card.isConnected && !note.locked) card.querySelectorAll(".note-view .note-content input[data-task-index]").forEach((input) => { input.disabled = false; });
         }
       });
 
@@ -9891,16 +9887,16 @@
 
       notesList.addEventListener("click", (event) => {
         const target = event.target;
-        if (!(target instanceof Element) || suppressNoteClick || (archiveMode && !searchActive)) return;
+        if (!(target instanceof Element) || suppressNoteClick) return;
         const card = target.closest(".note-card");
-        if (card && !card.classList.contains("is-editing") && (!card.classList.contains("is-archived") || searchActive) &&
+        if (card && !card.classList.contains("is-editing") &&
             event.shiftKey && target.closest(".note-content a[href]")) {
           event.preventDefault();
           const body = target.closest(".note-content");
           editNote(Number(card.id.slice(5)), true, textOffsetAtPoint(body, event.clientX, event.clientY));
           return;
         }
-        if (!card || card.classList.contains("is-editing") || (card.classList.contains("is-archived") && !searchActive) ||
+        if (!card || card.classList.contains("is-editing") ||
             target.closest("a, button, input, textarea, select, label, summary, [contenteditable], .note-actions")) return;
         if (window.getSelection()?.toString().trim()) return;
         const body = target.closest(".note-content");

@@ -43,7 +43,7 @@ func TestIncrementalNoteRenderingBrowser(t *testing.T) {
 	browser.script(`searchActive=true;highlightQuery='Tokyo';highlightScope='content';highlightMatchCase=false;renderLoadedNotes(1);window.highlightedCard=document.getElementById('note-10002');window.highlightCount=highlightedCard.querySelectorAll('mark.search-highlight').length;if(!highlightCount)throw new Error('Search highlighting missing');renderLoadedNotes(1);if(document.getElementById('note-10002')!==highlightedCard||highlightedCard.querySelectorAll('mark.search-highlight').length!==highlightCount||highlightedCard.querySelector('mark mark'))throw new Error('Repeated render nested highlights');highlightQuery='ordinary';renderLoadedNotes(1);if([...document.querySelectorAll('mark.search-highlight')].some(mark=>mark.textContent!=='ordinary'))throw new Error('Search retained old highlights');searchActive=false;highlightQuery='';renderLoadedNotes();if(document.querySelector('mark.search-highlight'))throw new Error('Search marks survived clearing');`)
 	// Controls created after preference changes must reflect the latest settings.
 	// Repeated opening/closing must release controls, reset preview/fallback state,
-	// and leave locked, archived and pending-action notes without editors.
+	// and leave locked and pending-action notes without editors.
 	for _, width := range []int{320, 1024} {
 		browser.call("POST", "/goog/cdp/execute", map[string]any{"cmd": "Emulation.setDeviceMetricsOverride", "params": map[string]any{"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": false}})
 		browser.script(`
@@ -54,7 +54,7 @@ func TestIncrementalNoteRenderingBrowser(t *testing.T) {
           note.locked=true;
           if(openNoteEditor(note.id)!==false)throw new Error('Locked note opened');
           note.locked=false;note.archived_at=note.created_at;
-          if(openNoteEditor(note.id)!==false)throw new Error('Archived note opened');
+          if(!openNoteEditor(note.id))throw new Error('Archived note did not open');close();closed();
           delete note.archived_at;pendingNoteActions.add(note.id);
           if(openNoteEditor(note.id)!==false)throw new Error('Pending-action note opened');
           pendingNoteActions.delete(note.id);

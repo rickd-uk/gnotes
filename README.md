@@ -30,9 +30,10 @@ Existing-note editors show the same quick note buttons and More menu at the bott
 
 Note text and drafts use server revisions to protect saves across windows and devices. If another window saves first, your text stays in the editor; **Save my text as a new note** keeps it separately without replacing the other version. A conflicted draft offers the same action, then restores the server's current draft after your copy is saved. Leaving with unsaved text requests a browser warning; save or copy the text before leaving. Page-exit writes use revision checks too, but are best effort and do not replace an acknowledged save.
 
-Archived notes in search results open for editing when clicked, while keeping
-their archive date and archived status. Read-only locks and save-conflict checks
-still apply. Outside search, archived notes retain the existing reading view.
+Archived notes open for editing in Archive, Favorites and search results while
+keeping their archive date and archived status. Read-only locks and save-conflict
+checks still apply. Organization enables note and date-section folding even
+when Appearance is off. Notes from the same day have a visible gap between cards.
 
 Closing an unchanged note does not send another update. If a changed note cannot save, the editor stays closed and the note list retains your text with a **Not saved yet** notice and **Retry**. Reconnecting retries retained edits; reopening lets you continue editing them. These unconfirmed edits remain in the current tab's memory, not durable browser storage. Keep the tab open until saving succeeds, or copy your text before reloading or leaving. A conflicting server version still requires explicit recovery.
 

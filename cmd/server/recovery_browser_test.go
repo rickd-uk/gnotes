@@ -260,9 +260,10 @@ func recoveryBrowserToken(t *testing.T, messages chan capturedRecoveryMail, acti
 }
 
 type recoveryBrowser struct {
-	t       *testing.T
-	session string
-	client  *http.Client
+	t        *testing.T
+	session  string
+	client   *http.Client
+	endpoint string
 }
 
 func newRecoveryBrowser(t *testing.T) *recoveryBrowser {
@@ -280,6 +281,9 @@ func newRecoveryBrowser(t *testing.T) *recoveryBrowser {
 func (b *recoveryBrowser) call(method, path string, body any) any {
 	b.t.Helper()
 	endpoint := "http://127.0.0.1:19515/session"
+	if b.endpoint != "" {
+		endpoint = b.endpoint + "/session"
+	}
 	if b.session != "" {
 		endpoint += "/" + b.session
 	}
@@ -310,6 +314,12 @@ func (b *recoveryBrowser) call(method, path string, body any) any {
 }
 
 func (b *recoveryBrowser) script(source string) any {
+	if b.endpoint != "" {
+		// GeckoDriver scripts use a sandbox. Run an inline test script in the
+		// page's realm to access lexical app state without weakening its CSP.
+		encoded, _ := json.Marshal("try{document.documentElement.setAttribute('data-browser-result',JSON.stringify({value:(function(){" + source + "}).call(window)}))}catch(e){document.documentElement.setAttribute('data-browser-result',JSON.stringify({error:String(e)}))}")
+		source = "const node=document.createElement('script');node.textContent=" + string(encoded) + ";document.head.append(node);node.remove();const result=JSON.parse(document.documentElement.getAttribute('data-browser-result'));document.documentElement.removeAttribute('data-browser-result');if(result.error)throw new Error(result.error);return result.value;"
+	}
 	return b.call("POST", "/execute/sync", map[string]any{"script": source, "args": []any{}})
 }
 func (b *recoveryBrowser) navigate(target string) {

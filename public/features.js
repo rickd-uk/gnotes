@@ -1,7 +1,7 @@
 /* Account-owned feature choices. Browser UI state never overwrites these. */
 window.GnotesFeatures = (() => {
   const groups = {
-    organization: ['Organization', 'Tags, Favorites, pinning and Archive'],
+    organization: ['Organization', 'Tags, Favorites, pinning, Archive and folding'],
     writing_tools: ['Writing tools', 'Dictionary, spelling and custom shortcuts'],
     note_controls: ['Note controls', 'Read-only, hiding, colors, quick actions and bulk actions'],
     appearance: ['Appearance', 'Fonts, density, folding and display controls'],
@@ -12,18 +12,21 @@ window.GnotesFeatures = (() => {
     organization: '#favorites-quick-open,#archived-quick-open,#favorites-main-toggle,#unpin-all-notes,[data-note-action="favorite"],[data-note-action="archive"],[data-note-action="pin"],[aria-label="Edit note tags"],.date-section-favorite,#search-tag,.note-tags',
     writing_tools: '.dictionary-ui,#shortcuts-dialog,[data-rich-dictionary],#dictionary-open,#spelling-open,#shortcuts-open,#note-selection-actions,#note-context-dictionary,#note-context-ignore',
     note_controls: '[aria-label="Note actions"].controls-group,.customize-note-buttons,[data-note-action="lock"],[data-note-action="hide"],[data-note-action="color"],[data-note-action="copy"],#hidden-notes-control,.active-section-remove,.active-notes-bulk-actions,#account-maintenance-section,#controls-toggle',
-    appearance: '#density-toggle,#date-sections-toggle,#font-settings > summary,.note-roll-toggle,.new-note-collapse,.date-section-chevron,#new-note-area-toggle,#link-style-toggle,.time-zone-control,.menu-opacity-control,#font-choices,.font-control-label,.note-text-preview,#note-max-height',
+    appearance: '#density-toggle,#font-settings > summary,.new-note-collapse,#new-note-area-toggle,#link-style-toggle,.time-zone-control,.menu-opacity-control,#font-choices,.font-control-label,.note-text-preview,#note-max-height',
     advanced_editing: '#account-advanced,#markdown-help,.vim-toggle',
     offline_reading: '.offline-reading-link',
   };
+  const foldingSelectors = '#date-sections-toggle,.date-section-chevron,.note-roll-toggle';
   const style = document.createElement('style');
   style.textContent = Object.entries(selectors).map(([key, list]) => list.split(',').map(s => `body[data-feature-${key}="off"] ${s}`).join(',') + '{display:none!important}').join('\n');
+  style.textContent += '\n' + foldingSelectors.split(',').map(s => `body[data-feature-appearance="off"][data-feature-organization="off"] ${s}`).join(',') + '{display:none!important}';
   document.head.append(style);
   let prefs = Object.fromEntries(Object.keys(groups).map(key => [key, true]));
   let busy = false;
   let refreshing = false;
   let revision = 0;
   const enabled = key => prefs[key] !== false;
+  const foldingEnabled = () => enabled('appearance') || enabled('organization');
   const dialog = document.createElement('dialog');
   dialog.id = 'features-dialog';
   dialog.className = 'note-action-dialog features-dialog';
@@ -114,6 +117,7 @@ window.GnotesFeatures = (() => {
   window.addEventListener('focus', refresh);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   function elementAllowed(element) {
+    if (!foldingEnabled() && element.closest(foldingSelectors)) return false;
     return Object.entries(selectors).every(([key, list]) => enabled(key) || !element.closest(list));
   }
   function actionAllowed(id) {
@@ -124,10 +128,11 @@ window.GnotesFeatures = (() => {
     if (/^(note:(favorite|archive|pin|tags)|control:(favorites|archived|search-tag|unpin))/.test(id)) return enabled('organization');
     if (id === 'note:tools') return enabled('note_controls') || enabled('organization');
     if (/^(note:(lock|hide|color|copy)|color:|row:unhide|control:(active-notes|delete-all|show-all-hidden))/.test(id)) return enabled('note_controls');
-    if (/^(note:roll|control:(density|date-sections))/.test(id)) return enabled('appearance');
+    if (/^(note:roll|control:date-sections)/.test(id)) return foldingEnabled();
+    if (id === 'control:density-toggle') return enabled('appearance');
     if (/^(vim-mode|language:)/.test(id)) return enabled('advanced_editing');
     if (/^(shortcuts|text:(dictionary|ignore))/.test(id)) return enabled('writing_tools');
     return true;
   }
-  return {apply, enabled, open, save, refresh, reset, actionAllowed, elementAllowed};
+  return {apply, enabled, foldingEnabled, open, save, refresh, reset, actionAllowed, elementAllowed};
 })();
